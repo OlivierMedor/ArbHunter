@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+    "bin/arb_daemon",
+    "crates/arb_types",
+    "crates/arb_config",
+    "crates/arb_metrics",
+    "crates/arb_providers",
+    "crates/arb_ingest",
+    "crates/arb_state",
+    "crates/arb_filter",
+    "crates/arb_route",
+    "crates/arb_sim",
+    "crates/arb_execute",
+    "crates/arb_storage"
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+# Dependencies will be added in Phase 1 setup/implementation as needed.
