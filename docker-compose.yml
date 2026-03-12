@@ -1,7 +1,6 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # Placeholder for PostgreSQL analytics database
   postgres:
     image: postgres:15-alpine
     environment:
