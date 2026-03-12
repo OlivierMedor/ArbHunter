@@ -21,4 +21,4 @@ edition = "2021"
 publish = false
 
 [workspace.dependencies]
-# Dependencies will be added in Phase 1 setup/implementation as needed.
+# Dependencies will be added in Phase 2+
