@@ -12,7 +12,7 @@ The "hot path" encompasses all logic from network ingestion (`arb_ingest`) throu
 
 ## 2. Dependencies & External Services
 - **RPC Logic**: Primary execution on QuickNode; secondary failover on Alchemy. Managed internally by `arb_providers` without stalling the execution sequence.
-- **Tenderly**: Specifically relegated to a later-phase debugging and simulation tool. It must not be an obligatory day-one hot path dependency.
+- **Tenderly / Simulation**: Tenderly is specifically relegated to a later-phase debugging and simulation tool. Components like `arb_sim` start as off-path validation or shadow-mode tools. They must not be an obligatory day-one hot path dependency.
 - **Database**: PostgreSQL only. Handled asynchronously.
 
 ## 3. General Development Constraints

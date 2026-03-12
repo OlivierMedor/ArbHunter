@@ -17,7 +17,7 @@ The execution sequence follows a strict pipeline layout to minimize latency:
 2. **`arb_state`**: Applies ingested events to an in-memory representation of network state (reserves, pools).
 3. **`arb_filter`**: Discards non-actionable state changes rapidly.
 4. **`arb_route`**: Calculates optimal cyclic paths and sizing for arbitrage.
-5. **`arb_sim`**: (Later phase) Evaluates execution success locally or against Tenderly before committing gas.
+5. **`arb_sim`**: Evaluates execution success locally or against Tenderly before committing gas. This starts as an off-path validation or shadow-mode component, and is not a mandatory blocking step in the earliest hot path.
 6. **`arb_execute`**: Signs and broadcasts the final transaction payload to RPC nodes.
 
 ## Supporting Crates
