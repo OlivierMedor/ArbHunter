@@ -3,15 +3,16 @@
 This document details the progressive implementation phases for ArbHunter and defines the explicit "Definition of Done" for each phase.
 
 ## Phase 0: Planning & Setup
-**Focus**: Project scaffolding, documentation, and foundational architecture.
+**Focus**: Documentation and foundational architecture planning.
 **Definition of Done**:
 - Phase 0 documentation (`ROADMAP.md`, `ARCHITECTURE.md`, `OPERATING_RULES.md`, `PHASES.md`) reviewed and committed.
 
-*(Note: Workspace and folder scaffolding belong to the next setup phase. Phase 0 is strictly a docs-only completion phase.)*
-
 ## Phase 1: Core Primitives & Infrastructure
-**Focus**: Types, configuration, telemetry, async storage, and basic node connectivity.
+**Focus**: Project scaffolding, types, configuration, telemetry, async storage, and basic node connectivity.
 **Definition of Done**:
+- Rust workspace and pipeline crates initialized with empty lib stubs.
+- Foundry project initialized in `contracts/`.
+- Foundational directories (`infra/`, `sql/`, `fixtures/`) created.
 - Primary types defined in `arb_types`.
 - Environment loads properly via `arb_config`.
 - Postgres schema applied via `sql/` migrations and async inserts operational in `arb_storage`.
