@@ -481,3 +481,186 @@ When finished, provide:
 - docker compose config
 
 Do not go beyond Phase 2.5.
+
+
+---- update 2.5 ---
+
+Implement one final Phase 2.5 merge-readiness fix pass on the EXISTING branch `phase-2_5-observability-dashboard`.
+
+Do NOT create a new branch.
+Do NOT add strategy, routing, state-engine, simulation, or execution logic.
+Do NOT expand scope beyond the 5 concrete fixes below.
+
+Goal:
+Make Phase 2.5 actually merge-ready by fixing the remaining observability mismatches.
+
+==================================================
+FIX 1 — RESOLVE PORT CONFLICT FOR REAL
+==================================================
+
+Current problem:
+- docker-compose still exposes Prometheus on host port 9090
+- arb_daemon metrics endpoint is also intended to use METRICS_PORT=9090
+- walkthrough says Prometheus should be on 9091, but code/config does not match
+
+Required fix:
+- Keep arb_daemon metrics endpoint on METRICS_PORT (default 9090)
+- Change Prometheus host exposure to 9091:9090
+- Keep Grafana on 3000
+- Update quick-start / walkthrough text accordingly
+
+Acceptance criteria:
+- daemon metrics endpoint = http://localhost:9090/metrics
+- Prometheus UI = http://localhost:9091
+- Grafana UI = http://localhost:3000
+
+==================================================
+FIX 2 — ADD EXPLICIT GRAFANA DATASOURCE UID
+==================================================
+
+Current problem:
+- Grafana datasource provisioning has no explicit uid
+- observability.json mixes datasource uid values "prometheus" and "Prometheus"
+
+Required fix:
+- In `infra/grafana/provisioning/datasources/prometheus.yml`, add explicit:
+  uid: arbhunter-prometheus
+- In `infra/grafana/provisioning/dashboards/files/observability.json`, make every panel use:
+  datasource.uid = "arbhunter-prometheus"
+
+Acceptance criteria:
+- one consistent datasource uid everywhere
+- no mixed-case datasource uid values remain
+
+==================================================
+FIX 3 — IMPLEMENT OR REMOVE CLAIMED METRICS HONESTLY
+==================================================
+
+Current problem:
+The checklist claims metrics exist that do not currently appear implemented.
+
+Required fix:
+Implement these metrics in `crates/arb_metrics` and wire them where appropriate:
+- provider_frames_forwarded_total
+- malformed_payloads_total
+- daemon_startups_total
+- metrics_requests_total
+- daemon_uptime_seconds
+
+Also implement a REAL provider state gauge:
+Preferred:
+- arb_active_provider{provider="quicknode"} = 1/0
+- arb_active_provider{provider="alchemy"} = 1/0
+and/or
+- arb_provider_connected{provider="quicknode"} = 1/0
+- arb_provider_connected{provider="alchemy"} = 1/0
+
+Rules:
+- If a metric cannot be made real in this phase, REMOVE it from the checklist/walkthrough claims instead of pretending it exists.
+- Do not fake latency. If latency is still TODO, say so honestly.
+
+==================================================
+FIX 4 — INCREMENT METRICS IN THE ACTUAL LIVE PATH
+==================================================
+
+Required fix:
+Ensure the actual provider -> ingest path increments the relevant metrics:
+
+When a provider frame is forwarded:
+- increment provider_frames_forwarded_total
+
+When arb_ingest successfully parses a message:
+- increment events_ingested_total
+
+When a Flashblock-like message is parsed:
+- increment flashblocks_seen_total
+
+When a pending-log-like message is parsed:
+- increment pending_logs_seen_total
+
+When parsing fails / malformed payload:
+- increment malformed_payloads_total
+
+When daemon starts:
+- increment daemon_startups_total
+
+When /metrics is requested:
+- increment metrics_requests_total
+
+daemon_uptime_seconds:
+- expose as a real uptime gauge/counter based on process start time
+
+==================================================
+FIX 5 — REPLACE THE MISLEADING STATUS PANEL
+==================================================
+
+Current problem:
+The dashboard still derives provider status from:
+- arb_provider_connected_total - arb_provider_disconnected_total
+
+That is not a stable live status signal.
+
+Required fix:
+Replace that panel with one based on real gauges:
+- Active Provider
+- QuickNode Connected
+- Alchemy Connected
+
+Keep or add these panels:
+- Active Provider (stat)
+- QuickNode Connected (stat)
+- Alchemy Connected (stat)
+- Reconnect Attempts (time series)
+- Failover Switches (time series or stat)
+- Flashblock Events / min
+- Pending Log Events / min
+- Malformed Payloads
+- Provider Frames Forwarded
+- Daemon Uptime
+
+==================================================
+FILES LIKELY TO CHANGE
+==================================================
+
+Only modify what is necessary, likely:
+- docker-compose.yml
+- infra/grafana/provisioning/datasources/prometheus.yml
+- infra/grafana/provisioning/dashboards/files/observability.json
+- crates/arb_metrics/src/lib.rs
+- crates/arb_providers/src/lib.rs
+- crates/arb_ingest/src/lib.rs
+- bin/arb_daemon/src/main.rs
+- phase-2.5 docs/walkthrough if needed
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+After the fix pass, provide:
+
+1. Checklist confirming:
+- Prometheus moved to 9091
+- datasource uid standardized to arbhunter-prometheus
+- missing metrics implemented or honestly removed from claims
+- provider_frames_forwarded_total is wired in the real path
+- malformed_payloads_total is wired in the real path
+- daemon_startups_total is real
+- metrics_requests_total is real
+- daemon_uptime_seconds is real
+- status panels now use real gauges
+- no strategy/sim/execution logic was added
+
+2. Changed-files summary
+
+3. Walkthrough artifact describing:
+- what ports are used now
+- how metrics flow from daemon -> Prometheus -> Grafana
+- which metrics are real now
+- what remains deferred to Phase 3
+
+4. Validation results for:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+
+Do not go beyond Phase 2.5.
