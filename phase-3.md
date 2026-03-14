@@ -195,3 +195,94 @@ Required outputs:
    - cargo check --workspace
    - cargo test --workspace
    - git status --short
+
+   --- update 3 ---
+
+   Do a final Phase 3 merge-readiness cleanup pass on the EXISTING branch `phase-3-state-engine`.
+
+Do NOT create a new branch.
+Do NOT add routing, filtering, simulation, or execution logic.
+Do NOT add new features.
+Do NOT expand scope beyond cleanup + documentation alignment.
+
+Goal:
+Make Phase 3 merge-ready by:
+1. removing tracked runtime log files,
+2. fixing project-phase documentation so it matches the actual implementation order.
+
+==================================================
+PART 1 — REMOVE TRACKED RUNTIME LOG FILES
+==================================================
+
+If present and tracked, remove these from git:
+- daemon_stdout.log
+- daemon_stderr.log
+
+Update `.gitignore` if needed so they do not get tracked again.
+Keep the rest of the repo intact.
+
+Acceptance criteria:
+- `git ls-files daemon_stdout.log` returns nothing
+- `git ls-files daemon_stderr.log` returns nothing
+
+==================================================
+PART 2 — FIX docs/PHASES.md TO MATCH REAL PROJECT PHASES
+==================================================
+
+Current problem:
+`docs/PHASES.md` does not match the actual implemented sequence.
+
+It must be revised so the phase ordering matches the project as actually built so far:
+
+- Phase 0 = Planning / docs
+- Phase 1 = Scaffold / repo foundations
+- Phase 2 = Providers + ingestion foundation
+- Phase 2.5 = Observability dashboard
+- Phase 3 = State engine
+- Later phases can continue from there
+
+For Phase 3 specifically, the document should clearly reflect:
+- in-memory canonical state layer
+- freshness tracking
+- stale update rejection
+- ingest -> state bridge
+- no routing/filtering/simulation/execution yet
+
+Do not oversell.
+Be accurate.
+
+==================================================
+PART 3 — VALIDATION
+==================================================
+
+After making the cleanup changes, run and report:
+- cargo check --workspace
+- cargo test --workspace
+- git status --short
+- git ls-files daemon_stdout.log
+- git ls-files daemon_stderr.log
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+
+1. Changed-files summary
+2. Checklist confirming:
+- daemon_stdout.log no longer tracked
+- daemon_stderr.log no longer tracked
+- docs/PHASES.md now matches the real project sequence
+- no routing/filtering/sim/execution logic was added
+
+3. Validation outputs for:
+- cargo check --workspace
+- cargo test --workspace
+- git status --short
+- git ls-files daemon_stdout.log
+- git ls-files daemon_stderr.log
+
+4. A short walkthrough summarizing:
+- what was cleaned up
+- what phase numbering/doc wording was corrected
+- what remains deferred to the next phase
