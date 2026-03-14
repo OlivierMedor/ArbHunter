@@ -1,0 +1,2 @@
+{"type":"pending_log","data":{"address":"0xMockPoolA","topics":["0xSync"],"data":"0x0001","transaction_hash":"0xTx1"}}
+{"type":"pending_log","data":{"address":"0xMockPoolB","topics":["0xSwap"],"data":"0x0002","transaction_hash":"0xTx2"}}

@@ -1,0 +1,188 @@
+﻿cargo :     Checking 
+arb_providers v0.1.0 (C:\U
+sers\olivi\Documents\ArbHu
+nger\crates\arb_providers)
+At line:1 char:1
++ cargo check --workspace 
+2>&1 | Out-File -Encoding 
+utf8 build_errors2. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo        
+      : NotSpecified: (   
+     Checking ar...\arb   
+ _providers):String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+error[E0277]: the trait 
+bound `url::Url: 
+IntoClientRequest` is not 
+satisfied
+  --> crates\arb_providers
+\src\lib.rs:70:48
+   |
+70 |         let (mut 
+ws_stream, _) = 
+connect_async(parsed_url)
+   |                      
+            ------------- 
+^^^^^^^^^^ the trait 
+`IntoClientRequest` is 
+not implemented for 
+`url::Url`
+   |                      
+            |
+   |                      
+            required by a 
+bound introduced by this 
+call
+   |
+   = help: the following 
+other types implement 
+trait `IntoClientRequest`:
+             &String
+             &Uri
+             &str
+             
+ClientRequestBuilder
+             String
+             Uri
+             
+httparse::Request<'_, '_>
+             tokio_tungste
+nite::tungstenite::http::R
+equest<()>
+note: required by a bound 
+in `connect_async`
+  --> C:\Users\olivi\.carg
+o\registry\src\index.crate
+s.io-1949cf8c6b5b557f\toki
+o-tungstenite-0.28.0\src\c
+onnect.rs:35:8
+   |
+31 | pub async fn 
+connect_async<R>(
+   |              
+------------- required by 
+a bound in this function
+...
+35 |     R: 
+IntoClientRequest + Unpin,
+   |        
+^^^^^^^^^^^^^^^^^ 
+required by this bound in 
+`connect_async`
+
+error[E0277]: the trait 
+bound `url::Url: 
+IntoClientRequest` is not 
+satisfied
+  --> crates\arb_providers
+\src\lib.rs:70:34
+   |
+70 |         let (mut 
+ws_stream, _) = 
+connect_async(parsed_url)
+   |                      
+            
+^^^^^^^^^^^^^^^^^^^^^^^^^ 
+the trait 
+`IntoClientRequest` is 
+not implemented for 
+`url::Url`
+   |
+   = help: the following 
+other types implement 
+trait `IntoClientRequest`:
+             &String
+             &Uri
+             &str
+             
+ClientRequestBuilder
+             String
+             Uri
+             
+httparse::Request<'_, '_>
+             tokio_tungste
+nite::tungstenite::http::R
+equest<()>
+note: required by a bound 
+in `connect_async`
+  --> C:\Users\olivi\.carg
+o\registry\src\index.crate
+s.io-1949cf8c6b5b557f\toki
+o-tungstenite-0.28.0\src\c
+onnect.rs:35:8
+   |
+31 | pub async fn 
+connect_async<R>(
+   |              
+------------- required by 
+a bound in this function
+...
+35 |     R: 
+IntoClientRequest + Unpin,
+   |        
+^^^^^^^^^^^^^^^^^ 
+required by this bound in 
+`connect_async`
+
+error[E0277]: the trait 
+bound `url::Url: 
+IntoClientRequest` is not 
+satisfied
+  --> crates\arb_providers
+\src\lib.rs:71:14
+   |
+71 |             .await
+   |              ^^^^^ 
+the trait 
+`IntoClientRequest` is 
+not implemented for 
+`url::Url`
+   |
+   = help: the following 
+other types implement 
+trait `IntoClientRequest`:
+             &String
+             &Uri
+             &str
+             
+ClientRequestBuilder
+             String
+             Uri
+             
+httparse::Request<'_, '_>
+             tokio_tungste
+nite::tungstenite::http::R
+equest<()>
+note: required by a bound 
+in `connect_async`
+  --> C:\Users\olivi\.carg
+o\registry\src\index.crate
+s.io-1949cf8c6b5b557f\toki
+o-tungstenite-0.28.0\src\c
+onnect.rs:35:8
+   |
+31 | pub async fn 
+connect_async<R>(
+   |              
+------------- required by 
+a bound in this function
+...
+35 |     R: 
+IntoClientRequest + Unpin,
+   |        
+^^^^^^^^^^^^^^^^^ 
+required by this bound in 
+`connect_async`
+
+For more information 
+about this error, try 
+`rustc --explain E0277`.
+error: could not compile 
+`arb_providers` (lib) due 
+to 3 previous errors
