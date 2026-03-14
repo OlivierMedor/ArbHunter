@@ -1,7 +1,5 @@
 {
-  "annotations": {
-    "list": []
-  },
+  "annotations": { "list": [] },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -10,35 +8,84 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": {"type": "prometheus", "uid": "Prometheus"},
-      "fieldConfig": {
-        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 80 } ] } }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "id": 2,
-      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
-      "targets": [ { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(arb_flashblocks_seen_total[1m])", "refId": "A", "legendFormat": "Flashblocks / min" }, { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(arb_pending_logs_seen_total[1m])", "refId": "B", "legendFormat": "Pending Logs / min" } ],
-      "title": "Ingestion Rates (Events / min)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "red", "index": 0, "text": "Disconnected" }, "1": { "color": "green", "index": 1, "text": "Connected" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
-      "id": 3,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "Prometheus" }, "expr": "arb_provider_connected_total - arb_provider_disconnected_total", "refId": "A" }],
-      "title": "Provider Connection Status",
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "dark-red", "index": 0, "text": "None" }, "1": { "color": "green", "index": 1, "text": "QuickNode" }, "2": { "color": "blue", "index": 2, "text": "Alchemy" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "sum(arb_active_provider{provider=\"quicknode\"}) + (sum(arb_active_provider{provider=\"alchemy\"}) * 2)", "refId": "A" } ],
+      "title": "Active Provider",
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "red", "index": 0, "text": "Disconnected" }, "1": { "color": "green", "index": 1, "text": "Connected" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_connected_total{provider=\"quicknode\"} - arb_provider_disconnected_total{provider=\"quicknode\"}", "refId": "A" } ],
+      "title": "QuickNode Status",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "red", "index": 0, "text": "Disconnected" }, "1": { "color": "green", "index": 1, "text": "Connected" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_connected_total{provider=\"alchemy\"} - arb_provider_disconnected_total{provider=\"alchemy\"}", "refId": "A" } ],
+      "title": "Alchemy Status",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "id": 4,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "Prometheus" }, "expr": "arb_provider_reconnect_attempts_total", "refId": "A" }],
-      "title": "Provider Reconnects",
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "rate(arb_flashblocks_seen_total[1m]) * 60", "legendFormat": "Flashblocks / min", "refId": "A" }, { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "rate(arb_pending_logs_seen_total[1m]) * 60", "legendFormat": "Pending Logs / min", "refId": "B" }, { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "rate(arb_malformed_payloads_total[1m]) * 60", "legendFormat": "Malformed / min", "refId": "C" } ],
+      "title": "Ingestion Events / min",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "rate(arb_provider_frames_forwarded_total[1m]) * 60", "legendFormat": "Frames / min", "refId": "A" } ],
+      "title": "Raw WSS Frames Forwarded",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "stepAfter", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 14 },
+      "id": 6,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "increase(arb_provider_reconnect_attempts_total[1m])", "legendFormat": "Reconnect Attempts", "refId": "A" } ],
+      "title": "Provider Reconnect Attempts",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] }, "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 14 },
+      "id": 7,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_daemon_uptime_seconds", "refId": "A" } ],
+      "title": "Daemon Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 8 },
+      "id": 8,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_failover_switches_total", "refId": "A" } ],
+      "title": "Failover Switch Count",
+      "type": "stat"
     }
   ],
   "schemaVersion": 38,
@@ -50,5 +97,5 @@
   "timezone": "",
   "title": "ArbHunter Observability",
   "uid": "arb_obs_dash",
-  "version": 1
+  "version": 2
 }

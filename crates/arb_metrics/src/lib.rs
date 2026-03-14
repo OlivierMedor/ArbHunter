@@ -1,30 +1,46 @@
-use prometheus::{Encoder, IntCounter, IntGauge, Registry, TextEncoder};
+use prometheus::{Encoder, IntCounter, IntGauge, IntCounterVec, IntGaugeVec, Opts, Registry, TextEncoder};
+use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct MetricsRegistry {
     pub registry: Registry,
-    pub provider_connected: IntCounter,
-    pub provider_disconnected: IntCounter,
+    pub provider_connected: IntCounterVec,
+    pub provider_disconnected: IntCounterVec,
     pub provider_reconnect_attempts: IntCounter,
     pub provider_latency_ms: IntGauge,
     pub failover_switches: IntCounter,
     pub events_ingested_total: IntCounter,
     pub flashblocks_seen_total: IntCounter,
     pub pending_logs_seen_total: IntCounter,
+    
+    pub provider_frames_forwarded_total: IntCounter,
+    pub malformed_payloads_total: IntCounter,
+    pub daemon_startups_total: IntCounter,
+    pub metrics_requests_total: IntCounter,
+    pub active_provider: IntGaugeVec,
+    pub daemon_start_time: SystemTime,
+    pub daemon_uptime_seconds: IntGauge,
 }
 
 impl MetricsRegistry {
     pub fn new() -> Self {
         let registry = Registry::new();
 
-        let provider_connected = IntCounter::new("arb_provider_connected_total", "Total provider connections established").unwrap();
-        let provider_disconnected = IntCounter::new("arb_provider_disconnected_total", "Total provider disconnections").unwrap();
+        let provider_connected = IntCounterVec::new(Opts::new("arb_provider_connected_total", "Total provider connections established"), &["provider"]).unwrap();
+        let provider_disconnected = IntCounterVec::new(Opts::new("arb_provider_disconnected_total", "Total provider disconnections"), &["provider"]).unwrap();
         let provider_reconnect_attempts = IntCounter::new("arb_provider_reconnect_attempts_total", "Total provider reconnect attempts").unwrap();
-        let provider_latency_ms = IntGauge::new("arb_provider_latency_ms", "Current provider latency in ms").unwrap();
+        let provider_latency_ms = IntGauge::new("arb_provider_latency_ms", "Current provider latency in ms (stubbed)").unwrap();
         let failover_switches = IntCounter::new("arb_provider_failover_switches_total", "Total failover switches").unwrap();
+        
         let events_ingested_total = IntCounter::new("arb_events_ingested_total", "Total events successfully ingested").unwrap();
         let flashblocks_seen_total = IntCounter::new("arb_flashblocks_seen_total", "Total flashblocks seen").unwrap();
         let pending_logs_seen_total = IntCounter::new("arb_pending_logs_seen_total", "Total pending logs seen").unwrap();
+        let provider_frames_forwarded_total = IntCounter::new("arb_provider_frames_forwarded_total", "Total raw websocket frames forwarded").unwrap();
+        let malformed_payloads_total = IntCounter::new("arb_malformed_payloads_total", "Total malformed payloads discarded").unwrap();
+        let daemon_startups_total = IntCounter::new("arb_daemon_startups_total", "Total daemon startups via process boot").unwrap();
+        let metrics_requests_total = IntCounter::new("arb_metrics_requests_total", "Total scrapes of metrics endpoint").unwrap();
+        let active_provider = IntGaugeVec::new(Opts::new("arb_active_provider", "Currently active provider indicator"), &["provider"]).unwrap();
+        let daemon_uptime_seconds = IntGauge::new("arb_daemon_uptime_seconds", "Seconds elapsed since daemon startup").unwrap();
 
         registry.register(Box::new(provider_connected.clone())).unwrap();
         registry.register(Box::new(provider_disconnected.clone())).unwrap();
@@ -34,6 +50,16 @@ impl MetricsRegistry {
         registry.register(Box::new(events_ingested_total.clone())).unwrap();
         registry.register(Box::new(flashblocks_seen_total.clone())).unwrap();
         registry.register(Box::new(pending_logs_seen_total.clone())).unwrap();
+        registry.register(Box::new(provider_frames_forwarded_total.clone())).unwrap();
+        registry.register(Box::new(malformed_payloads_total.clone())).unwrap();
+        registry.register(Box::new(daemon_startups_total.clone())).unwrap();
+        registry.register(Box::new(metrics_requests_total.clone())).unwrap();
+        registry.register(Box::new(active_provider.clone())).unwrap();
+        registry.register(Box::new(daemon_uptime_seconds.clone())).unwrap();
+
+        daemon_startups_total.inc();
+        active_provider.with_label_values(&["quicknode"]).set(0);
+        active_provider.with_label_values(&["alchemy"]).set(0);
 
         Self {
             registry,
@@ -45,15 +71,22 @@ impl MetricsRegistry {
             events_ingested_total,
             flashblocks_seen_total,
             pending_logs_seen_total,
+            provider_frames_forwarded_total,
+            malformed_payloads_total,
+            daemon_startups_total,
+            metrics_requests_total,
+            active_provider,
+            daemon_start_time: SystemTime::now(),
+            daemon_uptime_seconds,
         }
     }
 
-    pub fn inc_provider_connected(&self) {
-        self.provider_connected.inc();
+    pub fn inc_provider_connected(&self, provider: &str) {
+        self.provider_connected.with_label_values(&[provider]).inc();
     }
 
-    pub fn inc_provider_disconnected(&self) {
-        self.provider_disconnected.inc();
+    pub fn inc_provider_disconnected(&self, provider: &str) {
+        self.provider_disconnected.with_label_values(&[provider]).inc();
     }
 
     pub fn inc_reconnect_attempts(&self) {
@@ -79,8 +112,29 @@ impl MetricsRegistry {
     pub fn inc_pending_logs_seen(&self) {
         self.pending_logs_seen_total.inc();
     }
-    
+
+    pub fn inc_provider_frames_forwarded(&self) {
+        self.provider_frames_forwarded_total.inc();
+    }
+
+    pub fn inc_malformed_payloads(&self) {
+        self.malformed_payloads_total.inc();
+    }
+
+    pub fn set_active_provider(&self, provider: &str) {
+        self.active_provider.with_label_values(&["quicknode"]).set(0);
+        self.active_provider.with_label_values(&["alchemy"]).set(0);
+        if provider == "quicknode" || provider == "alchemy" {
+            self.active_provider.with_label_values(&[provider]).set(1);
+        }
+    }
+
     pub fn gather_metrics(&self) -> String {
+        self.metrics_requests_total.inc();
+        if let Ok(duration) = self.daemon_start_time.elapsed() {
+            self.daemon_uptime_seconds.set(duration.as_secs() as i64);
+        }
+
         let mut buffer = vec![];
         let encoder = TextEncoder::new();
         let metric_families = self.registry.gather();
@@ -88,4 +142,3 @@ impl MetricsRegistry {
         String::from_utf8(buffer).unwrap()
     }
 }
-

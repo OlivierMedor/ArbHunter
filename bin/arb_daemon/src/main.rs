@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // 3. Provider and Ingest Wiring
-    let ingest_pipeline = Arc::new(IngestPipeline::new(1024));
+    let ingest_pipeline = Arc::new(IngestPipeline::new(1024, metrics.clone()));
     let mut event_rx = ingest_pipeline.subscribe();
     info!("Ingest pipeline initialized.");
 

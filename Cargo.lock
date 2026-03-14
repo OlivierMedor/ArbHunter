@@ -41,6 +41,7 @@ version = "0.1.0"
 name = "arb_ingest"
 version = "0.1.0"
 dependencies = [
+ "arb_metrics",
  "arb_types",
  "serde",
  "serde_json",
