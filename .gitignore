@@ -1,0 +1,11 @@
+.env
+.env.local
+target/
+*.txt
+build_errors*.txt
+diff_output.txt
+test_err.txt
+verify_output.txt
+repo_tree.txt
+*.py
+.DS_Store
