@@ -664,3 +664,191 @@ After the fix pass, provide:
 - docker compose config
 
 Do not go beyond Phase 2.5.
+
+
+--- updates 3.5 ---
+
+Implement one FINAL targeted fix pass on the EXISTING branch `phase-2_5-observability-dashboard`.
+
+Do NOT create a new branch.
+Do NOT add any new features.
+Do NOT add strategy logic, routing, state engine, simulation, or execution logic.
+Do NOT expand scope beyond the 4 concrete fixes below.
+
+Goal:
+Make Phase 2.5 actually merge-ready by fixing the exact mismatches between the checklist/walkthrough and the current code/config.
+
+IMPORTANT:
+Do not claim success unless the verification section at the end passes exactly.
+
+==================================================
+FIX 1 — PROMETHEUS PORT CONFLICT
+==================================================
+
+Current problem:
+- arb_daemon metrics endpoint is intended to run on METRICS_PORT=9090
+- docker-compose still exposes Prometheus on host port 9090
+- quick-start says Prometheus should be on 9091
+
+Required fix:
+- Keep arb_daemon metrics endpoint on port 9090
+- Change Prometheus host mapping to:
+  9091:9090
+- Keep Grafana on 3000
+- Update walkthrough / quick-start text to match this exactly
+
+Acceptance criteria:
+- daemon metrics endpoint URL = http://localhost:9090/metrics
+- Prometheus UI URL = http://localhost:9091
+- Grafana UI URL = http://localhost:3000
+
+==================================================
+FIX 2 — GRAFANA DATASOURCE UID CONSISTENCY
+==================================================
+
+Current problem:
+- datasource provisioning does not define an explicit uid
+- observability.json mixes "Prometheus" and "prometheus" datasource uid values
+
+Required fix:
+- In:
+  infra/grafana/provisioning/datasources/prometheus.yml
+  define the datasource with explicit:
+    uid: arbhunter-prometheus
+
+- In:
+  infra/grafana/provisioning/dashboards/files/observability.json
+  every panel must use exactly:
+    datasource.uid = "arbhunter-prometheus"
+
+Rules:
+- No mixed-case uid variants
+- No panel should rely on ambiguous datasource names
+- Standardize every panel to the same explicit uid
+
+==================================================
+FIX 3 — IMPLEMENT THE MISSING METRICS FOR REAL
+==================================================
+
+Current problem:
+The checklist claims metrics exist that do not currently appear implemented or wired.
+
+Required metrics to implement and wire honestly:
+- metrics_requests_total
+- daemon_uptime_seconds
+- provider_frames_forwarded_total
+- malformed_payloads_total
+- arb_active_provider gauge(s)
+- arb_provider_connected gauge(s)
+
+Preferred provider gauge model:
+- arb_active_provider{provider="quicknode"} = 1 or 0
+- arb_active_provider{provider="alchemy"} = 1 or 0
+- arb_provider_connected{provider="quicknode"} = 1 or 0
+- arb_provider_connected{provider="alchemy"} = 1 or 0
+
+Required wiring:
+- metrics_requests_total increments every time /metrics is requested
+- daemon_startups_total increments at daemon startup
+- daemon_uptime_seconds reflects real process uptime
+- provider_frames_forwarded_total increments when a provider frame is forwarded downstream
+- malformed_payloads_total increments when ingest fails to parse malformed payloads
+- active provider gauges update when provider manager changes active provider state
+- connected gauges update when provider sockets connect/disconnect
+
+Rules:
+- If any metric cannot be made real in this phase, remove it from checklist/walkthrough claims instead of faking it
+- Do NOT fake latency
+- If latency is still TODO, keep it explicitly deferred
+
+==================================================
+FIX 4 — REPLACE THE MISLEADING STATUS PANEL
+==================================================
+
+Current problem:
+The dashboard still uses:
+  arb_provider_connected_total - arb_provider_disconnected_total
+as a status proxy.
+
+Required fix:
+Remove that misleading panel/query.
+
+Replace with panels based on real gauges:
+- Active Provider (stat)
+- QuickNode Connected (stat)
+- Alchemy Connected (stat)
+
+Also keep/create these useful panels:
+- Reconnect Attempts
+- Failover Switches
+- Flashblock Events / min
+- Pending Log Events / min
+- Malformed Payloads
+- Provider Frames Forwarded
+- Daemon Uptime
+
+Rules:
+- Use real gauge metrics, not derived pseudo-status math
+- Keep dashboard read-only and operator-focused
+
+==================================================
+FILES LIKELY TO CHANGE
+==================================================
+
+Only modify what is necessary, likely:
+- docker-compose.yml
+- infra/grafana/provisioning/datasources/prometheus.yml
+- infra/grafana/provisioning/dashboards/files/observability.json
+- crates/arb_metrics/src/lib.rs
+- crates/arb_providers/src/lib.rs
+- crates/arb_ingest/src/lib.rs
+- bin/arb_daemon/src/main.rs
+- any observability docs/walkthrough text if needed
+
+Do NOT touch unrelated files.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+After making the fixes, provide ALL of the following:
+
+1. Checklist confirming:
+- Prometheus now maps to 9091:9090
+- datasource uid is exactly arbhunter-prometheus everywhere
+- metrics_requests_total is real
+- daemon_uptime_seconds is real
+- provider_frames_forwarded_total is real
+- malformed_payloads_total is real
+- arb_active_provider gauge is real
+- arb_provider_connected gauge is real
+- misleading provider status panel was removed/replaced
+- no strategy/sim/execution logic was added
+
+2. Changed-files summary
+
+3. Walkthrough artifact describing:
+- exact ports now used
+- how metrics flow from daemon -> Prometheus -> Grafana
+- which metrics are newly real
+- what remains deferred to Phase 3
+
+4. Validation command results for:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+
+5. Exact proof snippets (VERY IMPORTANT):
+Show the relevant snippets or outputs proving:
+- docker-compose.yml contains 9091:9090 for Prometheus
+- prometheus.yml datasource provisioning contains uid: arbhunter-prometheus
+- observability.json references arbhunter-prometheus consistently
+- metrics code contains metrics_requests_total
+- metrics code contains daemon_uptime_seconds
+- metrics code contains provider_frames_forwarded_total
+- metrics code contains malformed_payloads_total
+- metrics code contains arb_active_provider
+- metrics code contains arb_provider_connected
+
+Do not go beyond Phase 2.5.
+Do not claim success unless all proof snippets are included.
