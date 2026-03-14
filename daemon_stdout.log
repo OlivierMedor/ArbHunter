@@ -1,0 +1,7 @@
+[2m2026-03-14T20:10:46.512657Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Starting ArbHunter Daemon (Phase 2 Foundation)...
+[2m2026-03-14T20:10:46.513499Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Configuration loaded for Chain ID: 8453
+[2m2026-03-14T20:10:46.513902Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Failover provider is enabled.
+[2m2026-03-14T20:10:46.514712Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Metrics registry initialized on port: 9090
+[2m2026-03-14T20:10:46.515249Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Ingest pipeline initialized.
+[2m2026-03-14T20:10:46.515597Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Provider manager initialized. Primary: QuickNode.
+[2m2026-03-14T20:10:46.516646Z[0m [32m INFO[0m [2marb_daemon[0m[2m:[0m Serving Prometheus metrics at http://127.0.0.1:9090/metrics
