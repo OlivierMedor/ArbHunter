@@ -338,3 +338,210 @@ When finished, produce:
 4. Any follow-up TODOs that should belong to Phase 3, not Phase 2
 
 Do not go beyond Phase 2.
+
+
+---- Updates part 3 ----
+
+Implement a final Phase 2 completion pass on branch `phase-2-providers-ingest`.
+
+Goal:
+Make Phase 2 truly merge-ready by:
+1. fixing repo hygiene/security,
+2. completing the provider -> ingest integration,
+3. making failover behavior real (not just conceptual),
+4. keeping the scope strictly limited to provider + ingestion foundation.
+
+IMPORTANT CONSTRAINTS
+- Do NOT add strategy logic.
+- Do NOT add routing logic.
+- Do NOT add simulation logic.
+- Do NOT add execution logic.
+- Do NOT add Postgres to the hot path.
+- Do NOT require real credentials for unit tests.
+- Do NOT print or expose any secret values in output, logs, artifacts, code, docs, or diffs.
+- Keep `.env.example` as the only tracked env template.
+- Preserve local developer usability, but `.env` must not remain tracked in git.
+
+================================================================
+PART 1 — REPO HYGIENE / SECRET CLEANUP
+================================================================
+
+Current issue:
+The branch still appears to track secret/artifact clutter and debug leftovers.
+
+Required fixes:
+1. Remove these from git tracking if present:
+- .env
+- target/
+- build_errors.txt
+- build_errors2.txt
+- diff_output.txt
+- force_lf_write.py
+- repo_tree.txt
+- test_err.txt
+- verify.py
+- verify_output.txt
+
+2. Update `.gitignore` so these remain ignored going forward:
+- .env
+- .env.local
+- target/
+- debug output files
+- temporary verification/helper scripts
+- OS/editor junk
+
+3. IMPORTANT:
+- If `.env` exists locally and contains real credentials, do NOT print it and do NOT destroy useful local values.
+- Untrack `.env` from git while preserving local developer workflow if possible.
+- Keep `.env.example` only as the tracked template.
+
+Acceptance criteria:
+- `git ls-files .env` returns nothing
+- tracked junk/artifact files above are removed from version control
+- `.gitignore` reflects the ignore policy
+
+================================================================
+PART 2 — FINISH PROVIDER LAYER
+================================================================
+
+Current issue:
+Provider connection exists, but incoming websocket frames are discarded and failover is still partly conceptual.
+
+Required fixes in `crates/arb_providers`:
+1. Keep the real websocket connection foundation using tokio-tungstenite.
+2. Stop discarding all incoming frames.
+3. Expose a clean internal stream/channel API so provider messages can be consumed by `arb_ingest`.
+4. Make failover behavior operational:
+   - QuickNode = primary
+   - Alchemy = backup
+   - ProviderManager must actually update active provider state when failover occurs
+   - Emit/provider-status metrics on transitions
+5. Keep latency logic honest:
+   - if real ping/pong latency is not fully implemented yet, do NOT fake it with hardcoded values
+   - use clear placeholder/TODO state where needed
+   - connection detachment and reconnect behavior should still work
+6. Keep provider logic modular:
+   - connection management
+   - provider health
+   - active provider selection
+   - message forwarding
+   should be cleanly separated
+
+Do NOT add any business logic here.
+
+================================================================
+PART 3 — REAL PROVIDER -> INGEST BRIDGE
+================================================================
+
+Current issue:
+`arb_ingest` can parse fixture-based payloads, but live provider frames are not actually bridged into the ingest pipeline.
+
+Required fixes:
+1. Wire provider output into `arb_ingest` so live websocket messages can flow into the ingest pipeline.
+2. `arb_ingest` should accept raw provider payloads and normalize them into internal `IngestEvent` values.
+3. Keep support for:
+   - flashblock-like messages
+   - pending-log-like messages
+4. At least one real provider message shape for each of:
+   - flashblock-style payload
+   - pending-log-style payload
+   must be structurally parsed with serde / serde_json
+5. Keep fixture replay support intact under `fixtures/`.
+
+Important:
+- This phase is still ingestion infrastructure only.
+- Do NOT add DEX strategy decoding, route finding, or execution decisions.
+- Do NOT overclaim support beyond the message shapes actually implemented.
+
+================================================================
+PART 4 — DAEMON INTEGRATION
+================================================================
+
+In `bin/arb_daemon`:
+
+Required fixes:
+1. Wire together:
+   - config
+   - metrics
+   - provider manager
+   - live message bridge
+   - ingest pipeline
+2. On startup:
+   - log provider mode and enabled features
+   - initialize provider connections
+   - initialize ingest consumer
+3. On shutdown:
+   - perform graceful teardown
+4. Keep it as a foundation only:
+   - no strategy
+   - no route logic
+   - no transaction sending
+
+================================================================
+PART 5 — TESTS / VALIDATION
+================================================================
+
+Add or improve tests for:
+1. `arb_config`
+   - required env parsing
+   - optional feature flags
+2. `arb_providers`
+   - provider health transitions
+   - active provider switching
+   - reconnect behavior (to the extent testable)
+3. `arb_ingest`
+   - structured parsing from fixture payloads
+   - normalization into internal event types
+4. replay harness
+   - fixture files can be consumed end-to-end
+5. daemon smoke-level validation if practical without live secrets
+
+The branch must still pass:
+- `cargo check --workspace`
+- `cargo test --workspace`
+
+Do NOT require real provider credentials for unit tests.
+
+================================================================
+PART 6 — DOCUMENTATION / HONESTY
+================================================================
+
+Update the Phase 2 summary/walkthrough/checklist so they are honest and precise.
+
+The final wording should clearly state:
+- real websocket connection foundation exists
+- active provider switching exists
+- provider -> ingest bridge exists
+- structured parsing exists for at least one flashblock-like and one pending-log-like payload shape
+- strategy/route/sim/execution are still intentionally absent
+
+Do NOT oversell beyond what is implemented.
+
+================================================================
+REQUIRED OUTPUTS
+================================================================
+
+When finished, provide:
+
+1. A checklist confirming:
+- `.env` is no longer tracked
+- junk/artifact files were removed from git
+- `.gitignore` updated
+- provider manager now forwards real messages instead of discarding them
+- active provider switching is real
+- provider -> ingest bridge is real
+- structured parsing exists for at least one flashblock-like payload and one pending-log-like payload
+- replay harness still works
+- no strategy/sim/execution logic was added
+
+2. A changed-files summary
+
+3. A walkthrough artifact describing:
+- what was cleaned up
+- how provider messages now flow into ingest
+- what failover now really does
+- what is still deferred to Phase 3
+
+4. Any follow-up TODOs that belong to Phase 3, not Phase 2
+
+Do not go beyond Phase 2.

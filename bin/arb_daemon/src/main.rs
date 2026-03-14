@@ -24,24 +24,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let metrics = Arc::new(MetricsRegistry::new());
     info!("Metrics registry initialized on port: {}", config.metrics_port);
 
-    // 3. Provider Startup
+    // 3. Provider and Ingest Wiring
+    let ingest_pipeline = Arc::new(IngestPipeline::new(1024));
+    let mut event_rx = ingest_pipeline.subscribe();
+    info!("Ingest pipeline initialized.");
+
+    // The Provider->Ingest MPSC bridge channel
+    let (provider_tx, mut provider_rx) = tokio::sync::mpsc::channel::<String>(1000);
+
     let mut provider_manager = ProviderManager::new(&config, metrics.clone());
     info!("Provider manager initialized. Primary: QuickNode.");
     
     // Start provider loop (in background)
     tokio::spawn(async move {
-        provider_manager.start_management_loop().await;
+        provider_manager.start_management_loop(provider_tx).await;
     });
 
-    // 4. Ingest Pipeline Startup
-    let ingest_pipeline = IngestPipeline::new(1024);
-    let mut event_rx = ingest_pipeline.subscribe();
-    info!("Ingest pipeline initialized.");
+    // 4. Ingest Consumer Bridge: Live Websocket frames to Ingest
+    let ingest_clone = ingest_pipeline.clone();
+    tokio::spawn(async move {
+        while let Some(raw_json) = provider_rx.recv().await {
+            // Forward raw websocket payload to structured ingestion
+            ingest_clone.handle_raw_payload(&raw_json);
+        }
+    });
 
-    // Simple consumer to prove wiring
+    // Simple consumer to prove structural conversion success
     tokio::spawn(async move {
         while let Ok(event) = event_rx.recv().await {
-            info!("Received event: {:?}", event);
+            info!("Successfully normalized structured event: {:?}", event);
         }
     });
 
