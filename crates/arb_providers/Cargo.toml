@@ -4,3 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+arb_types = { path = "../arb_types" }
+arb_config = { path = "../arb_config" }
+arb_metrics = { path = "../arb_metrics" }
+tokio-tungstenite = { version = "0.28.0", features = ["native-tls"] }
+futures-util = "0.3.32"
+url = "2.5.8"
