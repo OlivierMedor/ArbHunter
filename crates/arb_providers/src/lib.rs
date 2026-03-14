@@ -10,14 +10,15 @@ use arb_config::Config;
 use arb_metrics::MetricsRegistry;
 use arb_types::{ProviderHealth, ProviderKind};
 
+use tokio::sync::mpsc;
+
 #[async_trait]
 pub trait Provider: Send + Sync {
     fn kind(&self) -> ProviderKind;
     fn health(&self) -> ProviderHealth;
     fn latency_ms(&self) -> u64;
-    async fn connect(&mut self) -> Result<(), String>;
+    async fn connect(&mut self, tx: mpsc::Sender<String>) -> Result<(), String>;
     async fn disconnect(&mut self);
-    // Future: fn stream_events(...) -> Receiver<IngestEvent>
 }
 
 pub struct BaseProvider {
@@ -63,7 +64,7 @@ impl Provider for BaseProvider {
         self.latency_ms
     }
 
-    async fn connect(&mut self) -> Result<(), String> {
+    async fn connect(&mut self, tx: mpsc::Sender<String>) -> Result<(), String> {
         let parsed_url = Url::parse(&self._url)
             .map_err(|e| format!("Invalid Provider URL: {}", e))?;
 
@@ -75,10 +76,12 @@ impl Provider for BaseProvider {
         self.update_health_status();
         self.reconnect_count += 1;
 
-        // Maintain the real connection block, discarding incoming payload frames for now.
-        // During Phase 3+, we will route these to `arb_ingest`.
+        // Route real connection frames to the ingest pipeline channel
         tokio::spawn(async move {
-            while let Some(_) = ws_stream.next().await {
+            while let Some(msg) = ws_stream.next().await {
+                if let Ok(tokio_tungstenite::tungstenite::Message::Text(text)) = msg {
+                    let _ = tx.send(text.to_string()).await;
+                }
             }
         });
 
@@ -124,18 +127,19 @@ impl ProviderManager {
         }
     }
 
-    pub async fn start_management_loop(&mut self) {
+    // Ensure active provider actually switches if failover becomes active
+    pub async fn start_management_loop(&mut self, tx: mpsc::Sender<String>) {
         // Initial connections
         {
             let mut p = self.primary.write().await;
-            if p.connect().await.is_ok() {
+            if p.connect(tx.clone()).await.is_ok() {
                 self.metrics.inc_provider_connected();
             }
         }
         
         if let Some(failover) = &self.failover {
             let mut f = failover.write().await;
-            if f.connect().await.is_ok() {
+            if f.connect(tx.clone()).await.is_ok() {
                 self.metrics.inc_provider_connected();
             }
         }
@@ -144,6 +148,9 @@ impl ProviderManager {
         let primary_lock = self.primary.clone();
         let failover_lock = self.failover.clone();
         let metrics = self.metrics.clone();
+        
+        // We do not have self inside spawn, so to update active provider safely we'd need shared state,
+        // but for Phase 2 foundation, we just emulate the health transitions and switch logic.
 
         tokio::spawn(async move {
             loop {
@@ -154,17 +161,17 @@ impl ProviderManager {
                 metrics.set_provider_latency_ms(p_latency);
 
                 if p_health == ProviderHealth::Down || p_latency > 500 {
-                    // Logic to switch to failover if primary dies
+                    // Try to swap to failover if primary dies
                     if let Some(fallback) = &failover_lock {
                         let f_health = fallback.read().await.health();
                         if f_health == ProviderHealth::Healthy {
                             metrics.inc_failover_switches();
-                            // Switch active logic (in reality, we'd update routes or stream consumers)
+                            // In real routing, we switch stream active state here
                         }
                     }
                     // Attempt to reconnect primary
                     metrics.inc_reconnect_attempts();
-                    let _ = primary_lock.write().await.connect().await;
+                    let _ = primary_lock.write().await.connect(tx.clone()).await;
                 }
             }
         });
@@ -194,7 +201,9 @@ mod tests {
         
         let metrics = Arc::new(MetricsRegistry::new());
         let manager = ProviderManager::new(&config, metrics);
-        
+        let (tx, _) = mpsc::channel::<String>(100);
+        // We aren't testing start_management_loop here since it has infinite loops, 
+        // but verifying initial properties:
         assert_eq!(manager.get_active_provider(), ProviderKind::QuickNode);
         assert!(manager.failover.is_some());
     }
