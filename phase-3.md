@@ -104,3 +104,94 @@ Artifacts required:
    - no routing/sim/execution logic added
 
 Do not go beyond Phase 3.
+
+
+--- update 1 ---
+
+Do a final Phase 3 merge-readiness cleanup pass on the EXISTING branch `phase-3-state-engine`.
+
+Do NOT create a new branch.
+Do NOT add features.
+Do NOT modify state logic unless required for cleanup.
+
+Goal:
+Make the branch merge-ready by removing tracked runtime log artifacts and tightening repo hygiene.
+
+Required fixes:
+1. Remove these tracked files from git if present:
+- daemon_stdout.log
+- daemon_stderr.log
+
+2. Update `.gitignore` so these do not get tracked again:
+- daemon_stdout.log
+- daemon_stderr.log
+- optionally other runtime log patterns if appropriate
+
+3. Do NOT remove any legitimate source files.
+
+4. After cleanup, run and report:
+- cargo check --workspace
+- cargo test --workspace
+- git status --short
+
+Required outputs:
+1. Changed-files summary
+2. Checklist confirming:
+   - daemon_stdout.log no longer tracked
+   - daemon_stderr.log no longer tracked
+   - .gitignore updated if needed
+   - no state/routing/sim/execution logic added
+3. Validation outputs for:
+   - cargo check --workspace
+   - cargo test --workspace
+   - git status --short
+
+
+--- update 2 ---
+
+Do a final Phase 3 merge-readiness cleanup pass on the EXISTING branch `phase-3-state-engine`.
+
+Do NOT create a new branch.
+Do NOT add routing, simulation, or execution logic.
+Do NOT add real DEX decoding yet.
+
+Goal:
+Make the branch merge-ready by cleaning tracked runtime log files and ensuring the docs are honest about what Phase 3 actually implements.
+
+Required fixes:
+
+1. Remove these tracked files from git if present:
+- daemon_stdout.log
+- daemon_stderr.log
+
+2. Update .gitignore so these do not get tracked again:
+- daemon_stdout.log
+- daemon_stderr.log
+- optionally *.log if appropriate
+
+3. Review the Phase 3 checklist / walkthrough / implementation summary and make sure they clearly state:
+- the state engine is real
+- freshness tracking is real
+- stale update rejection is real
+- BUT the current daemon still converts Flashblock events into synthetic block-level PoolUpdate values
+- PendingLog events are still ignored for state in this phase
+- real DEX event-to-state decoding is deferred to the next phase
+
+4. Do NOT add any new strategy, routing, simulation, or execution logic.
+
+5. After cleanup, run and report:
+- cargo check --workspace
+- cargo test --workspace
+- git status --short
+
+Required outputs:
+1. Changed-files summary
+2. Checklist confirming:
+   - daemon log files are no longer tracked
+   - .gitignore updated if needed
+   - Phase 3 docs are honest about synthetic state inputs
+   - no routing/sim/execution logic was added
+3. Validation outputs for:
+   - cargo check --workspace
+   - cargo test --workspace
+   - git status --short
