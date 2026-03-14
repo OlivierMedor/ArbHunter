@@ -545,3 +545,124 @@ When finished, provide:
 4. Any follow-up TODOs that belong to Phase 3, not Phase 2
 
 Do not go beyond Phase 2.
+
+--- updates 4 ---
+
+
+Do a final Phase 2 merge-readiness cleanup on the EXISTING branch `phase-2-providers-ingest`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add strategy, routing, simulation, or execution logic.
+Do NOT expand scope beyond cleanup + documentation honesty.
+
+Goal:
+Make this branch safe and honest enough to merge by:
+1. removing tracked secret/artifact clutter for real,
+2. ensuring ignore rules are correct,
+3. correcting any overstatement in the walkthrough/checklist about failover/provider readiness.
+
+==================================================
+PART 1 — REMOVE TRACKED SECRET / ARTIFACT CLUTTER
+==================================================
+
+These files/directories must NOT remain tracked in git if present:
+- .env
+- target/
+- build_errors.txt
+- build_errors2.txt
+- diff_output.txt
+- force_lf_write.py
+- repo_tree.txt
+- test_err.txt
+- verify.py
+- verify_output.txt
+
+Rules:
+- If `.env` exists locally, preserve the local file if possible, but REMOVE it from git tracking.
+- Keep `.env.example` tracked.
+- Keep legitimate project files only.
+
+Perform the equivalent of:
+- untrack `.env`
+- untrack `target/`
+- untrack the debug/helper files listed above
+
+Also update `.gitignore` if needed so these do not come back.
+
+==================================================
+PART 2 — VERIFY GIT HYGIENE
+==================================================
+
+After cleanup, verify and include output for:
+- `git ls-files .env`
+- `git ls-files target`
+- `git ls-files build_errors.txt build_errors2.txt diff_output.txt force_lf_write.py repo_tree.txt test_err.txt verify.py verify_output.txt`
+
+These should show that those files are no longer tracked.
+
+Also include:
+- `git status --short`
+
+==================================================
+PART 3 — DOCUMENTATION HONESTY FIX
+==================================================
+
+Review the current Phase 2 checklist / walkthrough / implementation summary language.
+
+Important:
+Do NOT overstate failover as “fully real” if the code still only forwards provider frames and does not completely switch active provider routing behavior in an end-to-end way.
+
+Required documentation behavior:
+- If active provider switching is still foundational/partial, say so clearly.
+- If provider -> ingest bridge is real, say that clearly.
+- If websocket connections are real but latency measurement is still TODO, say that clearly.
+- Keep the wording precise and honest.
+
+Update only the docs/artifacts that need honesty fixes.
+Do NOT rewrite everything unnecessarily.
+
+==================================================
+PART 4 — DO NOT CHANGE CORE PHASE SCOPE
+==================================================
+
+Do NOT:
+- implement strategy logic
+- implement route discovery
+- implement simulation logic
+- implement execution logic
+- add Postgres to the hot path
+- add new crates
+- add new external services
+
+This is a cleanup and truthfulness pass only.
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+When finished, provide:
+
+1. A checklist confirming:
+- `.env` is no longer tracked
+- `target/` is no longer tracked
+- the listed debug/helper files are no longer tracked
+- `.gitignore` prevents them from returning
+- documentation language was corrected if needed
+- no new strategy/sim/execution logic was added
+
+2. A changed-files summary
+
+3. Verification output for:
+- `git ls-files .env`
+- `git ls-files target`
+- `git ls-files build_errors.txt build_errors2.txt diff_output.txt force_lf_write.py repo_tree.txt test_err.txt verify.py verify_output.txt`
+- `git status --short`
+
+4. A short walkthrough summarizing:
+- what was removed from tracking
+- what documentation wording was corrected
+- whether failover is fully operational or still foundational
+- what remains deferred to Phase 3
+
+Do not go beyond this scope.
