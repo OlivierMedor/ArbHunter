@@ -11,3 +11,4 @@ arb_config = { path = "../../crates/arb_config" }
 arb_metrics = { path = "../../crates/arb_metrics" }
 arb_providers = { path = "../../crates/arb_providers" }
 arb_ingest = { path = "../../crates/arb_ingest" }
+axum = "0.7"
