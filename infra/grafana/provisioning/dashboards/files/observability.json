@@ -23,7 +23,7 @@
       "gridPos": { "h": 6, "w": 4, "x": 4, "y": 0 },
       "id": 2,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_connected_total{provider=\"quicknode\"} - arb_provider_disconnected_total{provider=\"quicknode\"}", "refId": "A" } ],
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_connected{provider=\"quicknode\"}", "refId": "A" } ],
       "title": "QuickNode Status",
       "type": "stat"
     },
@@ -33,7 +33,7 @@
       "gridPos": { "h": 6, "w": 4, "x": 8, "y": 0 },
       "id": 3,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_connected_total{provider=\"alchemy\"} - arb_provider_disconnected_total{provider=\"alchemy\"}", "refId": "A" } ],
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "arbhunter-prometheus" }, "expr": "arb_provider_connected{provider=\"alchemy\"}", "refId": "A" } ],
       "title": "Alchemy Status",
       "type": "stat"
     },

@@ -4,8 +4,9 @@ use std::time::SystemTime;
 #[derive(Clone)]
 pub struct MetricsRegistry {
     pub registry: Registry,
-    pub provider_connected: IntCounterVec,
-    pub provider_disconnected: IntCounterVec,
+    pub provider_connected_total: IntCounterVec,
+    pub provider_disconnected_total: IntCounterVec,
+    pub provider_connected: IntGaugeVec,
     pub provider_reconnect_attempts: IntCounter,
     pub provider_latency_ms: IntGauge,
     pub failover_switches: IntCounter,
@@ -26,8 +27,9 @@ impl MetricsRegistry {
     pub fn new() -> Self {
         let registry = Registry::new();
 
-        let provider_connected = IntCounterVec::new(Opts::new("arb_provider_connected_total", "Total provider connections established"), &["provider"]).unwrap();
-        let provider_disconnected = IntCounterVec::new(Opts::new("arb_provider_disconnected_total", "Total provider disconnections"), &["provider"]).unwrap();
+        let provider_connected_total = IntCounterVec::new(Opts::new("arb_provider_connected_total", "Total provider connections established"), &["provider"]).unwrap();
+        let provider_disconnected_total = IntCounterVec::new(Opts::new("arb_provider_disconnected_total", "Total provider disconnections"), &["provider"]).unwrap();
+        let provider_connected = IntGaugeVec::new(Opts::new("arb_provider_connected", "Provider currently connected (1=yes, 0=no)"), &["provider"]).unwrap();
         let provider_reconnect_attempts = IntCounter::new("arb_provider_reconnect_attempts_total", "Total provider reconnect attempts").unwrap();
         let provider_latency_ms = IntGauge::new("arb_provider_latency_ms", "Current provider latency in ms (stubbed)").unwrap();
         let failover_switches = IntCounter::new("arb_provider_failover_switches_total", "Total failover switches").unwrap();
@@ -42,8 +44,9 @@ impl MetricsRegistry {
         let active_provider = IntGaugeVec::new(Opts::new("arb_active_provider", "Currently active provider indicator"), &["provider"]).unwrap();
         let daemon_uptime_seconds = IntGauge::new("arb_daemon_uptime_seconds", "Seconds elapsed since daemon startup").unwrap();
 
+        registry.register(Box::new(provider_connected_total.clone())).unwrap();
+        registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
-        registry.register(Box::new(provider_disconnected.clone())).unwrap();
         registry.register(Box::new(provider_reconnect_attempts.clone())).unwrap();
         registry.register(Box::new(provider_latency_ms.clone())).unwrap();
         registry.register(Box::new(failover_switches.clone())).unwrap();
@@ -63,8 +66,9 @@ impl MetricsRegistry {
 
         Self {
             registry,
+            provider_connected_total,
+            provider_disconnected_total,
             provider_connected,
-            provider_disconnected,
             provider_reconnect_attempts,
             provider_latency_ms,
             failover_switches,
@@ -82,11 +86,13 @@ impl MetricsRegistry {
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
-        self.provider_connected.with_label_values(&[provider]).inc();
+        self.provider_connected_total.with_label_values(&[provider]).inc();
+        self.provider_connected.with_label_values(&[provider]).set(1);
     }
 
     pub fn inc_provider_disconnected(&self, provider: &str) {
-        self.provider_disconnected.with_label_values(&[provider]).inc();
+        self.provider_disconnected_total.with_label_values(&[provider]).inc();
+        self.provider_connected.with_label_values(&[provider]).set(0);
     }
 
     pub fn inc_reconnect_attempts(&self) {
