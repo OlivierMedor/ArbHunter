@@ -7,6 +7,16 @@ pub enum ProviderKind {
     Other,
 }
 
+impl ProviderKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ProviderKind::QuickNode => "quicknode",
+            ProviderKind::Alchemy => "alchemy",
+            ProviderKind::Other => "other",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderHealth {
     Healthy,

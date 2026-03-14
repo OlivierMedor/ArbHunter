@@ -1,8 +1,10 @@
 use std::fs;
 use std::path::Path;
 use tokio::sync::broadcast;
+use std::sync::Arc;
 
 use arb_types::{FlashblockEvent, IngestEvent, PendingLogEvent};
+use arb_metrics::MetricsRegistry;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -14,12 +16,13 @@ enum RawPayload {
 
 pub struct IngestPipeline {
     tx: broadcast::Sender<IngestEvent>,
+    metrics: Arc<MetricsRegistry>,
 }
 
 impl IngestPipeline {
-    pub fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize, metrics: Arc<MetricsRegistry>) -> Self {
         let (tx, _) = broadcast::channel(capacity);
-        Self { tx }
+        Self { tx, metrics }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<IngestEvent> {
@@ -34,13 +37,18 @@ impl IngestPipeline {
         // Attempt to parse exactly using structure
         match serde_json::from_str::<RawPayload>(payload) {
             Ok(RawPayload::Flashblock(fb)) => {
+                self.metrics.inc_events_ingested();
+                self.metrics.inc_flashblocks_seen();
                 let _ = self.broadcast_event(IngestEvent::Flashblock(fb));
             }
             Ok(RawPayload::PendingLog(pl)) => {
+                self.metrics.inc_events_ingested();
+                self.metrics.inc_pending_logs_seen();
                 let _ = self.broadcast_event(IngestEvent::PendingLog(pl));
             }
             Err(e) => {
                 // Ignore parsing errors for unknown messages, standard for raw provider stream filters
+                self.metrics.inc_malformed_payloads();
                 let _ = e;
             }
         }
@@ -80,7 +88,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_ingest_pipeline_broadcast() {
-        let pipeline = IngestPipeline::new(10);
+        let pipeline = IngestPipeline::new(10, Arc::new(MetricsRegistry::new()));
         let mut rx = pipeline.subscribe();
 
         // Valid Structured JSON
@@ -101,7 +109,7 @@ mod tests {
         writeln!(file, r#"{{"type":"flashblock","data":{{"base_fee_per_gas":10,"block_number":1001,"transaction_count":5}}}}"#).unwrap();
         writeln!(file, r#"{{"type":"pending_log","data":{{"address":"0x0","topics":[],"data":"0x","transaction_hash":"0x0"}}}}"#).unwrap();
 
-        let pipeline = IngestPipeline::new(10);
+        let pipeline = IngestPipeline::new(10, Arc::new(MetricsRegistry::new()));
         let mut rx = pipeline.subscribe();
         
         let harness = ReplayHarness::new(path.to_string());
