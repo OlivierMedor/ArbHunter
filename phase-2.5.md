@@ -852,3 +852,190 @@ Show the relevant snippets or outputs proving:
 
 Do not go beyond Phase 2.5.
 Do not claim success unless all proof snippets are included.
+
+
+--- updates 4.5 ---
+Do one FINAL targeted fix pass on the EXISTING branch `phase-2_5-observability-dashboard`.
+
+Do NOT create a new branch.
+Do NOT add any strategy, routing, state-engine, simulation, or execution logic.
+Do NOT add unrelated features.
+Do NOT change repo structure.
+
+Goal:
+Fix the exact remaining mismatches between the branch contents and the checklist/walkthrough so the branch becomes honestly merge-ready.
+
+IMPORTANT:
+Do not claim success unless the exact proof commands at the end show the fixes in the actual files.
+
+==================================================
+FIX 1 — PROMETHEUS HOST PORT
+==================================================
+
+Current problem:
+`docker-compose.yml` still exposes Prometheus on host port 9090, which conflicts with the daemon metrics endpoint that is supposed to be on 9090.
+
+Required fix:
+In `docker-compose.yml`:
+- keep daemon metrics endpoint on 9090
+- change Prometheus port mapping to:
+  9091:9090
+- keep Grafana on 3000
+
+Also update any quick-start / walkthrough text to match:
+- daemon metrics = http://localhost:9090/metrics
+- Prometheus UI = http://localhost:9091
+- Grafana UI = http://localhost:3000
+
+==================================================
+FIX 2 — GRAFANA DATASOURCE UID
+==================================================
+
+Current problem:
+`infra/grafana/provisioning/datasources/prometheus.yml` has no explicit uid, and the dashboard JSON still references the wrong datasource uid/name.
+
+Required fix:
+In `infra/grafana/provisioning/datasources/prometheus.yml`:
+- add:
+  uid: arbhunter-prometheus
+
+In `infra/grafana/provisioning/dashboards/files/observability.json`:
+- every panel must use datasource.uid = "arbhunter-prometheus"
+- remove any remaining "Prometheus" / "prometheus" uid variants
+
+Do not leave any panel using an ambiguous datasource name.
+
+==================================================
+FIX 3 — METRICS CLAIMS MUST MATCH REAL CODE
+==================================================
+
+Current problem:
+The checklist/walkthrough claim metrics that do not visibly exist in `crates/arb_metrics/src/lib.rs`.
+
+Required action:
+Choose ONE of these two paths, but be honest.
+
+PATH A (preferred):
+Implement these metrics for real and wire them honestly:
+- arb_metrics_requests_total
+- arb_daemon_uptime_seconds
+- arb_provider_frames_forwarded_total
+- arb_malformed_payloads_total
+- arb_active_provider (gauge or gauge vec)
+- arb_provider_connected (gauge or gauge vec)
+
+Required behavior if implementing:
+- arb_metrics_requests_total increments when /metrics is requested
+- arb_daemon_uptime_seconds reflects real process uptime
+- arb_provider_frames_forwarded_total increments when a provider frame is forwarded downstream
+- arb_malformed_payloads_total increments on malformed payload parse failures
+- arb_active_provider updates when the provider manager changes active provider
+- arb_provider_connected updates on connect/disconnect state
+
+PATH B (allowed only if you cannot implement PATH A cleanly in this phase):
+- remove all claims about these metrics from:
+  - checklist
+  - walkthrough
+  - quick-start
+  - dashboard panels
+- do NOT pretend they exist if they do not
+
+Whichever path you choose, the repo contents and docs must agree exactly.
+
+==================================================
+FIX 4 — REMOVE THE MISLEADING STATUS PANEL
+==================================================
+
+Current problem:
+The dashboard still uses a misleading derived status panel based on:
+provider_connected_total - provider_disconnected_total
+
+Required fix:
+Remove that pseudo-status logic.
+
+Replace with panels based on real gauges ONLY.
+If PATH A above is chosen and the gauges are implemented, use:
+- Active Provider
+- QuickNode Connected
+- Alchemy Connected
+
+If PATH B above is chosen and those gauges are not implemented, then:
+- remove the misleading status panel and remove any checklist/walkthrough claims that such live status exists
+
+==================================================
+FILES ALLOWED TO CHANGE
+==================================================
+
+Only modify what is necessary, likely:
+- docker-compose.yml
+- infra/grafana/provisioning/datasources/prometheus.yml
+- infra/grafana/provisioning/dashboards/files/observability.json
+- crates/arb_metrics/src/lib.rs
+- crates/arb_providers/src/lib.rs
+- crates/arb_ingest/src/lib.rs
+- bin/arb_daemon/src/main.rs
+- checklist.md / walkthrough.md / quick-start text if needed
+
+Do not touch unrelated files.
+
+==================================================
+REQUIRED VERIFICATION — MUST INCLUDE ACTUAL OUTPUT
+==================================================
+
+After making the fixes, run and include the exact outputs of:
+
+1. Prove the Prometheus host port mapping:
+- `git grep -n '9091:9090' -- docker-compose.yml`
+
+2. Prove the datasource uid exists in provisioning:
+- `git grep -n 'uid: arbhunter-prometheus' -- infra/grafana/provisioning/datasources/prometheus.yml`
+
+3. Prove the dashboard JSON references that uid:
+- `git grep -n 'arbhunter-prometheus' -- infra/grafana/provisioning/dashboards/files/observability.json`
+
+4. If PATH A was chosen, prove each metric exists in code:
+- `git grep -n 'arb_metrics_requests_total' -- crates/`
+- `git grep -n 'arb_daemon_uptime_seconds' -- crates/ bin/`
+- `git grep -n 'arb_provider_frames_forwarded_total' -- crates/ bin/`
+- `git grep -n 'arb_malformed_payloads_total' -- crates/ bin/`
+- `git grep -n 'arb_active_provider' -- crates/ bin/`
+- `git grep -n 'arb_provider_connected' -- crates/ bin/`
+
+5. If PATH B was chosen, prove the claims were removed:
+- `git grep -n 'metrics_requests_total\|daemon_uptime_seconds\|provider_frames_forwarded_total\|malformed_payloads_total\|active provider\|QuickNode Connected\|Alchemy Connected' -- checklist.md walkthrough.md docs/ infra/grafana/provisioning/dashboards/files/observability.json`
+
+6. Validation commands:
+- `cargo check --workspace`
+- `cargo test --workspace`
+- `docker compose config`
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+When finished, provide ONLY:
+
+1. Which path was chosen:
+- PATH A (implemented metrics)
+or
+- PATH B (removed unsupported claims)
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- Prometheus port conflict fixed
+- datasource uid fixed
+- dashboard datasource references fixed
+- misleading status panel removed/replaced
+- docs/checklist now match actual code
+- no strategy/sim/execution logic added
+
+4. The exact verification command outputs listed above
+
+5. A short walkthrough:
+- exact ports now used
+- what is now real in observability
+- what remains deferred to Phase 3
+
+Do not go beyond this scope.
+Do not claim success without the grep outputs.
