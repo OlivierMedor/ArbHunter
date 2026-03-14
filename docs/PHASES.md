@@ -19,19 +19,28 @@ This document details the progressive implementation phases for ArbHunter and de
 - RPC connectivity, latency tracking, and failover implemented in `arb_providers`.
 - All Phase 1 logic unit tested successfully.
 
-## Phase 2: Ingestion & State Sync
-**Focus**: Reading from Base data sources and maintaining precise in-memory representations.
+## Phase 2: Providers & Ingestion Foundation
+**Focus**: Robust WebSocket connectivity and normalized event intake.
 **Definition of Done**:
-- `arb_ingest` successfully streams Base Flashblocks.
-- `arb_state` accurately processes stream data into usable pool representations without latency spikes.
-- Integration tests confirm memory state matches on-chain state closely.
+- `arb_providers` implements `ProviderManager` with failover support (QuickNode/Alchemy).
+- `arb_ingest` successfully parses and normalizes Base Flashblocks and pending logs.
+- `arb_metrics` tracks frame intake and provider connectivity status.
 
-## Phase 3: Routing & Filtering
-**Focus**: Identifying actionable opportunities and drawing paths.
+## Phase 2.5: Observability Dashboard
+**Focus**: Real-time visibility into the daemon's internal state and pipeline health.
 **Definition of Done**:
-- `arb_filter` eliminates non-profitable states rapidly.
-- `arb_route` outputs optimal transaction route data.
-- E2E dry-run benchmarks confirm hot-path execution speed meets targets.
+- Prometheus scrape endpoint operational in `arb_daemon`.
+- Grafana dashboard provisioned with metrics for provider health, ingestion volume, and uptime.
+- Docker Compose setup verified for local monitoring stack.
+
+## Phase 3: State Engine Foundation
+**Focus**: Canonical in-memory representation and freshness management.
+**Definition of Done**:
+- `arb_state` crate implements `PoolStore` and `StateEngine` with `RwLock` concurrency.
+- **Freshness tracking**: Monotonic `EventStamp` ordering rejects stale updates; wall-clock sweeping marks pools stale after 30s.
+- **Ingest Bridge**: Daemon wires `IngestEvent` stream to `StateEngine`.
+- **Honesty Note**: Phase 3 uses synthetic block-level updates derived from Flashblocks; real DEX Sync/Swap log decoding is deferred to Phase 4.
+- **Minimal Scope**: No routing, filtering, simulation, or execution logic added.
 
 ## Phase 4: Execution Pipeline & Simulation
 **Focus**: Packaging transactions, simulation, and dry-run execution.

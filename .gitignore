@@ -9,8 +9,3 @@ verify_output.txt
 repo_tree.txt
 *.py
 .DS_Store
-
-# Runtime logs (never commit daemon output)
-daemon_stdout.log
-daemon_stderr.log
-*.log
