@@ -7,4 +7,5 @@ edition = "2024"
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1.0"
 arb_types = { path = "../arb_types" }
+arb_metrics = { path = "../arb_metrics" }
 serde = { version = "1.0.228", features = ["derive"] }

@@ -1,52 +1,150 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use prometheus::{Encoder, IntCounter, IntGauge, IntCounterVec, IntGaugeVec, Opts, Registry, TextEncoder};
+use std::time::SystemTime;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone)]
 pub struct MetricsRegistry {
-    pub provider_connected: Arc<AtomicU64>,
-    pub provider_disconnected: Arc<AtomicU64>,
-    pub provider_reconnect_attempts: Arc<AtomicU64>,
-    pub provider_latency_ms: Arc<AtomicU64>,
-    pub failover_switches: Arc<AtomicU64>,
-    pub events_ingested_total: Arc<AtomicU64>,
-    pub flashblocks_seen_total: Arc<AtomicU64>,
-    pub pending_logs_seen_total: Arc<AtomicU64>,
+    pub registry: Registry,
+    pub provider_connected_total: IntCounterVec,
+    pub provider_disconnected_total: IntCounterVec,
+    pub provider_connected: IntGaugeVec,
+    pub provider_reconnect_attempts: IntCounter,
+    pub provider_latency_ms: IntGauge,
+    pub failover_switches: IntCounter,
+    pub events_ingested_total: IntCounter,
+    pub flashblocks_seen_total: IntCounter,
+    pub pending_logs_seen_total: IntCounter,
+    
+    pub provider_frames_forwarded_total: IntCounter,
+    pub malformed_payloads_total: IntCounter,
+    pub daemon_startups_total: IntCounter,
+    pub metrics_requests_total: IntCounter,
+    pub active_provider: IntGaugeVec,
+    pub daemon_start_time: SystemTime,
+    pub daemon_uptime_seconds: IntGauge,
 }
 
 impl MetricsRegistry {
     pub fn new() -> Self {
-        Self::default()
+        let registry = Registry::new();
+
+        let provider_connected_total = IntCounterVec::new(Opts::new("arb_provider_connected_total", "Total provider connections established"), &["provider"]).unwrap();
+        let provider_disconnected_total = IntCounterVec::new(Opts::new("arb_provider_disconnected_total", "Total provider disconnections"), &["provider"]).unwrap();
+        let provider_connected = IntGaugeVec::new(Opts::new("arb_provider_connected", "Provider currently connected (1=yes, 0=no)"), &["provider"]).unwrap();
+        let provider_reconnect_attempts = IntCounter::new("arb_provider_reconnect_attempts_total", "Total provider reconnect attempts").unwrap();
+        let provider_latency_ms = IntGauge::new("arb_provider_latency_ms", "Current provider latency in ms (stubbed)").unwrap();
+        let failover_switches = IntCounter::new("arb_provider_failover_switches_total", "Total failover switches").unwrap();
+        
+        let events_ingested_total = IntCounter::new("arb_events_ingested_total", "Total events successfully ingested").unwrap();
+        let flashblocks_seen_total = IntCounter::new("arb_flashblocks_seen_total", "Total flashblocks seen").unwrap();
+        let pending_logs_seen_total = IntCounter::new("arb_pending_logs_seen_total", "Total pending logs seen").unwrap();
+        let provider_frames_forwarded_total = IntCounter::new("arb_provider_frames_forwarded_total", "Total raw websocket frames forwarded").unwrap();
+        let malformed_payloads_total = IntCounter::new("arb_malformed_payloads_total", "Total malformed payloads discarded").unwrap();
+        let daemon_startups_total = IntCounter::new("arb_daemon_startups_total", "Total daemon startups via process boot").unwrap();
+        let metrics_requests_total = IntCounter::new("arb_metrics_requests_total", "Total scrapes of metrics endpoint").unwrap();
+        let active_provider = IntGaugeVec::new(Opts::new("arb_active_provider", "Currently active provider indicator"), &["provider"]).unwrap();
+        let daemon_uptime_seconds = IntGauge::new("arb_daemon_uptime_seconds", "Seconds elapsed since daemon startup").unwrap();
+
+        registry.register(Box::new(provider_connected_total.clone())).unwrap();
+        registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
+        registry.register(Box::new(provider_connected.clone())).unwrap();
+        registry.register(Box::new(provider_reconnect_attempts.clone())).unwrap();
+        registry.register(Box::new(provider_latency_ms.clone())).unwrap();
+        registry.register(Box::new(failover_switches.clone())).unwrap();
+        registry.register(Box::new(events_ingested_total.clone())).unwrap();
+        registry.register(Box::new(flashblocks_seen_total.clone())).unwrap();
+        registry.register(Box::new(pending_logs_seen_total.clone())).unwrap();
+        registry.register(Box::new(provider_frames_forwarded_total.clone())).unwrap();
+        registry.register(Box::new(malformed_payloads_total.clone())).unwrap();
+        registry.register(Box::new(daemon_startups_total.clone())).unwrap();
+        registry.register(Box::new(metrics_requests_total.clone())).unwrap();
+        registry.register(Box::new(active_provider.clone())).unwrap();
+        registry.register(Box::new(daemon_uptime_seconds.clone())).unwrap();
+
+        daemon_startups_total.inc();
+        active_provider.with_label_values(&["quicknode"]).set(0);
+        active_provider.with_label_values(&["alchemy"]).set(0);
+
+        Self {
+            registry,
+            provider_connected_total,
+            provider_disconnected_total,
+            provider_connected,
+            provider_reconnect_attempts,
+            provider_latency_ms,
+            failover_switches,
+            events_ingested_total,
+            flashblocks_seen_total,
+            pending_logs_seen_total,
+            provider_frames_forwarded_total,
+            malformed_payloads_total,
+            daemon_startups_total,
+            metrics_requests_total,
+            active_provider,
+            daemon_start_time: SystemTime::now(),
+            daemon_uptime_seconds,
+        }
     }
 
-    pub fn inc_provider_connected(&self) {
-        self.provider_connected.fetch_add(1, Ordering::Relaxed);
+    pub fn inc_provider_connected(&self, provider: &str) {
+        self.provider_connected_total.with_label_values(&[provider]).inc();
+        self.provider_connected.with_label_values(&[provider]).set(1);
     }
 
-    pub fn inc_provider_disconnected(&self) {
-        self.provider_disconnected.fetch_add(1, Ordering::Relaxed);
+    pub fn inc_provider_disconnected(&self, provider: &str) {
+        self.provider_disconnected_total.with_label_values(&[provider]).inc();
+        self.provider_connected.with_label_values(&[provider]).set(0);
     }
 
     pub fn inc_reconnect_attempts(&self) {
-        self.provider_reconnect_attempts.fetch_add(1, Ordering::Relaxed);
+        self.provider_reconnect_attempts.inc();
     }
 
     pub fn set_provider_latency_ms(&self, latency: u64) {
-        self.provider_latency_ms.store(latency, Ordering::Relaxed);
+        self.provider_latency_ms.set(latency as i64);
     }
 
     pub fn inc_failover_switches(&self) {
-        self.failover_switches.fetch_add(1, Ordering::Relaxed);
+        self.failover_switches.inc();
     }
 
     pub fn inc_events_ingested(&self) {
-        self.events_ingested_total.fetch_add(1, Ordering::Relaxed);
+        self.events_ingested_total.inc();
     }
 
     pub fn inc_flashblocks_seen(&self) {
-        self.flashblocks_seen_total.fetch_add(1, Ordering::Relaxed);
+        self.flashblocks_seen_total.inc();
     }
 
     pub fn inc_pending_logs_seen(&self) {
-        self.pending_logs_seen_total.fetch_add(1, Ordering::Relaxed);
+        self.pending_logs_seen_total.inc();
+    }
+
+    pub fn inc_provider_frames_forwarded(&self) {
+        self.provider_frames_forwarded_total.inc();
+    }
+
+    pub fn inc_malformed_payloads(&self) {
+        self.malformed_payloads_total.inc();
+    }
+
+    pub fn set_active_provider(&self, provider: &str) {
+        self.active_provider.with_label_values(&["quicknode"]).set(0);
+        self.active_provider.with_label_values(&["alchemy"]).set(0);
+        if provider == "quicknode" || provider == "alchemy" {
+            self.active_provider.with_label_values(&[provider]).set(1);
+        }
+    }
+
+    pub fn gather_metrics(&self) -> String {
+        self.metrics_requests_total.inc();
+        if let Ok(duration) = self.daemon_start_time.elapsed() {
+            self.daemon_uptime_seconds.set(duration.as_secs() as i64);
+        }
+
+        let mut buffer = vec![];
+        let encoder = TextEncoder::new();
+        let metric_families = self.registry.gather();
+        encoder.encode(&metric_families, &mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
     }
 }

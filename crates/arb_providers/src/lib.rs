@@ -28,10 +28,11 @@ pub struct BaseProvider {
     latency_ms: u64,
     reconnect_count: u32,
     connected: bool,
+    metrics: Arc<MetricsRegistry>,
 }
 
 impl BaseProvider {
-    pub fn new(kind: ProviderKind, url: String) -> Self {
+    pub fn new(kind: ProviderKind, url: String, metrics: Arc<MetricsRegistry>) -> Self {
         Self {
             kind,
             _url: url,
@@ -39,6 +40,7 @@ impl BaseProvider {
             latency_ms: 0,
             reconnect_count: 0,
             connected: false,
+            metrics,
         }
     }
 
@@ -75,11 +77,14 @@ impl Provider for BaseProvider {
         self.connected = true;
         self.update_health_status();
         self.reconnect_count += 1;
+        self.metrics.inc_provider_connected(self.kind.as_str());
 
+        let metrics = self.metrics.clone();
         // Route real connection frames to the ingest pipeline channel
         tokio::spawn(async move {
             while let Some(msg) = ws_stream.next().await {
                 if let Ok(tokio_tungstenite::tungstenite::Message::Text(text)) = msg {
+                    metrics.inc_provider_frames_forwarded();
                     let _ = tx.send(text.to_string()).await;
                 }
             }
@@ -89,6 +94,9 @@ impl Provider for BaseProvider {
     }
 
     async fn disconnect(&mut self) {
+        if self.connected {
+            self.metrics.inc_provider_disconnected(self.kind.as_str());
+        }
         self.connected = false;
         self.health = ProviderHealth::Down;
     }
@@ -106,6 +114,7 @@ impl ProviderManager {
         let primary = Box::new(BaseProvider::new(
             ProviderKind::QuickNode,
             config.quicknode_wss_url.clone(),
+            metrics.clone(),
         ));
         
         let failover = if config.enable_failover {
@@ -113,6 +122,7 @@ impl ProviderManager {
                 Box::new(BaseProvider::new(
                     ProviderKind::Alchemy,
                     url.clone(),
+                    metrics.clone(),
                 )) as Box<dyn Provider>
             })
         } else {
@@ -129,19 +139,17 @@ impl ProviderManager {
 
     // Ensure active provider actually switches if failover becomes active
     pub async fn start_management_loop(&mut self, tx: mpsc::Sender<String>) {
+        self.metrics.set_active_provider(self.active_provider.as_str());
+
         // Initial connections
         {
             let mut p = self.primary.write().await;
-            if p.connect(tx.clone()).await.is_ok() {
-                self.metrics.inc_provider_connected();
-            }
+            let _ = p.connect(tx.clone()).await;
         }
         
         if let Some(failover) = &self.failover {
             let mut f = failover.write().await;
-            if f.connect(tx.clone()).await.is_ok() {
-                self.metrics.inc_provider_connected();
-            }
+            let _ = f.connect(tx.clone()).await;
         }
 
         // Monitoring loop (simplified)
@@ -167,11 +175,16 @@ impl ProviderManager {
                         if f_health == ProviderHealth::Healthy {
                             metrics.inc_failover_switches();
                             // In real routing, we switch stream active state here
+                            metrics.set_active_provider("alchemy");
                         }
+                    } else {
+                        metrics.set_active_provider("quicknode"); // Revert fallback logic placeholder
                     }
                     // Attempt to reconnect primary
                     metrics.inc_reconnect_attempts();
                     let _ = primary_lock.write().await.connect(tx.clone()).await;
+                } else {
+                    metrics.set_active_provider("quicknode");
                 }
             }
         });
@@ -200,10 +213,9 @@ mod tests {
         };
         
         let metrics = Arc::new(MetricsRegistry::new());
-        let manager = ProviderManager::new(&config, metrics);
+        let manager = ProviderManager::new(&config, metrics.clone());
         let (tx, _) = mpsc::channel::<String>(100);
-        // We aren't testing start_management_loop here since it has infinite loops, 
-        // but verifying initial properties:
+        
         assert_eq!(manager.get_active_provider(), ProviderKind::QuickNode);
         assert!(manager.failover.is_some());
     }
