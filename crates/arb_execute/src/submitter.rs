@@ -32,14 +32,17 @@ impl Submitter {
 
     async fn dry_run(&self, tx: BuiltTransaction) -> SubmissionResult {
         // Build the transaction envelope for signing
-        // For dry-run we just want to prove we CAN sign it.
-        
-        // This is a simplified signing proof for Phase 9 dry-run.
-        let tx_hash = "0xDRYRUNHASH".to_string(); 
-        
-        SubmissionResult::DryRunSuccess {
-            tx_hash,
-            signed_raw: tx.data.clone(), // Placeholder for raw signed tx
+        // For dry-run we produce a real signature and hash but don't broadcast.
+        match self.wallet.sign_tx(tx).await {
+            Ok((signed_raw, tx_hash)) => {
+                SubmissionResult::DryRunSuccess {
+                    tx_hash,
+                    signed_raw,
+                }
+            }
+            Err(e) => {
+                SubmissionResult::Failed(arb_types::SubmissionFailureReason::NetworkError(format!("Local signing failure: {}", e)))
+            }
         }
     }
 }
@@ -72,10 +75,12 @@ mod tests {
 
         let result = submitter.submit(tx).await;
         match result {
-            SubmissionResult::DryRunSuccess { tx_hash, .. } => {
-                assert_eq!(tx_hash, "0xDRYRUNHASH");
+            SubmissionResult::DryRunSuccess { tx_hash, signed_raw } => {
+                assert!(tx_hash.starts_with("0x"));
+                assert!(tx_hash.len() > 10);
+                assert!(!signed_raw.is_empty());
             }
-            _ => panic!("Expected DryRunSuccess"),
+            _ => panic!("Expected DryRunSuccess, got {:?}", result),
         }
     }
 }

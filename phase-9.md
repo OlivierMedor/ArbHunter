@@ -317,3 +317,127 @@ Provide:
 5. The source-of-truth outputs listed above
 
 Do not go beyond Phase 9.
+
+
+---- updates ----
+
+Do a final Phase 9 merge-readiness pass on the EXISTING branch `phase-9-wallet-signing-submission`.
+
+Do NOT create a new branch.
+Do NOT add flash loans, live trading, mempool tactics, or PGA logic.
+Do NOT expand scope beyond the 3 concrete issues below.
+
+Goal:
+Make Phase 9 merge-ready by fixing signing honesty, builder error handling, and config template alignment.
+
+==================================================
+FIX 1 — DRY-RUN MUST BE HONEST
+==================================================
+
+Current problem:
+In crates/arb_execute/src/submitter.rs, dry_run() still returns:
+- a constant tx hash like "0xDRYRUNHASH"
+- tx.data.clone() as signed_raw
+
+That is a placeholder, not real signing.
+
+Required fix:
+Choose ONE path:
+
+PATH A (preferred):
+- Implement real local signing without broadcasting.
+- DryRunSuccess should contain a real signed payload and a real derived tx hash.
+- No network submission required.
+
+PATH B:
+- If true local signing cannot be completed cleanly in this phase, rename/document the dry-run result honestly as a non-signing preview.
+- Do NOT pretend signed_raw is actually signed.
+- Update docs/checklist/walkthrough to match.
+
+Either path is acceptable, but the code and docs must be honest.
+
+==================================================
+FIX 2 — BUILDER MUST NOT SILENTLY ZERO INVALID ADDRESSES
+==================================================
+
+Current problem:
+In crates/arb_execute/src/builder.rs, address parsing uses `.parse().unwrap_or_default()`.
+
+Required fix:
+- Replace all `.unwrap_or_default()` address parsing in the tx builder path with explicit parse handling.
+- If a plan contains an invalid address, return a structured error instead of silently using Address::ZERO.
+
+Use a clear error path such as:
+- PlanBuildFailureReason::InvalidAddress
+or a similarly honest structured failure.
+
+Do NOT allow malformed addresses to build a transaction successfully.
+
+==================================================
+FIX 3 — .env.example MUST MATCH CONFIG
+==================================================
+
+Current problem:
+crates/arb_config/src/lib.rs expects Phase 9 settings like:
+- SIGNER_PRIVATE_KEY
+- EXECUTOR_CONTRACT_ADDRESS
+- ENABLE_BROADCAST
+- DRY_RUN_ONLY
+
+But `.env.example` does not currently document them.
+
+Required fix:
+Update `.env.example` to include the Phase 9 variable names as placeholders only.
+Do NOT include any real values or secrets.
+Keep it consistent with Config.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-9-wallet-signing-submission
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'DRYRUNHASH|signed_raw: tx.data.clone|simplified signing proof' -- crates/arb_execute
+- git grep -n 'unwrap_or_default()' -- crates/arb_execute/src/builder.rs
+- git grep -n 'SIGNER_PRIVATE_KEY|EXECUTOR_CONTRACT_ADDRESS|ENABLE_BROADCAST|DRY_RUN_ONLY' -- crates/arb_config/src/lib.rs .env.example
+
+3. Build/test:
+- cargo check --workspace
+- cargo test --workspace
+- forge build
+- forge test
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Which dry-run path was chosen:
+- PATH A = real local signing
+- PATH B = honest non-signing preview
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- dry-run behavior is now honest
+- builder no longer silently zeroes invalid addresses
+- .env.example matches Phase 9 config
+- no live trading logic added
+
+4. Exact outputs for all source-of-truth and proof commands above
+
+5. A short walkthrough describing:
+- how dry-run now works
+- how invalid address handling now works
+- how config/env docs now match reality
+- what remains deferred to the next phase
+
+Do not go beyond this scope.
