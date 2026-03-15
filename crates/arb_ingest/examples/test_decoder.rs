@@ -15,6 +15,8 @@ async fn main() {
         ],
         data: "0x000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000c8".to_string(),
         transaction_hash: "0x...".to_string(),
+        block_number: 100,
+        log_index: 0,
     };
 
     println!("Attempting to decode Sync log...");
@@ -36,6 +38,8 @@ async fn main() {
                     00000000000000000000000000000000000000000000000000000000000f4240\
                     0000000000000000000000000000000000000000000000000000000000000000".replace(|c: char| c.is_whitespace() || c == '\\', ""),
         transaction_hash: "0x...".to_string(),
+        block_number: 100,
+        log_index: 1,
     };
 
     println!("Attempting to decode Swap log...");

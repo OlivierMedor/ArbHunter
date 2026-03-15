@@ -54,6 +54,8 @@ pub struct PendingLogEvent {
     pub topics: Vec<String>,
     pub data: String,
     pub transaction_hash: String,
+    pub block_number: u64,
+    pub log_index: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,8 +141,9 @@ pub struct CLFullState {
 pub struct PoolStateSnapshot {
     pub pool_id: PoolId,
     pub kind: PoolKind,
-    pub token0: TokenAddress,
-    pub token1: TokenAddress,
+    pub token0: Option<TokenAddress>,
+    pub token1: Option<TokenAddress>,
+    pub fee_bps: u32,
     pub reserves: Option<ReserveSnapshot>,
     pub cl_snapshot: Option<CLSnapshot>,
     pub cl_full_state: Option<CLFullState>,
@@ -152,10 +155,59 @@ pub struct PoolStateSnapshot {
 pub struct PoolUpdate {
     pub pool_id: PoolId,
     pub kind: PoolKind,
-    pub token0: TokenAddress,
-    pub token1: TokenAddress,
+    pub token0: Option<TokenAddress>,
+    pub token1: Option<TokenAddress>,
+    pub fee_bps: Option<u32>,
     pub reserves: Option<ReserveSnapshot>,
     pub cl_snapshot: Option<CLSnapshot>,
     pub cl_full_state: Option<CLFullState>,
     pub stamp: EventStamp,
+}
+// ============================================================
+// Phase 6: Route Graph & Filter Types
+// ============================================================
+
+/// Metadata for a directed edge in the route graph.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphEdge {
+    pub pool_id: PoolId,
+    pub kind: PoolKind,
+    pub token_in: TokenAddress,
+    pub token_out: TokenAddress,
+    pub fee_bps: u32,
+    pub is_stale: bool,
+}
+
+/// A single hop in a cyclic or linear route.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteLeg {
+    pub edge: GraphEdge,
+}
+
+/// A sequence of legs forming a path.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoutePath {
+    pub legs: Vec<RouteLeg>,
+    pub root_asset: TokenAddress,
+}
+
+/// Predefined notional sizes for local quoting (e.g. 0.1 ETH, 1 ETH, 10 ETH).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum QuoteSizeBucket {
+    Small,
+    Medium,
+    Large,
+    Custom(u128),
+}
+
+/// A promoted candidate for refinement or execution.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateOpportunity {
+    pub path: RoutePath,
+    pub bucket: QuoteSizeBucket,
+    pub amount_in: U256,
+    pub estimated_amount_out: U256,
+    pub estimated_gross_profit: U256,
+    pub estimated_gross_bps: u32,
+    pub is_fresh: bool,
 }
