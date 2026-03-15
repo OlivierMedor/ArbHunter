@@ -11,8 +11,11 @@ use arb_metrics::MetricsRegistry;
 use arb_providers::ProviderManager;
 use arb_state::StateEngine;
 use arb_types::{
-    EventStamp, IngestEvent, PoolId, PoolKind, PoolUpdate, ReserveSnapshot, TokenAddress,
+    EventStamp, IngestEvent, PoolId, PoolKind, PoolUpdate, ReserveSnapshot, TokenAddress, QuoteSizeBucket,
 };
+use arb_route::{RouteGraph, CandidateGenerator};
+use arb_filter::{CandidateFilter, FilterConfig};
+use alloy_primitives::U256;
 
 async fn metrics_handler(State(metrics): State<Arc<MetricsRegistry>>) -> String {
     metrics.gather_metrics()
@@ -107,12 +110,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // Freshness tick: refresh staleness every 10 seconds
-    let engine_for_tick = state_engine.clone();
+    // Phase 6: Route Graph & Candidate Loop
+    let route_engine = state_engine.clone();
+    let route_metrics = metrics.clone();
     tokio::spawn(async move {
+        let generator = CandidateGenerator::new(route_engine.clone());
+        let filter = CandidateFilter::new(FilterConfig {
+            min_gross_profit: U256::from(10_000_000_000_000_000u64), // 0.01 ETH
+            min_gross_bps: 10, // 10 bps
+            require_fresh: true,
+        });
+
+        let mut graph = RouteGraph::new();
+        // WETH on Base (main root asset)
+        let root_asset = TokenAddress("0x4200000000000000000000000000000000000006".to_string());
+        let buckets = vec![QuoteSizeBucket::Small, QuoteSizeBucket::Medium, QuoteSizeBucket::Large];
+
         loop {
-            sleep(Duration::from_secs(10)).await;
-            engine_for_tick.tick_freshness().await;
+            // Rebuild graph from current state
+            let snapshots = route_engine.get_all_pools().await;
+            graph.build_from_snapshots(snapshots);
+            
+            route_metrics.set_route_nodes(graph.node_count() as i64);
+            route_metrics.set_route_edges(graph.edge_count() as i64);
+
+            // Generate and filter candidates
+            let candidates = generator.generate_candidates(&graph, &root_asset, &buckets).await;
+            for _ in &candidates {
+                route_metrics.inc_candidates_considered();
+            }
+
+            let promoted = filter.filter_candidates(candidates);
+            for cand in promoted {
+                route_metrics.inc_candidates_promoted();
+                info!(
+                    "PROMOTED Candidate: {} -> {} | Profit: {} bps | Path: {:?}",
+                    cand.amount_in,
+                    cand.estimated_amount_out,
+                    cand.estimated_gross_bps,
+                    cand.path.legs.iter().map(|l| &l.edge.pool_id.0).collect::<Vec<_>>()
+                );
+            }
+
+            // Throttle search loop to avoid CPU pinning
+            sleep(Duration::from_millis(500)).await;
         }
     });
 

@@ -36,6 +36,14 @@ pub struct MetricsRegistry {
     pub cl_state_updates_total: IntCounter,
     pub local_quotes_total: IntCounter,
     pub local_quote_errors_total: IntCounter,
+    
+    // Phase 6: Route Graph & Candidate metrics
+    pub route_nodes_total: IntGauge,
+    pub route_edges_total: IntGauge,
+    pub candidates_considered_total: IntCounter,
+    pub candidates_promoted_total: IntCounter,
+    pub quote_failures_total: IntCounter,
+    pub stale_pool_skips_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -74,6 +82,14 @@ impl MetricsRegistry {
         let local_quotes_total = IntCounter::new("arb_local_quotes_total", "Total local quote requests").unwrap();
         let local_quote_errors_total = IntCounter::new("arb_local_quote_errors_total", "Total local quote errors").unwrap();
 
+        // Phase 6: Route Graph & Candidate metrics
+        let route_nodes_total = IntGauge::new("arb_route_nodes_total", "Total nodes in the local route graph").unwrap();
+        let route_edges_total = IntGauge::new("arb_route_edges_total", "Total edges in the local route graph").unwrap();
+        let candidates_considered_total = IntCounter::new("arb_candidates_considered_total", "Total candidates considered").unwrap();
+        let candidates_promoted_total = IntCounter::new("arb_candidates_promoted_total", "Total candidates promoted above threshold").unwrap();
+        let quote_failures_total = IntCounter::new("arb_quote_failures_total", "Total local quote failures during search").unwrap();
+        let stale_pool_skips_total = IntCounter::new("arb_stale_pool_skips_total", "Total stale pools skipped in routing").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -99,6 +115,12 @@ impl MetricsRegistry {
         registry.register(Box::new(cl_state_updates_total.clone())).unwrap();
         registry.register(Box::new(local_quotes_total.clone())).unwrap();
         registry.register(Box::new(local_quote_errors_total.clone())).unwrap();
+        registry.register(Box::new(route_nodes_total.clone())).unwrap();
+        registry.register(Box::new(route_edges_total.clone())).unwrap();
+        registry.register(Box::new(candidates_considered_total.clone())).unwrap();
+        registry.register(Box::new(candidates_promoted_total.clone())).unwrap();
+        registry.register(Box::new(quote_failures_total.clone())).unwrap();
+        registry.register(Box::new(stale_pool_skips_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -132,6 +154,12 @@ impl MetricsRegistry {
             cl_state_updates_total,
             local_quotes_total,
             local_quote_errors_total,
+            route_nodes_total,
+            route_edges_total,
+            candidates_considered_total,
+            candidates_promoted_total,
+            quote_failures_total,
+            stale_pool_skips_total,
         }
     }
 
@@ -173,6 +201,30 @@ impl MetricsRegistry {
 
     pub fn inc_local_quote_errors(&self) {
         self.local_quote_errors_total.inc();
+    }
+
+    pub fn set_route_nodes(&self, count: i64) {
+        self.route_nodes_total.set(count);
+    }
+
+    pub fn set_route_edges(&self, count: i64) {
+        self.route_edges_total.set(count);
+    }
+
+    pub fn inc_candidates_considered(&self) {
+        self.candidates_considered_total.inc();
+    }
+
+    pub fn inc_candidates_promoted(&self) {
+        self.candidates_promoted_total.inc();
+    }
+
+    pub fn inc_quote_failures(&self) {
+        self.quote_failures_total.inc();
+    }
+
+    pub fn inc_stale_pool_skips(&self) {
+        self.stale_pool_skips_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
