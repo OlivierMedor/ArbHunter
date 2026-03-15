@@ -210,6 +210,11 @@ mod tests {
             enable_flashblocks: false,
             enable_pending_logs: false,
             enable_failover: true,
+            root_asset: "0xTEST".to_string(),
+            min_gross_profit: "1".to_string(),
+            min_gross_bps: 1,
+            require_fresh: false,
+            quote_buckets: "1".to_string(),
         };
         
         let metrics = Arc::new(MetricsRegistry::new());
