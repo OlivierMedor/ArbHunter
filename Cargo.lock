@@ -23,6 +23,8 @@ dependencies = [
  "arb_ingest",
  "arb_metrics",
  "arb_providers",
+ "arb_state",
+ "arb_types",
  "axum",
  "tokio",
  "tracing",
@@ -80,6 +82,13 @@ version = "0.1.0"
 [[package]]
 name = "arb_state"
 version = "0.1.0"
+dependencies = [
+ "arb_metrics",
+ "arb_types",
+ "serde",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "arb_storage"
