@@ -8,7 +8,7 @@ use tracing::{debug, info};
 use arb_metrics::MetricsRegistry;
 use arb_types::{
     EventStamp, PoolFreshness, PoolId, PoolKind, PoolStateSnapshot, PoolUpdate,
-    ReserveSnapshot,
+    ReserveSnapshot, CLSnapshot,
 };
 
 /// Staleness threshold: pools not updated within this window are marked stale.
@@ -40,14 +40,14 @@ impl ReservePoolAdapter {
 pub struct CLPoolAdapter;
 
 impl CLPoolAdapter {
-    /// Placeholder apply; CL tick data not yet modelled.
-    pub fn apply(snapshot: &mut PoolStateSnapshot, stamp: EventStamp) {
+    /// Apply a concentrated-liquidity update, returning an updated snapshot.
+    pub fn apply(snapshot: &mut PoolStateSnapshot, cl_snapshot: CLSnapshot, stamp: EventStamp) {
+        snapshot.cl_snapshot = Some(cl_snapshot);
         snapshot.freshness = PoolFreshness {
             last_stamp: stamp,
             age_ms: 0,
             is_stale: false,
         };
-        // TODO Phase 4: parse tick bitmap and liquidity arrays
     }
 }
 
@@ -92,6 +92,7 @@ impl PoolStore {
             token0: update.token0,
             token1: update.token1,
             reserves: update.reserves.clone(),
+            cl_snapshot: update.cl_snapshot.clone(),
             freshness,
         };
 
@@ -104,7 +105,9 @@ impl PoolStore {
             }
             PoolKind::ConcentratedLiquidity => {
                 let entry = self.pools.entry(pool_id.clone()).or_insert(snapshot.clone());
-                CLPoolAdapter::apply(entry, update.stamp);
+                if let Some(cl_snapshot) = update.cl_snapshot {
+                    CLPoolAdapter::apply(entry, cl_snapshot, update.stamp);
+                }
             }
             PoolKind::Unknown => {
                 self.pools.insert(pool_id.clone(), snapshot);
@@ -220,6 +223,24 @@ mod tests {
             token0: TokenAddress("0xAAA".to_string()),
             token1: TokenAddress("0xBBB".to_string()),
             reserves: Some(ReserveSnapshot { reserve0: r0, reserve1: r1 }),
+            cl_snapshot: None,
+            stamp: EventStamp { block_number: block, log_index: 0 },
+        }
+    }
+
+    fn make_cl_update(pool: &str, block: u64, sqrt_p: u128, liq: u128, tick: i32) -> PoolUpdate {
+        use alloy_primitives::{U128, U256};
+        PoolUpdate {
+            pool_id: PoolId(pool.to_string()),
+            kind: PoolKind::ConcentratedLiquidity,
+            token0: TokenAddress("0xAAA".to_string()),
+            token1: TokenAddress("0xBBB".to_string()),
+            reserves: None,
+            cl_snapshot: Some(CLSnapshot {
+                sqrt_price_x96: U256::from(sqrt_p),
+                liquidity: U128::from(liq),
+                tick,
+            }),
             stamp: EventStamp { block_number: block, log_index: 0 },
         }
     }
@@ -232,6 +253,16 @@ mod tests {
         assert_eq!(store.len(), 1);
         let snap = store.get(&PoolId("pool_a".to_string())).unwrap();
         assert_eq!(snap.reserves.unwrap().reserve0, 1000);
+    }
+
+    #[test]
+    fn test_apply_cl_update() {
+        let mut store = PoolStore::new();
+        let update = make_cl_update("pool_v3", 100, 123456789, 1000000, 500);
+        assert!(store.apply_update(update));
+        assert_eq!(store.len(), 1);
+        let snap = store.get(&PoolId("pool_v3".to_string())).unwrap();
+        assert_eq!(snap.cl_snapshot.unwrap().tick, 500);
     }
 
     #[test]
@@ -274,6 +305,7 @@ mod tests {
             token0: TokenAddress("0xAAA".to_string()),
             token1: TokenAddress("0xBBB".to_string()),
             reserves: None,
+            cl_snapshot: None,
             stamp: EventStamp { block_number: 1, log_index: 0 },
         };
         assert!(store.apply_update(update));

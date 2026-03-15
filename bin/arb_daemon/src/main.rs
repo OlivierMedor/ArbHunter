@@ -19,38 +19,25 @@ async fn metrics_handler(State(metrics): State<Arc<MetricsRegistry>>) -> String 
 }
 
 /// Convert a normalized `IngestEvent` into a `PoolUpdate` if it carries state-relevant data.
-/// For Phase 3, only Flashblock events are modelled as pool state inputs.
-/// PendingLog events are deliberately ignored for pool state (routing-free design).
-fn ingest_to_pool_update(event: &IngestEvent) -> Option<PoolUpdate> {
+/// Phase 4: Uses real DEX event decoding for PendingLog events.
+fn ingest_to_pool_update(event: &IngestEvent, pipeline: &IngestPipeline) -> Option<PoolUpdate> {
     match event {
-        IngestEvent::Flashblock(fb) => {
-            // Phase 3: derive a synthetic pool update from the block's base-fee context.
-            // In Phase 4+ this will be replaced by real Sync/Swap log parsing.
-            // For now we model one canonical "block-level" entry so the state engine
-            // demonstrates apply/freshness/metrics without fake data.
-            Some(PoolUpdate {
-                pool_id: PoolId(format!("block:{}", fb.block_number)),
-                kind: PoolKind::Unknown,
-                token0: TokenAddress("0x0000000000000000000000000000000000000000".to_string()),
-                token1: TokenAddress("0x0000000000000000000000000000000000000000".to_string()),
-                reserves: Some(ReserveSnapshot {
-                    reserve0: fb.base_fee_per_gas as u128,
-                    reserve1: fb.transaction_count as u128,
-                }),
-                stamp: EventStamp {
-                    block_number: fb.block_number,
-                    log_index: 0,
-                },
-            })
+        IngestEvent::Flashblock(_fb) => {
+            // Phase 4: Synthetic Flashblock state updates are disabled by default.
+            // Only real DEX logs drive the state engine now.
+            None
         }
-        IngestEvent::PendingLog(_) => None, // No pool state from raw pending logs in Phase 3
+        IngestEvent::PendingLog(pl) => {
+            // Use the real DEX decoder from the pipeline
+            pipeline.decoder.decode_log(pl)
+        }
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-    info!("Starting ArbHunter Daemon (Phase 3 State Engine)...");
+    info!("Starting ArbHunter Daemon (Phase 4 Real DEX Event Decoding)...");
 
     let config = Config::load();
     info!("Configuration loaded for Chain ID: {}", config.chain_id);
@@ -102,15 +89,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Ingest → State bridge: consume broadcast IngestEvents and apply to state
     let engine_for_bridge = state_engine.clone();
+    let ingest_for_bridge = ingest_pipeline.clone();
     tokio::spawn(async move {
         let mut update_count = 0u64;
         while let Ok(event) = event_rx.recv().await {
-            if let Some(pool_update) = ingest_to_pool_update(&event) {
+            if let Some(pool_update) = ingest_to_pool_update(&event, &ingest_for_bridge) {
                 engine_for_bridge.apply(pool_update).await;
                 update_count += 1;
                 if update_count % 100 == 0 {
                     info!(
-                        "State engine: {} updates applied, {} pools tracked",
+                        "State engine: {} real updates applied, {} pools tracked",
                         update_count,
                         engine_for_bridge.pool_count().await
                     );
