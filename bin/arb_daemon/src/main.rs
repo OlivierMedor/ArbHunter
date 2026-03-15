@@ -113,18 +113,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Phase 6: Route Graph & Candidate Loop
     let route_engine = state_engine.clone();
     let route_metrics = metrics.clone();
+    let config_for_route = config.clone();
     tokio::spawn(async move {
         let generator = CandidateGenerator::new(route_engine.clone());
         let filter = CandidateFilter::new(FilterConfig {
-            min_gross_profit: U256::from(10_000_000_000_000_000u64), // 0.01 ETH
-            min_gross_bps: 10, // 10 bps
-            require_fresh: true,
+            min_gross_profit: U256::from_str_radix(&config_for_route.min_gross_profit, 10).unwrap_or_default(),
+            min_gross_bps: config_for_route.min_gross_bps,
+            require_fresh: config_for_route.require_fresh,
         });
 
         let mut graph = RouteGraph::new();
-        // WETH on Base (main root asset)
-        let root_asset = TokenAddress("0x4200000000000000000000000000000000000006".to_string());
-        let buckets = vec![QuoteSizeBucket::Small, QuoteSizeBucket::Medium, QuoteSizeBucket::Large];
+        let root_asset = TokenAddress(config_for_route.root_asset.clone());
+        let buckets: Vec<QuoteSizeBucket> = config_for_route.quote_buckets
+            .split(',')
+            .filter_map(|s| s.trim().parse::<u128>().ok())
+            .map(|a| QuoteSizeBucket::Custom(a))
+            .collect();
+
+        if buckets.is_empty() {
+            warn!("No valid quote buckets configured. Candidate generation will be empty.");
+        }
 
         loop {
             // Rebuild graph from current state
