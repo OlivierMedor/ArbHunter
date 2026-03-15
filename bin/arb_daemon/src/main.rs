@@ -128,6 +128,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Phase 3.5: Support REPLAY_FIXTURE for validation
+    if let Ok(fixture_path) = std::env::var("REPLAY_FIXTURE") {
+        info!("Replay trigger detected: {}", fixture_path);
+        let harness = arb_ingest::ReplayHarness::new(fixture_path);
+        if let Err(e) = harness.run_replay(&ingest_pipeline).await {
+            warn!("Replay harness failed: {}", e);
+        } else {
+            info!("Replay completion signal sent to pipeline.");
+        }
+    }
+
     // Graceful shutdown
     match signal::ctrl_c().await {
         Ok(()) => info!("Received shutdown signal. Commencing graceful shutdown."),
