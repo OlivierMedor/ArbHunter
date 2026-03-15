@@ -215,6 +215,10 @@ mod tests {
             min_gross_bps: 1,
             require_fresh: false,
             quote_buckets: "1".to_string(),
+            signer_private_key: None,
+            executor_contract_address: None,
+            enable_broadcast: false,
+            dry_run_only: true,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());

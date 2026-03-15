@@ -18,6 +18,12 @@ pub struct Config {
     pub min_gross_bps: u32,
     pub require_fresh: bool,
     pub quote_buckets: String,
+    
+    // Phase 9: Wallet & Submission
+    pub signer_private_key: Option<String>,
+    pub executor_contract_address: Option<String>,
+    pub enable_broadcast: bool,
+    pub dry_run_only: bool,
 }
 
 impl Config {
@@ -62,6 +68,16 @@ impl Config {
                 .unwrap_or(true),
             quote_buckets: env::var("QUOTE_BUCKETS")
                 .unwrap_or_else(|_| "100000000000000000,1000000000000000000,10000000000000000000".to_string()), // 0.1, 1, 10
+            
+            // Phase 9
+            signer_private_key: env::var("SIGNER_PRIVATE_KEY").ok(),
+            executor_contract_address: env::var("EXECUTOR_CONTRACT_ADDRESS").ok(),
+            enable_broadcast: env::var("ENABLE_BROADCAST")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
+            dry_run_only: env::var("DRY_RUN_ONLY")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(true),
         }
     }
 }
@@ -87,6 +103,10 @@ mod tests {
             std::env::set_var("MIN_GROSS_BPS", "50");
             std::env::set_var("REQUIRE_FRESH", "false");
             std::env::set_var("QUOTE_BUCKETS", "1,2,3");
+            std::env::set_var("SIGNER_PRIVATE_KEY", "0xPK");
+            std::env::set_var("EXECUTOR_CONTRACT_ADDRESS", "0xCONTRACT");
+            std::env::set_var("ENABLE_BROADCAST", "true");
+            std::env::set_var("DRY_RUN_ONLY", "false");
         }
 
         let config = Config::load();
@@ -104,5 +124,9 @@ mod tests {
         assert_eq!(config.min_gross_bps, 50);
         assert!(!config.require_fresh);
         assert_eq!(config.quote_buckets, "1,2,3");
+        assert_eq!(config.signer_private_key, Some("0xPK".to_string()));
+        assert_eq!(config.executor_contract_address, Some("0xCONTRACT".to_string()));
+        assert!(config.enable_broadcast);
+        assert!(!config.dry_run_only);
     }
 }

@@ -1,6 +1,6 @@
 use arb_types::{
     CandidateValidationResult, ExecutionLeg, ExecutionPath, ExecutionPlan, ExpectedOutcome,
-    MinOutConstraint, PlanBuildFailureReason, SlippageGuard, SimOutcomeStatus
+    MinOutConstraint, PlanBuildFailureReason, SlippageGuard
 };
 use alloy_primitives::U256;
 
@@ -81,9 +81,9 @@ mod tests {
     use super::*;
     use arb_types::{
         CandidateOpportunity, QuoteSizeBucket, RoutePath, TokenAddress, RouteLeg, GraphEdge,
-        PoolId, PoolKind, SimulationResult, SimulationRequest, SimulationFailureReason, ExpectedOutcome
+        PoolId, PoolKind, SimulationResult, SimulationRequest, SimulationFailureReason, SimOutcomeStatus
     };
-    use alloy_sol_types::{sol, SolType, SolCall};
+    use alloy_sol_types::{sol, SolCall};
     use alloy_primitives::Address;
 
     fn make_base_candidate() -> CandidateOpportunity {
