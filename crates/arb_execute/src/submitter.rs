@@ -1,8 +1,9 @@
 use std::sync::Arc;
+use tracing::{info, warn};
 use arb_metrics::MetricsRegistry;
 use crate::signer::Wallet;
 use crate::preflight::PreflightChecker;
-use arb_types::{BuiltTransaction, SubmissionResult, SubmissionMode, SubmissionFailureReason};
+use arb_types::{BuiltTransaction, SubmissionResult, SubmissionMode, SubmissionFailureReason, PreflightStatus};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_primitives::Address;
@@ -13,11 +14,29 @@ pub struct Submitter {
     pub metrics: Arc<MetricsRegistry>,
     pub rpc_url: Option<String>,
     pub require_preflight: bool,
+    pub require_eth_call: bool,
+    pub require_gas_estimate: bool,
 }
 
 impl Submitter {
-    pub fn new(wallet: Wallet, mode: SubmissionMode, metrics: Arc<MetricsRegistry>, rpc_url: Option<String>, require_preflight: bool) -> Self {
-        Self { wallet, mode, metrics, rpc_url, require_preflight }
+    pub fn new(
+        wallet: Wallet,
+        mode: SubmissionMode,
+        metrics: Arc<MetricsRegistry>,
+        rpc_url: Option<String>,
+        require_preflight: bool,
+        require_eth_call: bool,
+        require_gas_estimate: bool,
+    ) -> Self {
+        Self {
+            wallet,
+            mode,
+            metrics,
+            rpc_url,
+            require_preflight,
+            require_eth_call,
+            require_gas_estimate,
+        }
     }
 
     /// Submits a built transaction according to the operational mode.
@@ -30,20 +49,31 @@ impl Submitter {
                 self.metrics.inc_preflight();
                 let checker = PreflightChecker::new(url.clone());
                 let tx_req = self.build_request(&tx);
-                let preflight = checker.check(&tx_req).await;
-                if !preflight.success {
+                let preflight = checker.check(&tx_req, self.require_eth_call, self.require_gas_estimate).await;
+                
+                // Log honest statuses
+                info!(
+                    "Preflight result: overall_success={}, eth_call={:?}, gas_estimate={:?}",
+                    preflight.overall_success, preflight.eth_call_status, preflight.gas_estimate_status
+                );
+
+                if !preflight.overall_success {
                     self.metrics.inc_preflight_failed();
-                    if let Some(reason) = &preflight.failure_reason {
-                        match reason {
-                            arb_types::PreflightFailureReason::EthCallFailed(_) => self.metrics.inc_preflight_eth_call_failed(),
-                            arb_types::PreflightFailureReason::GasEstimateFailed(_) => self.metrics.inc_preflight_gas_estimate_failed(),
-                            _ => {}
-                        }
+                    
+                    // Specific failure metrics
+                    if let arb_types::PreflightStatus::Failed(_) = preflight.eth_call_status {
+                        self.metrics.inc_preflight_eth_call_failed();
                     }
+                    if let arb_types::PreflightStatus::Failed(_) = preflight.gas_estimate_status {
+                        self.metrics.inc_preflight_gas_estimate_failed();
+                    }
+
                     self.metrics.inc_submission_failed();
-                    return SubmissionResult::Failed(SubmissionFailureReason::PreflightFailed(
-                        preflight.failure_reason.unwrap_or(arb_types::PreflightFailureReason::EthCallFailed("Unknown preflight error".to_string()))
-                    ));
+                    let msg = format!(
+                        "Preflight failed: eth_call={:?}, gas={:?}",
+                        preflight.eth_call_status, preflight.gas_estimate_status
+                    );
+                    return SubmissionResult::Failed(SubmissionFailureReason::PreflightFailed(msg));
                 }
                 self.metrics.inc_preflight_success();
             }
@@ -153,7 +183,7 @@ mod tests {
         let wallet = Wallet { signer };
         
         let metrics = Arc::new(MetricsRegistry::new());
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -175,5 +205,55 @@ mod tests {
             }
             _ => panic!("Expected DryRunSuccess, got {:?}", result),
         }
+    }
+
+    #[tokio::test]
+    async fn test_submitter_preflight_disabled() {
+        let test_pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        let signer: PrivateKeySigner = test_pk.parse().unwrap();
+        let wallet = Wallet { signer };
+        let metrics = Arc::new(MetricsRegistry::new());
+        // require_preflight = false
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true);
+        
+        let tx = BuiltTransaction {
+            to: format!("{:#x}", Address::ZERO),
+            data: vec![],
+            value: U256::ZERO,
+            nonce: 0,
+            gas_limit: 21000,
+            max_fee_per_gas: 1000,
+            max_priority_fee_per_gas: 100,
+            chain_id: 1,
+        };
+
+        let result = submitter.submit(tx).await;
+        // Should succeed in DryRun because preflight is skipped
+        assert!(matches!(result, SubmissionResult::DryRunSuccess { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_submitter_preflight_required_but_no_url() {
+        let test_pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        let signer: PrivateKeySigner = test_pk.parse().unwrap();
+        let wallet = Wallet { signer };
+        let metrics = Arc::new(MetricsRegistry::new());
+        // require_preflight = true, but rpc_url = None
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true);
+        
+        let tx = BuiltTransaction {
+            to: format!("{:#x}", Address::ZERO),
+            data: vec![],
+            value: U256::ZERO,
+            nonce: 0,
+            gas_limit: 21000,
+            max_fee_per_gas: 1000,
+            max_priority_fee_per_gas: 100,
+            chain_id: 1,
+        };
+
+        let result = submitter.submit(tx).await;
+        // Should continue to DryRun because url is None
+        assert!(matches!(result, SubmissionResult::DryRunSuccess { .. }));
     }
 }

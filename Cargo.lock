@@ -523,6 +523,7 @@ dependencies = [
  "arb_types",
  "reqwest",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

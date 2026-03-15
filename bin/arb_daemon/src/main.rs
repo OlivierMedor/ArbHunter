@@ -138,7 +138,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             mode,
             metrics.clone(),
             config.rpc_http_url.clone(),
-            config.require_preflight
+            config.require_preflight,
+            config.require_eth_call,
+            config.require_gas_estimate,
         ));
         info!("Submitter initialized in {:?} mode.", mode);
         Some(s)
@@ -293,7 +295,8 @@ mod tests {
     #[tokio::test]
     async fn test_candidate_pipeline_e2e_replay() {
         let metrics = Arc::new(MetricsRegistry::new());
-        // Phase 4 signature requires a buffer size
+        let wallet = Wallet::from_random().unwrap(); // Create a dummy wallet for the test
+        let submitter = Submitter::new(wallet, arb_types::SubmissionMode::DryRun, metrics.clone(), None, false, false, false);
         let ingest_pipeline = Arc::new(IngestPipeline::new(1024, metrics.clone()));
         let mut event_rx = ingest_pipeline.subscribe();
         

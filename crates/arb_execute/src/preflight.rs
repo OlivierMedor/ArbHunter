@@ -1,6 +1,6 @@
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_eth::TransactionRequest;
-use arb_types::{PreflightResult, PreflightFailureReason};
+use arb_types::{PreflightResult, PreflightStatus};
 
 pub struct PreflightChecker {
     rpc_url: String,
@@ -11,38 +11,56 @@ impl PreflightChecker {
         Self { rpc_url }
     }
 
-    pub async fn check(&self, tx: &TransactionRequest) -> PreflightResult {
+    pub async fn check(&self, tx: &TransactionRequest, require_eth_call: bool, require_gas_estimate: bool) -> PreflightResult {
+        let mut eth_call_status = PreflightStatus::Skipped;
+        let mut gas_estimate_status = PreflightStatus::Skipped;
+        let mut gas_estimate = None;
+
         let url = match self.rpc_url.parse() {
             Ok(u) => u,
             Err(e) => return PreflightResult {
-                success: false,
-                failure_reason: Some(PreflightFailureReason::EthCallFailed(format!("Invalid RPC URL: {}", e))),
+                overall_success: false,
+                eth_call_status: PreflightStatus::Failed(format!("Invalid RPC URL: {}", e)),
+                gas_estimate_status,
                 gas_estimate: None,
             },
         };
         let provider = ProviderBuilder::new().on_http(url);
 
         // 1. eth_call
-        if let Err(e) = provider.call(tx).await {
-             return PreflightResult {
-                success: false,
-                failure_reason: Some(PreflightFailureReason::EthCallFailed(e.to_string())),
-                gas_estimate: None,
-            };
+        if require_eth_call {
+            match provider.call(tx).await {
+                Ok(_) => {
+                    eth_call_status = PreflightStatus::Passed;
+                }
+                Err(e) => {
+                    eth_call_status = PreflightStatus::Failed(e.to_string());
+                }
+            }
         }
 
         // 2. gas estimate
-        match provider.estimate_gas(tx).await {
-            Ok(gas) => PreflightResult {
-                success: true,
-                failure_reason: None,
-                gas_estimate: Some(gas),
-            },
-            Err(e) => PreflightResult {
-                success: false,
-                failure_reason: Some(PreflightFailureReason::GasEstimateFailed(e.to_string())),
-                gas_estimate: None,
-            },
+        if require_gas_estimate {
+            match provider.estimate_gas(tx).await {
+                Ok(gas) => {
+                    gas_estimate_status = PreflightStatus::Passed;
+                    gas_estimate = Some(gas);
+                }
+                Err(e) => {
+                    gas_estimate_status = PreflightStatus::Failed(e.to_string());
+                }
+            }
+        }
+
+        // Overall success: failed only if a required check failed
+        let overall_success = !matches!(eth_call_status, PreflightStatus::Failed(_)) && 
+                               !matches!(gas_estimate_status, PreflightStatus::Failed(_));
+
+        PreflightResult {
+            overall_success,
+            eth_call_status,
+            gas_estimate_status,
+            gas_estimate,
         }
     }
 }

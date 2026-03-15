@@ -348,7 +348,7 @@ pub enum SubmissionFailureReason {
     ExecutionReverted(String),
     NetworkError(String),
     DroppedFromMempool,
-    PreflightFailed(PreflightFailureReason),
+    PreflightFailed(String),
     UnknownOverride,
 }
 
@@ -401,17 +401,17 @@ pub enum SubmissionMode {
 // ============================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum PreflightFailureReason {
-    EthCallFailed(String),
-    GasEstimateFailed(String),
-    SimulationMismatch(String),
-    InsufficientFunds,
+pub enum PreflightStatus {
+    Passed,
+    Failed(String),
+    Skipped,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreflightResult {
-    pub success: bool,
-    pub failure_reason: Option<PreflightFailureReason>,
+    pub overall_success: bool,
+    pub eth_call_status: PreflightStatus,
+    pub gas_estimate_status: PreflightStatus,
     pub gas_estimate: Option<u64>,
 }
 
