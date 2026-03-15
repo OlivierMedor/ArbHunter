@@ -222,6 +222,7 @@ dependencies = [
  "arb_metrics",
  "arb_state",
  "arb_types",
+ "tokio",
  "tracing",
 ]
 

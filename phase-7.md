@@ -264,3 +264,115 @@ Provide:
 5. The source-of-truth outputs listed above
 
 Do not go beyond Phase 7.
+
+
+----- update 1 ----
+
+Do a final Phase 7 merge-readiness pass on the EXISTING branch `phase-7-pending-sim-validation`.
+
+Do NOT create a new branch.
+Do NOT add execution, signing, flash loans, or transaction submission logic.
+Do NOT expand scope beyond the 3 issues below.
+
+Goal:
+Make Phase 7 merge-ready by removing fake gas reporting and strengthening simulation validation proof.
+
+==================================================
+FIX 1 — REMOVE FAKE GAS ESTIMATE
+==================================================
+
+Current problem:
+The simulator still returns a hardcoded dummy gas estimate:
+expected_gas_used: Some(150_000)
+
+Required fix:
+Choose ONE:
+PATH A (preferred):
+- replace the fake gas estimate with a real estimate if there is already a clean, honest way to do so in this phase
+
+PATH B:
+- set expected_gas_used to None
+- update docs/checklist/walkthrough so they clearly state gas estimation is deferred
+
+Do NOT leave a fake hardcoded gas estimate in merge-ready code.
+
+==================================================
+FIX 2 — ADD A POSITIVE SIMULATION TEST
+==================================================
+
+Current problem:
+The visible arb_sim tests are too weak.
+
+Required fix:
+Add at least one test that proves:
+- a valid candidate enters the simulator
+- simulation returns success
+- SimulationResult is populated with expected_amount_out and expected_profit
+- CandidateValidationResult.is_valid is true
+
+Keep it deterministic and local.
+
+==================================================
+FIX 3 — ADD / PROVE REPLAY-DRIVEN END-TO-END VALIDATION
+==================================================
+
+Current problem:
+Phase 7 requires more than just unit tests inside arb_sim.
+
+Required fix:
+Add or prove at least one replay-driven test path that covers:
+ingest -> state -> graph -> filter -> simulation
+
+This can be:
+- a real test in code, OR
+- an existing test path plus exact proof outputs
+
+But it must be explicit and honest.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-7-pending-sim-validation
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'expected_gas_used' -- crates/arb_sim
+- git grep -n 'mock dummy gas estimate' -- crates/arb_sim
+- git grep -n 'test_.*simulate\|test_.*validation\|test_.*replay' -- crates/arb_sim crates/arb_filter crates/arb_route bin/
+
+3. Build/test:
+- cargo check --workspace
+- cargo test --workspace
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Which gas path was chosen:
+- PATH A = real gas estimate
+- PATH B = no gas estimate / deferred honestly
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- fake gas estimate removed
+- positive simulation test added
+- replay-driven validation test/proof added
+- no execution logic added
+
+4. Exact outputs for all source-of-truth and proof commands above
+
+5. A short walkthrough describing:
+- how successful validation is now proven
+- whether gas estimation is real or deferred
+- what remains deferred to the next phase
+
+Do not go beyond this scope.
