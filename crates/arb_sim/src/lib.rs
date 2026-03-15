@@ -1,1 +1,244 @@
-// TODO: Implement simulation logic for ArbHunter Phase 2+
+use alloy_primitives::U256;
+use std::sync::Arc;
+
+use arb_types::{
+    CandidateOpportunity, CandidateValidationResult, SimOutcomeStatus,
+    SimulationFailureReason, SimulationRequest, SimulationResult, PoolKind,
+};
+use arb_state::StateEngine;
+
+/// Evaluates a candidate opportunity locally against the most recent state.
+/// This acts as a dry-run to ensure the opportunity is still valid before
+/// committing to any execution path.
+#[derive(Clone)]
+pub struct LocalSimulator {
+    state_engine: Arc<StateEngine>,
+}
+
+impl LocalSimulator {
+    pub fn new(state_engine: Arc<StateEngine>) -> Self {
+        Self { state_engine }
+    }
+
+    /// Converts a promoted candidate into a simulation request.
+    pub fn create_request(candidate: CandidateOpportunity) -> SimulationRequest {
+        SimulationRequest { candidate }
+    }
+
+    /// Simulates the request against the current state engine.
+    /// This recalculates the expected output using the latest pool snapshots.
+    pub async fn simulate(&self, request: SimulationRequest) -> SimulationResult {
+        let candidate = &request.candidate;
+        let mut current_amount = candidate.amount_in;
+        let required_amount_in = candidate.amount_in;
+
+        // Fetch the absolute newest states
+        let pools = self.state_engine.get_all_pools().await;
+        
+        // Re-simulate step by step
+        for leg in &candidate.path.legs {
+            let pool_snapshot = match pools.iter().find(|p| p.pool_id == leg.edge.pool_id) {
+                Some(p) => p,
+                None => {
+                    return SimulationResult {
+                        request,
+                        status: SimOutcomeStatus::Failed(SimulationFailureReason::RouteNotFound),
+                        expected_amount_out: None,
+                        expected_profit: None,
+                        expected_gas_used: None,
+                    };
+                }
+            };
+
+            // Stale check
+            if pool_snapshot.freshness.is_stale {
+                return SimulationResult {
+                    request,
+                    status: SimOutcomeStatus::Failed(SimulationFailureReason::StaleState),
+                    expected_amount_out: None,
+                    expected_profit: None,
+                    expected_gas_used: None,
+                };
+            }
+
+            let next_amount = match leg.edge.kind {
+                PoolKind::ReserveBased => {
+                    self.state_engine.quote_v2(&leg.edge.pool_id, current_amount).await
+                }
+                PoolKind::ConcentratedLiquidity => {
+                    let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
+                    self.state_engine.quote_v3(&leg.edge.pool_id, current_amount, zero_for_one).await
+                }
+                PoolKind::Unknown => None,
+            };
+
+            let amount_out = next_amount.unwrap_or(U256::ZERO);
+
+            if amount_out.is_zero() {
+                return SimulationResult {
+                    request,
+                    status: SimOutcomeStatus::Failed(SimulationFailureReason::InsufficientLiquidity),
+                    expected_amount_out: None,
+                    expected_profit: None,
+                    expected_gas_used: None,
+                };
+            }
+            current_amount = amount_out;
+        }
+
+        // Evaluate outcome
+        if current_amount > required_amount_in {
+            let profit = current_amount - required_amount_in;
+            
+            // Check if it slipped below our initial candidate's threshold
+            // In a real execution environment, we might reject if profit drops significantly.
+            // For now, any positive profit is a success if it validates.
+            
+            SimulationResult {
+                request,
+                status: SimOutcomeStatus::Success,
+                expected_amount_out: Some(current_amount),
+                expected_profit: Some(profit),
+                expected_gas_used: None, // Gas estimation deferred to execution phase
+            }
+        } else {
+            SimulationResult {
+                request,
+                status: SimOutcomeStatus::Failed(SimulationFailureReason::SlippageExceeded),
+                expected_amount_out: Some(current_amount),
+                expected_profit: None,
+                expected_gas_used: None,
+            }
+        }
+    }
+
+    /// Wraps the simulate flow into a high-level validation result
+    pub async fn validate_candidate(&self, candidate: CandidateOpportunity) -> CandidateValidationResult {
+        let request = Self::create_request(candidate);
+        let sim_result = self.simulate(request).await;
+        
+        let is_valid = matches!(sim_result.status, SimOutcomeStatus::Success);
+        
+        CandidateValidationResult {
+            sim_result,
+            is_valid,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arb_types::{RoutePath, TokenAddress, QuoteSizeBucket};
+
+    // Minimal unit test for the conversion method.
+    #[test]
+    fn test_create_request_from_candidate() {
+        let candidate = CandidateOpportunity {
+            path: RoutePath {
+                legs: vec![],
+                root_asset: TokenAddress("0xWETH".to_string()),
+            },
+            bucket: QuoteSizeBucket::Small,
+            amount_in: U256::from(100),
+            estimated_amount_out: U256::from(105),
+            estimated_gross_profit: U256::from(5),
+            estimated_gross_bps: 500,
+            is_fresh: true,
+        };
+
+        let req = LocalSimulator::create_request(candidate.clone());
+        assert_eq!(req.candidate.amount_in, U256::from(100));
+    }
+
+    #[tokio::test]
+    async fn test_simulator_empty_state_rejection() {
+        let engine = Arc::new(StateEngine::new(std::sync::Arc::new(arb_metrics::MetricsRegistry::new())));
+        let simulator = LocalSimulator::new(engine);
+
+        let candidate = CandidateOpportunity {
+            path: RoutePath {
+                legs: vec![],
+                root_asset: TokenAddress("0xTEST".to_string()),
+            },
+            bucket: QuoteSizeBucket::Small,
+            amount_in: U256::ZERO,
+            estimated_amount_out: U256::ZERO,
+            estimated_gross_profit: U256::ZERO,
+            estimated_gross_bps: 0,
+            is_fresh: true,
+        };
+
+        let res = simulator.validate_candidate(candidate).await;
+        // PATH A Fix: With an empty engine, evaluating legs resolves to 0 output since no fresh pools are found.
+        // This causes the final output to be less than amount_in, resulting in SlippageExceeded.
+        assert!(!res.is_valid);
+        assert_eq!(res.sim_result.status, SimOutcomeStatus::Failed(SimulationFailureReason::SlippageExceeded));
+    }
+
+    #[tokio::test]
+    async fn test_simulator_successful_path() {
+        use arb_types::{EventStamp, PoolId, PoolKind, ReserveSnapshot, PoolUpdate, GraphEdge};
+        
+        // Build state engine and mock a pool update 
+        let engine = Arc::new(StateEngine::new(std::sync::Arc::new(arb_metrics::MetricsRegistry::new())));
+        
+        let pool_id = PoolId("0xPOOL".to_string());
+        let token_in = TokenAddress("0xA".to_string());
+        let token_out = TokenAddress("0xB".to_string());
+        
+        let update = PoolUpdate {
+            pool_id: pool_id.clone(),
+            kind: PoolKind::ReserveBased,
+            token0: Some(token_in.clone()),
+            token1: Some(token_out.clone()),
+            fee_bps: Some(30), // 0.3%
+            reserves: Some(ReserveSnapshot {
+                reserve0: 1_000_000,
+                reserve1: 2_000_000,
+            }),
+            cl_snapshot: None,
+            cl_full_state: None,
+            stamp: EventStamp { block_number: 1, log_index: 0 },
+        };
+        
+        engine.apply(update).await;
+        
+        let simulator = LocalSimulator::new(engine);
+
+        let path = RoutePath {
+            root_asset: token_in.clone(),
+            legs: vec![arb_types::RouteLeg {
+                edge: GraphEdge {
+                    pool_id: pool_id.clone(),
+                    kind: PoolKind::ReserveBased,
+                    token_in: token_in.clone(),
+                    token_out: token_out.clone(),
+                    fee_bps: 30,
+                    is_stale: false,
+                }
+            }],
+        };
+
+        let candidate = CandidateOpportunity {
+            path,
+            bucket: QuoteSizeBucket::Small,
+            amount_in: U256::from(100),
+            // We just need the out amount to be literally any positive number > 100 since the pool gives roughly 200 - fee
+            // A 100 swap on 1M/2M pool gives roughly 199.
+            // Slippage check in simulator passes if current_amount > amount_in
+            estimated_amount_out: U256::from(199),
+            estimated_gross_profit: U256::from(99),
+            estimated_gross_bps: 9900,
+            is_fresh: true,
+        };
+
+        let res = simulator.validate_candidate(candidate).await;
+        assert!(res.is_valid);
+        assert_eq!(res.sim_result.status, SimOutcomeStatus::Success);
+        
+        // Verify profit and amount out were resolved
+        assert!(res.sim_result.expected_profit.is_some());
+        assert!(res.sim_result.expected_amount_out.is_some());
+    }
+}

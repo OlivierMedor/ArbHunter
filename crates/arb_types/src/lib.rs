@@ -211,3 +211,48 @@ pub struct CandidateOpportunity {
     pub estimated_gross_bps: u32,
     pub is_fresh: bool,
 }
+
+// ============================================================
+// Phase 7: Pending-State Simulation Types
+// ============================================================
+
+/// Represents a distinct reason why a candidate simulation failed.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SimulationFailureReason {
+    RouteNotFound,
+    InsufficientLiquidity,
+    SlippageExceeded,
+    StaleState,
+    QuoteFailed,
+}
+
+/// The status of a candidate simulation attempt.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SimOutcomeStatus {
+    Success,
+    Failed(SimulationFailureReason),
+    Skipped,
+}
+
+/// Represents a request to simulate a promoted candidate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimulationRequest {
+    pub candidate: CandidateOpportunity,
+}
+
+/// The structured result of performing a simulation/dry-run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimulationResult {
+    pub request: SimulationRequest,
+    pub status: SimOutcomeStatus,
+    pub expected_amount_out: Option<U256>,
+    pub expected_profit: Option<U256>,
+    pub expected_gas_used: Option<u64>,
+}
+
+/// The high-level validation result to be logged or passed to execution.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateValidationResult {
+    pub sim_result: SimulationResult,
+    pub is_valid: bool,
+}

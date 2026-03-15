@@ -146,6 +146,7 @@ dependencies = [
  "arb_metrics",
  "arb_providers",
  "arb_route",
+ "arb_sim",
  "arb_state",
  "arb_types",
  "axum",
@@ -216,6 +217,14 @@ dependencies = [
 [[package]]
 name = "arb_sim"
 version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "arb_metrics",
+ "arb_state",
+ "arb_types",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "arb_state"
