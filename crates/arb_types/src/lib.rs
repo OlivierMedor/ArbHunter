@@ -320,3 +320,77 @@ pub struct ExecutionPlan {
     pub guard: SlippageGuard,
     pub flash_loan: Option<FlashLoanSpec>,
 }
+
+// ============================================================
+// Phase 9: Wallet, Signing, and Submission Types
+// ============================================================
+
+/// Represents a built transaction request ready for signing or simulation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuiltTransaction {
+    pub to: String,
+    pub data: Vec<u8>,
+    pub value: U256,
+    pub nonce: u64,
+    pub gas_limit: u64,
+    pub max_fee_per_gas: u128,
+    pub max_priority_fee_per_gas: u128,
+    pub chain_id: u64,
+}
+
+/// Reasons why a transaction submission might fail
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SubmissionFailureReason {
+    SignerMissing,
+    NonceMismatch,
+    ReplacementUnderpriced,
+    InsufficientFunds,
+    ExecutionReverted(String),
+    NetworkError(String),
+    DroppedFromMempool,
+    UnknownOverride,
+}
+
+/// The state of a submission attempt
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SubmissionResult {
+    /// Transaction broadcast successfully
+    Success { tx_hash: String },
+    /// Dry-run successful (no broadcast)
+    DryRunSuccess { tx_hash: String, signed_raw: Vec<u8> },
+    /// Submission failed with a specific reason
+    Failed(SubmissionFailureReason),
+    /// Submission skipped (e.g. gas too high)
+    Skipped(String),
+}
+
+/// Simple model for tracking the current nonce state
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NonceState {
+    pub address: String,
+    pub next_nonce: u64,
+    pub pending_count: u32,
+}
+
+/// Policy for fee selection (EIP-1559)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeePolicy {
+    pub max_fee_per_gas: u128,
+    pub max_priority_fee_per_gas: u128,
+    pub base_fee_multiplier: f64,
+}
+
+/// Configuration for the signing wallet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletConfig {
+    pub address: String,
+    pub chain_id: u64,
+}
+
+/// Operational mode for the submission pipeline
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SubmissionMode {
+    Broadcast,
+    DryRun,
+    SimulateOnly,
+}

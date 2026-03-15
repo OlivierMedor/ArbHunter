@@ -50,6 +50,17 @@ pub struct MetricsRegistry {
     pub simulations_success_total: IntCounter,
     pub simulations_failed_total: IntCounter,
     pub candidates_validated_total: IntCounter,
+
+    // Phase 9: Submission metrics
+    pub submission_attempts_total: IntCounter,
+    pub submission_signed_total: IntCounter,
+    pub submission_broadcast_total: IntCounter,
+    pub submission_failed_total: IntCounter,
+    pub submission_dry_run_total: IntCounter,
+    pub nonce_fetch_total: IntCounter,
+    pub nonce_fetch_failures_total: IntCounter,
+    pub tx_build_total: IntCounter,
+    pub tx_build_failures_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -102,6 +113,17 @@ impl MetricsRegistry {
         let simulations_failed_total = IntCounter::new("arb_simulations_failed_total", "Total simulations that failed").unwrap();
         let candidates_validated_total = IntCounter::new("arb_candidates_validated_total", "Total candidates validated and accepted for execution/logging").unwrap();
 
+        // Phase 9: Submission metrics
+        let submission_attempts_total = IntCounter::new("arb_submission_attempts_total", "Total transaction submission attempts").unwrap();
+        let submission_signed_total = IntCounter::new("arb_submission_signed_total", "Total transactions successfully signed").unwrap();
+        let submission_broadcast_total = IntCounter::new("arb_submission_broadcast_total", "Total transactions successfully broadcast").unwrap();
+        let submission_failed_total = IntCounter::new("arb_submission_failed_total", "Total transaction submissions that failed").unwrap();
+        let submission_dry_run_total = IntCounter::new("arb_submission_dry_run_total", "Total transaction dry-runs").unwrap();
+        let nonce_fetch_total = IntCounter::new("arb_nonce_fetch_total", "Total nonce fetch attempts").unwrap();
+        let nonce_fetch_failures_total = IntCounter::new("arb_nonce_fetch_failures_total", "Total nonce fetch failures").unwrap();
+        let tx_build_total = IntCounter::new("arb_tx_build_total", "Total transaction build attempts").unwrap();
+        let tx_build_failures_total = IntCounter::new("arb_tx_build_failures_total", "Total transaction build failures").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -138,6 +160,16 @@ impl MetricsRegistry {
         registry.register(Box::new(simulations_success_total.clone())).unwrap();
         registry.register(Box::new(simulations_failed_total.clone())).unwrap();
         registry.register(Box::new(candidates_validated_total.clone())).unwrap();
+
+        registry.register(Box::new(submission_attempts_total.clone())).unwrap();
+        registry.register(Box::new(submission_signed_total.clone())).unwrap();
+        registry.register(Box::new(submission_broadcast_total.clone())).unwrap();
+        registry.register(Box::new(submission_failed_total.clone())).unwrap();
+        registry.register(Box::new(submission_dry_run_total.clone())).unwrap();
+        registry.register(Box::new(nonce_fetch_total.clone())).unwrap();
+        registry.register(Box::new(nonce_fetch_failures_total.clone())).unwrap();
+        registry.register(Box::new(tx_build_total.clone())).unwrap();
+        registry.register(Box::new(tx_build_failures_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -181,6 +213,15 @@ impl MetricsRegistry {
             simulations_success_total,
             simulations_failed_total,
             candidates_validated_total,
+            submission_attempts_total,
+            submission_signed_total,
+            submission_broadcast_total,
+            submission_failed_total,
+            submission_dry_run_total,
+            nonce_fetch_total,
+            nonce_fetch_failures_total,
+            tx_build_total,
+            tx_build_failures_total,
         }
     }
 
@@ -263,6 +304,43 @@ impl MetricsRegistry {
 
     pub fn inc_candidates_validated(&self) {
         self.candidates_validated_total.inc();
+    }
+
+    // Phase 9
+    pub fn inc_submission_attempts(&self) {
+        self.submission_attempts_total.inc();
+    }
+
+    pub fn inc_submission_signed(&self) {
+        self.submission_signed_total.inc();
+    }
+
+    pub fn inc_submission_broadcast(&self) {
+        self.submission_broadcast_total.inc();
+    }
+
+    pub fn inc_submission_failed(&self) {
+        self.submission_failed_total.inc();
+    }
+
+    pub fn inc_submission_dry_run(&self) {
+        self.submission_dry_run_total.inc();
+    }
+
+    pub fn inc_nonce_fetch(&self) {
+        self.nonce_fetch_total.inc();
+    }
+
+    pub fn inc_nonce_fetch_failures(&self) {
+        self.nonce_fetch_failures_total.inc();
+    }
+
+    pub fn inc_tx_build(&self) {
+        self.tx_build_total.inc();
+    }
+
+    pub fn inc_tx_build_failures(&self) {
+        self.tx_build_failures_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
