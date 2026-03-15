@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+arb_types = { path = "../arb_types" }
+alloy-primitives = { version = "0.8.4", features = ["rlp", "serde"] }
+alloy-sol-types = "0.8.4"
