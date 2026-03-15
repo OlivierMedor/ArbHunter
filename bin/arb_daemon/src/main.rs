@@ -16,7 +16,8 @@ use arb_types::{
 use arb_route::{RouteGraph, CandidateGenerator};
 use arb_filter::{CandidateFilter, FilterConfig};
 use arb_sim::LocalSimulator;
-use alloy_primitives::U256;
+use alloy_primitives::{U256, Address};
+use arb_execute::{Wallet, Submitter, NonceManager, NonceProvider, TxBuilder, ExecutionPlanner};
 
 async fn metrics_handler(State(metrics): State<Arc<MetricsRegistry>>) -> String {
     metrics.gather_metrics()
@@ -111,6 +112,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Phase 9/10: Execution & Submission Pipeline
+    let wallet = if let Some(pk_str) = &config.signer_private_key {
+        info!("Signer wallet detected. Initializing submission pipeline...");
+        match Wallet::from_env() { // Uses SIGNER_PRIVATE_KEY from env
+            Ok(w) => Some(w),
+            Err(e) => {
+                warn!("Failed to load signer wallet from env: {}", e);
+                None
+            }
+        }
+    } else {
+        warn!("No SIGNER_PRIVATE_KEY provided. Submission will be impossible.");
+        None
+    };
+
+    let submitter = if let Some(w) = wallet {
+        let mode = if config.enable_broadcast && !config.dry_run_only {
+            arb_types::SubmissionMode::Broadcast
+        } else {
+            arb_types::SubmissionMode::DryRun
+        };
+        let s = Arc::new(Submitter::new(
+            w,
+            mode,
+            metrics.clone(),
+            config.rpc_http_url.clone(),
+            config.require_preflight
+        ));
+        info!("Submitter initialized in {:?} mode.", mode);
+        Some(s)
+    } else {
+        None
+    };
+
+    // Nonce Management & Initial Sync
+    let nonce_manager = Arc::new(NonceManager::new(0));
+    if let (Some(url), Some(s)) = (&config.rpc_http_url, &submitter) {
+        let np = NonceProvider::new(url.clone());
+        let addr = s.wallet.address();
+        // Since we are in main (async context), we can block_on or just let it run. 
+        // Actually main is #[tokio::main] so we can just await.
+        match np.get_nonce(addr).await {
+            Ok(n) => {
+                info!("Initial nonce synced for {}: {}", addr, n);
+                nonce_manager.reset(n);
+            }
+            Err(e) => warn!("Initial nonce sync failed: {}", e),
+        }
+    }
+
+    let executor_addr = config.executor_contract_address.as_deref()
+        .and_then(|s| s.parse::<Address>().ok())
+        .unwrap_or(Address::ZERO);
+    let tx_builder = Arc::new(TxBuilder::new(executor_addr, config.chain_id));
+
     // Phase 6: Route Graph & Candidate Loop
     let route_engine = state_engine.clone();
     let route_metrics = metrics.clone();
@@ -168,6 +224,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         val_res.sim_result.expected_profit.unwrap_or_default(),
                         val_res.sim_result.status
                     );
+
+                    // Phase 10: Execution Plan -> Submission
+                    if let Some(s) = &submitter {
+                         match ExecutionPlanner::build_plan(&val_res) {
+                            Ok(plan) => {
+                                let nonce = nonce_manager.next();
+                                // Phase 10: Using default gas parameters for build_tx
+                                match tx_builder.build_tx(&plan, nonce, 1_000_000_000, 100_000_000, 500_000) {
+                                    Ok(built_tx) => {
+                                        info!("Submitting transaction for plan (nonce: {})", nonce);
+                                        let result = s.submit(built_tx).await;
+                                        info!("Submission result: {:?}", result);
+                                    }
+                                    Err(e) => warn!("Failed to build transaction: {}", e),
+                                }
+                            }
+                            Err(e) => warn!("Failed to build execution plan: {:?}", e),
+                         }
+                    }
                 } else {
                     route_metrics.inc_simulations_failed();
                     warn!(
