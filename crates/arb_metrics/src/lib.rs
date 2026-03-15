@@ -44,6 +44,12 @@ pub struct MetricsRegistry {
     pub candidates_promoted_total: IntCounter,
     pub quote_failures_total: IntCounter,
     pub stale_pool_skips_total: IntCounter,
+
+    // Phase 7: Simulation metrics
+    pub simulations_total: IntCounter,
+    pub simulations_success_total: IntCounter,
+    pub simulations_failed_total: IntCounter,
+    pub candidates_validated_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -90,6 +96,12 @@ impl MetricsRegistry {
         let quote_failures_total = IntCounter::new("arb_quote_failures_total", "Total local quote failures during search").unwrap();
         let stale_pool_skips_total = IntCounter::new("arb_stale_pool_skips_total", "Total stale pools skipped in routing").unwrap();
 
+        // Phase 7: Simulation metrics
+        let simulations_total = IntCounter::new("arb_simulations_total", "Total simulations run").unwrap();
+        let simulations_success_total = IntCounter::new("arb_simulations_success_total", "Total simulations that succeeded").unwrap();
+        let simulations_failed_total = IntCounter::new("arb_simulations_failed_total", "Total simulations that failed").unwrap();
+        let candidates_validated_total = IntCounter::new("arb_candidates_validated_total", "Total candidates validated and accepted for execution/logging").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -121,6 +133,11 @@ impl MetricsRegistry {
         registry.register(Box::new(candidates_promoted_total.clone())).unwrap();
         registry.register(Box::new(quote_failures_total.clone())).unwrap();
         registry.register(Box::new(stale_pool_skips_total.clone())).unwrap();
+
+        registry.register(Box::new(simulations_total.clone())).unwrap();
+        registry.register(Box::new(simulations_success_total.clone())).unwrap();
+        registry.register(Box::new(simulations_failed_total.clone())).unwrap();
+        registry.register(Box::new(candidates_validated_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -160,6 +177,10 @@ impl MetricsRegistry {
             candidates_promoted_total,
             quote_failures_total,
             stale_pool_skips_total,
+            simulations_total,
+            simulations_success_total,
+            simulations_failed_total,
+            candidates_validated_total,
         }
     }
 
@@ -225,6 +246,23 @@ impl MetricsRegistry {
 
     pub fn inc_stale_pool_skips(&self) {
         self.stale_pool_skips_total.inc();
+    }
+
+    // Phase 7
+    pub fn inc_simulations(&self) {
+        self.simulations_total.inc();
+    }
+    
+    pub fn inc_simulations_success(&self) {
+        self.simulations_success_total.inc();
+    }
+
+    pub fn inc_simulations_failed(&self) {
+        self.simulations_failed_total.inc();
+    }
+
+    pub fn inc_candidates_validated(&self) {
+        self.candidates_validated_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
