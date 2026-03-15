@@ -348,6 +348,7 @@ pub enum SubmissionFailureReason {
     ExecutionReverted(String),
     NetworkError(String),
     DroppedFromMempool,
+    PreflightFailed(PreflightFailureReason),
     UnknownOverride,
 }
 
@@ -393,4 +394,30 @@ pub enum SubmissionMode {
     Broadcast,
     DryRun,
     SimulateOnly,
+}
+
+// ============================================================
+// Phase 10: Preflight & Broadcast Types
+// ============================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PreflightFailureReason {
+    EthCallFailed(String),
+    GasEstimateFailed(String),
+    SimulationMismatch(String),
+    InsufficientFunds,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreflightResult {
+    pub success: bool,
+    pub failure_reason: Option<PreflightFailureReason>,
+    pub gas_estimate: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BroadcastResult {
+    pub success: bool,
+    pub tx_hash: Option<String>,
+    pub error: Option<String>,
 }
