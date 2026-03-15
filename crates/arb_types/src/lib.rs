@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use alloy_primitives::{U128, U256};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderKind {
@@ -107,6 +108,14 @@ pub struct ReserveSnapshot {
     pub reserve1: u128,
 }
 
+/// Concentrated liquidity snapshot (Uniswap V3-style)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CLSnapshot {
+    pub sqrt_price_x96: U256,
+    pub liquidity: U128,
+    pub tick: i32,
+}
+
 /// Canonical pool state snapshot stored in the engine
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolStateSnapshot {
@@ -115,6 +124,7 @@ pub struct PoolStateSnapshot {
     pub token0: TokenAddress,
     pub token1: TokenAddress,
     pub reserves: Option<ReserveSnapshot>,
+    pub cl_snapshot: Option<CLSnapshot>,
     pub freshness: PoolFreshness,
 }
 
@@ -126,5 +136,6 @@ pub struct PoolUpdate {
     pub token0: TokenAddress,
     pub token1: TokenAddress,
     pub reserves: Option<ReserveSnapshot>,
+    pub cl_snapshot: Option<CLSnapshot>,
     pub stamp: EventStamp,
 }

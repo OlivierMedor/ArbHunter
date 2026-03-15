@@ -26,6 +26,10 @@ pub struct MetricsRegistry {
     pub state_updates_total: IntCounter,
     pub pools_tracked_total: IntGauge,
     pub stale_pool_events_total: IntCounter,
+
+    pub dex_sync_events_total: IntCounter,
+    pub dex_cl_swap_events_total: IntCounter,
+    pub unsupported_dex_logs_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -54,6 +58,10 @@ impl MetricsRegistry {
         let pools_tracked_total = IntGauge::new("arb_pools_tracked_total", "Current number of pools tracked in state engine").unwrap();
         let stale_pool_events_total = IntCounter::new("arb_stale_pool_events_total", "Pool updates rejected as stale (out-of-order)").unwrap();
 
+        let dex_sync_events_total = IntCounter::new("arb_dex_sync_events_total", "Total Uniswap V2 Sync events decoded").unwrap();
+        let dex_cl_swap_events_total = IntCounter::new("arb_dex_cl_swap_events_total", "Total Uniswap V3 Swap events decoded").unwrap();
+        let unsupported_dex_logs_total = IntCounter::new("arb_unsupported_dex_logs_total", "Total DEX logs seen but not supported for state").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -72,6 +80,9 @@ impl MetricsRegistry {
         registry.register(Box::new(state_updates_total.clone())).unwrap();
         registry.register(Box::new(pools_tracked_total.clone())).unwrap();
         registry.register(Box::new(stale_pool_events_total.clone())).unwrap();
+        registry.register(Box::new(dex_sync_events_total.clone())).unwrap();
+        registry.register(Box::new(dex_cl_swap_events_total.clone())).unwrap();
+        registry.register(Box::new(unsupported_dex_logs_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -98,6 +109,9 @@ impl MetricsRegistry {
             state_updates_total,
             pools_tracked_total,
             stale_pool_events_total,
+            dex_sync_events_total,
+            dex_cl_swap_events_total,
+            unsupported_dex_logs_total,
         }
     }
 
@@ -111,6 +125,18 @@ impl MetricsRegistry {
 
     pub fn inc_stale_pool_events(&self) {
         self.stale_pool_events_total.inc();
+    }
+
+    pub fn inc_dex_sync_events(&self) {
+        self.dex_sync_events_total.inc();
+    }
+
+    pub fn inc_dex_cl_swap_events(&self) {
+        self.dex_cl_swap_events_total.inc();
+    }
+
+    pub fn inc_unsupported_dex_logs(&self) {
+        self.unsupported_dex_logs_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
