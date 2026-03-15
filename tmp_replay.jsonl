@@ -1,0 +1,5 @@
+{"type":"flashblock","data":{"base_fee_per_gas":100,"block_number":10001,"transaction_count":5}}
+{"type":"flashblock","data":{"base_fee_per_gas":110,"block_number":10002,"transaction_count":8}}
+{"type":"flashblock","data":{"base_fee_per_gas":120,"block_number":10003,"transaction_count":12}}
+{"type":"flashblock","data":{"base_fee_per_gas":130,"block_number":10004,"transaction_count":15}}
+{"type":"flashblock","data":{"base_fee_per_gas":140,"block_number":10005,"transaction_count":20}}
