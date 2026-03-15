@@ -21,6 +21,11 @@ pub struct MetricsRegistry {
     pub active_provider: IntGaugeVec,
     pub daemon_start_time: SystemTime,
     pub daemon_uptime_seconds: IntGauge,
+
+    // Phase 3: State engine metrics
+    pub state_updates_total: IntCounter,
+    pub pools_tracked_total: IntGauge,
+    pub stale_pool_events_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -44,6 +49,11 @@ impl MetricsRegistry {
         let active_provider = IntGaugeVec::new(Opts::new("arb_active_provider", "Currently active provider indicator"), &["provider"]).unwrap();
         let daemon_uptime_seconds = IntGauge::new("arb_daemon_uptime_seconds", "Seconds elapsed since daemon startup").unwrap();
 
+        // Phase 3: State engine metrics
+        let state_updates_total = IntCounter::new("arb_state_updates_total", "Total pool state updates applied").unwrap();
+        let pools_tracked_total = IntGauge::new("arb_pools_tracked_total", "Current number of pools tracked in state engine").unwrap();
+        let stale_pool_events_total = IntCounter::new("arb_stale_pool_events_total", "Pool updates rejected as stale (out-of-order)").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -59,6 +69,9 @@ impl MetricsRegistry {
         registry.register(Box::new(metrics_requests_total.clone())).unwrap();
         registry.register(Box::new(active_provider.clone())).unwrap();
         registry.register(Box::new(daemon_uptime_seconds.clone())).unwrap();
+        registry.register(Box::new(state_updates_total.clone())).unwrap();
+        registry.register(Box::new(pools_tracked_total.clone())).unwrap();
+        registry.register(Box::new(stale_pool_events_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -82,7 +95,22 @@ impl MetricsRegistry {
             active_provider,
             daemon_start_time: SystemTime::now(),
             daemon_uptime_seconds,
+            state_updates_total,
+            pools_tracked_total,
+            stale_pool_events_total,
         }
+    }
+
+    pub fn inc_state_updates(&self) {
+        self.state_updates_total.inc();
+    }
+
+    pub fn set_pools_tracked(&self, count: i64) {
+        self.pools_tracked_total.set(count);
+    }
+
+    pub fn inc_stale_pool_events(&self) {
+        self.stale_pool_events_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
