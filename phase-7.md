@@ -376,3 +376,162 @@ Provide:
 - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+
+----- update 2 -----
+
+Do a final Phase 7 correctness pass on the EXISTING branch `phase-7-pending-sim-validation`.
+
+Do NOT create a new branch.
+Do NOT add execution, signing, flash loans, transaction submission, or live trading logic.
+Do NOT expand scope beyond fixing the concrete issues in `crates/arb_sim/src/lib.rs` and proving the validation path honestly.
+
+Goal:
+Make Phase 7 merge-ready by removing the fake gas estimate, adding real positive simulation validation, cleaning up misleading test semantics/comments, and eliminating obvious unused-code noise if safe.
+
+==================================================
+ISSUES TO FIX
+==================================================
+
+Current problems in `crates/arb_sim/src/lib.rs`:
+
+1. Fake gas estimate still exists:
+   expected_gas_used: Some(150_000) // mock dummy gas estimate for phase 7
+
+2. No positive success-path unit test is visible in arb_sim:
+   only test_create_request_from_candidate and test_simulator_stale_rejection
+
+3. The stale rejection test/comment is semantically misleading:
+   the current empty-engine path produces SlippageExceeded, not true StaleState
+
+4. There appear to be obvious unused imports / code noise:
+   - tracing::{debug, warn}
+   - possibly QuoteSizeBucket in non-test path
+   Clean them up if safe.
+
+==================================================
+FIX 1 — REMOVE FAKE GAS ESTIMATE
+==================================================
+
+Required fix:
+- Remove the fake hardcoded gas estimate from successful SimulationResult.
+
+Preferred behavior:
+- set expected_gas_used to None for now
+- update docs/checklist/walkthrough so gas estimation is explicitly deferred to a later execution-focused phase
+
+Do NOT replace it with another fake constant.
+
+Acceptance criteria:
+- `git grep -n 'mock dummy gas estimate' -- crates/arb_sim` returns no output
+- success path no longer returns Some(150_000)
+
+==================================================
+FIX 2 — ADD A POSITIVE SUCCESS-PATH TEST
+==================================================
+
+Required fix:
+Add at least one real positive simulation test in arb_sim that proves:
+- a valid candidate goes through the simulator
+- SimulationResult.status == Success
+- expected_amount_out is Some(...)
+- expected_profit is Some(...)
+- CandidateValidationResult.is_valid == true
+
+This must be deterministic and local.
+No external providers.
+No execution.
+
+If supporting fixtures/state setup are needed, keep them minimal and in-scope.
+
+==================================================
+FIX 3 — MAKE THE FAILURE TEST HONEST
+==================================================
+
+Current problem:
+The existing stale-rejection test/comment describes one thing but the logic produces SlippageExceeded.
+
+Required fix:
+Choose one honest path:
+PATH A:
+- keep the empty-engine failure path, but rename/update the test/comment so it honestly tests the current failure mode
+
+PATH B:
+- create a real stale-state setup and assert true StaleState behavior
+
+Either path is acceptable, but the code + test name + comment must agree.
+
+==================================================
+FIX 4 — CLEAN UP LOW-RISK UNUSED CODE
+==================================================
+
+If safe, remove or fix obvious unused items in `crates/arb_sim/src/lib.rs`, for example:
+- unused tracing imports
+- unused QuoteSizeBucket imports if not needed in non-test code
+
+Do NOT do broad warning cleanup across the whole workspace.
+Only fix the low-risk local noise in arb_sim and directly related touched files.
+
+==================================================
+FIX 5 — PROVE THE END-TO-END VALIDATION PATH
+==================================================
+
+If an end-to-end replay/validation test already exists elsewhere (for example in bin/arb_daemon), keep it.
+But provide exact proof output for it.
+
+If it does NOT exist yet, add one minimal replay-driven validation test proving:
+ingest -> state -> graph/filter -> simulation
+
+Do not overengineer.
+Use existing fixture/replay support if available.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-7-pending-sim-validation
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'expected_gas_used' -- crates/arb_sim
+- git grep -n 'mock dummy gas estimate' -- crates/arb_sim
+- git grep -n 'test_.*simulate\|test_.*validation\|test_.*replay' -- crates/arb_sim bin/
+- git grep -n 'StaleState\|SlippageExceeded' -- crates/arb_sim
+
+3. Build/test:
+- cargo check --workspace
+- cargo test --workspace
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+
+1. Which failure-test path was chosen:
+- PATH A = honest rename/comment for current failure mode
+- PATH B = true stale-state setup
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- fake gas estimate removed
+- positive simulation test added
+- failure test/comment now honest
+- end-to-end validation path proven
+- no execution logic added
+
+4. Exact outputs for all source-of-truth and proof commands above
+
+5. A short walkthrough describing:
+- how success validation is now proven
+- whether gas estimation is deferred
+- what remains deferred to the next phase
+
+Do not go beyond this scope.

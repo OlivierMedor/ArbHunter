@@ -1,9 +1,8 @@
 use alloy_primitives::U256;
 use std::sync::Arc;
-use tracing::{debug, warn};
 
 use arb_types::{
-    CandidateOpportunity, CandidateValidationResult, QuoteSizeBucket, SimOutcomeStatus,
+    CandidateOpportunity, CandidateValidationResult, SimOutcomeStatus,
     SimulationFailureReason, SimulationRequest, SimulationResult, PoolKind,
 };
 use arb_state::StateEngine;
@@ -130,7 +129,7 @@ impl LocalSimulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arb_types::{RoutePath, TokenAddress};
+    use arb_types::{RoutePath, TokenAddress, QuoteSizeBucket};
 
     // Minimal unit test for the conversion method.
     #[test]
@@ -153,7 +152,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_simulator_stale_rejection() {
+    async fn test_simulator_empty_state_rejection() {
         let engine = Arc::new(StateEngine::new(std::sync::Arc::new(arb_metrics::MetricsRegistry::new())));
         let simulator = LocalSimulator::new(engine);
 
@@ -171,7 +170,8 @@ mod tests {
         };
 
         let res = simulator.validate_candidate(candidate).await;
-        // With an empty engine, evaluating legs will not find the route, but evaluating 0 legs just returns success if amount_out > amount_in which it isn't, so SlippageExceeded
+        // PATH A Fix: With an empty engine, evaluating legs resolves to 0 output since no fresh pools are found.
+        // This causes the final output to be less than amount_in, resulting in SlippageExceeded.
         assert!(!res.is_valid);
         assert_eq!(res.sim_result.status, SimOutcomeStatus::Failed(SimulationFailureReason::SlippageExceeded));
     }
