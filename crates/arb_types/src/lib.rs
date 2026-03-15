@@ -256,3 +256,67 @@ pub struct CandidateValidationResult {
     pub sim_result: SimulationResult,
     pub is_valid: bool,
 }
+
+
+// ============================================================
+// Phase 8: Execution Plan Types
+// ============================================================
+
+/// Specifies how to validate minimum output to protect against slippage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MinOutConstraint {
+    pub min_amount_out: U256,
+}
+
+/// Generic slippage guard container
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlippageGuard {
+    pub min_out: MinOutConstraint,
+}
+
+/// A placeholder for defining flash loan behavior (empty for now)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlashLoanSpec {
+    // Left unimplemented for Phase 8
+}
+
+/// Reasons why a candidate could not be converted into an execution plan
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PlanBuildFailureReason {
+    UnsupportedPoolKind,
+    UnsupportedRouteStructure,
+    InsufficientProfit,
+}
+
+/// A single execution step across a pool
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionLeg {
+    pub pool_id: PoolId,
+    pub token_in: TokenAddress,
+    pub token_out: TokenAddress,
+    pub zero_for_one: bool, // Helps with generic route encoding
+}
+
+/// A deterministic, sequential path to execute
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionPath {
+    pub legs: Vec<ExecutionLeg>,
+}
+
+/// Expected state transition numbers for the arbitrage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpectedOutcome {
+    pub amount_in: U256,
+    pub expected_amount_out: U256,
+    pub expected_profit: U256,
+}
+
+/// The deterministic plan representing the arbitrage transaction actions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionPlan {
+    pub target_token: TokenAddress,
+    pub path: ExecutionPath,
+    pub outcome: ExpectedOutcome,
+    pub guard: SlippageGuard,
+    pub flash_loan: Option<FlashLoanSpec>,
+}

@@ -158,6 +158,11 @@ dependencies = [
 [[package]]
 name = "arb_execute"
 version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "arb_types",
+]
 
 [[package]]
 name = "arb_filter"
