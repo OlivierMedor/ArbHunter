@@ -12,7 +12,7 @@ This document details the progressive implementation phases for ArbHunter and de
 **Definition of Done**:
 - Rust workspace and pipeline crates initialized with empty lib stubs.
 - Foundry project initialized in `contracts/`.
-- Foundational directories (`infra/`, `sql/`, `fixtures/`) created.
+- Local Foundry environment configured.
 - Primary types defined in `arb_types`.
 - Environment loads properly via `arb_config`.
 - Postgres schema applied via `sql/` migrations and async inserts operational in `arb_storage`.
