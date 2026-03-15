@@ -1,5 +1,9 @@
 use alloy_signer_local::PrivateKeySigner;
-use alloy_primitives::Address;
+use alloy_signer::Signer;
+use alloy_consensus::{TxEip1559, TxEnvelope, SignableTransaction};
+use alloy_network::TxSigner;
+use alloy_primitives::{Address, Bytes};
+use arb_types::BuiltTransaction;
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -26,6 +30,37 @@ impl Wallet {
     /// Returns the Ethereum address associated with this wallet.
     pub fn address(&self) -> Address {
         self.signer.address()
+    }
+
+    /// Signs a BuiltTransaction and returns the RLP encoded signed transaction and the transaction hash.
+    pub async fn sign_tx(&self, tx: BuiltTransaction) -> Result<(Vec<u8>, String), String> {
+        let to_addr = tx.to.parse::<Address>()
+            .map_err(|e| format!("Invalid 'to' address in BuiltTransaction: {}", e))?;
+
+        let mut tx_inner = TxEip1559 {
+            chain_id: tx.chain_id,
+            nonce: tx.nonce,
+            gas_limit: tx.gas_limit,
+            max_fee_per_gas: tx.max_fee_per_gas,
+            max_priority_fee_per_gas: tx.max_priority_fee_per_gas,
+            to: alloy_primitives::TxKind::Call(to_addr),
+            value: tx.value,
+            input: Bytes::from(tx.data),
+            access_list: Default::default(),
+        };
+
+        // Sign the transaction
+        let signature = self.signer.sign_transaction(&mut tx_inner).await
+            .map_err(|e| format!("Failed to sign transaction: {}", e))?;
+
+        // Create the envelope
+        let envelope = TxEnvelope::Eip1559(tx_inner.into_signed(signature));
+        
+        // Encode and get hash
+        let signed_raw = alloy_rlp::encode(&envelope);
+        let hash = format!("{:#x}", envelope.tx_hash());
+
+        Ok((signed_raw, hash))
     }
 }
 

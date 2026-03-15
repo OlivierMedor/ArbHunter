@@ -62,17 +62,18 @@ impl TxBuilder {
         gas_limit: u64,
     ) -> Result<BuiltTransaction, String> {
         // Map arb_types to Solidity structs
-        let sol_legs: Vec<ExecutionLeg> = plan.path.legs.iter().map(|l| {
-            ExecutionLeg {
-                poolId: l.pool_id.0.parse().unwrap_or_default(),
-                tokenIn: l.token_in.0.parse().unwrap_or_default(),
-                tokenOut: l.token_out.0.parse().unwrap_or_default(),
+        let mut sol_legs = Vec::with_capacity(plan.path.legs.len());
+        for l in &plan.path.legs {
+            sol_legs.push(ExecutionLeg {
+                poolId: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
+                tokenIn: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
+                tokenOut: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
                 zeroForOne: l.zero_for_one,
-            }
-        }).collect();
+            });
+        }
 
         let sol_plan = ExecutionPlanSol {
-            targetToken: plan.target_token.0.parse().unwrap_or_default(),
+            targetToken: plan.target_token.0.parse().map_err(|e| format!("Invalid targetToken address '{}': {}", plan.target_token.0, e))?,
             path: ExecutionPath { legs: sol_legs },
             outcome: ExpectedOutcome {
                 amountIn: plan.outcome.amount_in,
@@ -145,5 +146,41 @@ mod tests {
         assert!(!tx.data.is_empty());
         // Selector for executePlan(ExecutionPlanSol)
         assert_eq!(tx.data[0..4], executePlanCall::SELECTOR);
+    }
+
+    #[test]
+    fn test_tx_builder_invalid_address() {
+        let builder = TxBuilder::new(Address::ZERO, 8453);
+        
+        let mut plan = ArbExecutionPlan {
+            target_token: TokenAddress("invalid".to_string()),
+            path: ArbPath { legs: vec![] },
+            outcome: ArbOutcome {
+                amount_in: U256::ZERO,
+                expected_amount_out: U256::ZERO,
+                expected_profit: U256::ZERO,
+            },
+            guard: ArbGuard {
+                min_out: ArbMinOut { min_amount_out: U256::ZERO },
+            },
+            flash_loan: None,
+        };
+
+        let result = builder.build_tx(&plan, 1, 1000, 10, 200000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid targetToken address"));
+
+        // Test invalid pool address
+        plan.target_token = TokenAddress(format!("{:#x}", Address::ZERO));
+        plan.path.legs.push(ArbLeg {
+            pool_id: PoolId("invalid_pool".to_string()),
+            token_in: TokenAddress(format!("{:#x}", Address::ZERO)),
+            token_out: TokenAddress(format!("{:#x}", Address::ZERO)),
+            zero_for_one: true,
+        });
+
+        let result = builder.build_tx(&plan, 1, 1000, 10, 200000);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid pool address"));
     }
 }
