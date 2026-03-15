@@ -66,6 +66,8 @@ pub enum IngestEvent {
 // Phase 3: State Engine Types
 // ============================================================
 
+use std::collections::HashMap;
+
 /// Opaque pool identifier (e.g. contract address string)
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PoolId(pub String);
@@ -108,12 +110,28 @@ pub struct ReserveSnapshot {
     pub reserve1: u128,
 }
 
-/// Concentrated liquidity snapshot (Uniswap V3-style)
+/// Concentrated liquidity snapshot (Uniswap V3-style, top-level only)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CLSnapshot {
     pub sqrt_price_x96: U256,
     pub liquidity: U128,
     pub tick: i32,
+}
+
+/// Per-tick state for concentrated liquidity pools
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CLTickState {
+    pub liquidity_gross: u128,
+    pub liquidity_net: i128,
+}
+
+/// Full depth model for a concentrated liquidity pool
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CLFullState {
+    pub sqrt_price_x96: U256,
+    pub liquidity: U128,
+    pub tick: i32,
+    pub ticks: HashMap<i32, CLTickState>,
 }
 
 /// Canonical pool state snapshot stored in the engine
@@ -125,6 +143,7 @@ pub struct PoolStateSnapshot {
     pub token1: TokenAddress,
     pub reserves: Option<ReserveSnapshot>,
     pub cl_snapshot: Option<CLSnapshot>,
+    pub cl_full_state: Option<CLFullState>,
     pub freshness: PoolFreshness,
 }
 
@@ -137,5 +156,6 @@ pub struct PoolUpdate {
     pub token1: TokenAddress,
     pub reserves: Option<ReserveSnapshot>,
     pub cl_snapshot: Option<CLSnapshot>,
+    pub cl_full_state: Option<CLFullState>,
     pub stamp: EventStamp,
 }

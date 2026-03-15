@@ -30,6 +30,12 @@ pub struct MetricsRegistry {
     pub dex_sync_events_total: IntCounter,
     pub dex_cl_swap_events_total: IntCounter,
     pub unsupported_dex_logs_total: IntCounter,
+
+    // Phase 5: Tickmap & Quoter metrics
+    pub cl_ticks_tracked: IntGauge,
+    pub cl_state_updates_total: IntCounter,
+    pub local_quotes_total: IntCounter,
+    pub local_quote_errors_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -62,6 +68,12 @@ impl MetricsRegistry {
         let dex_cl_swap_events_total = IntCounter::new("arb_dex_cl_swap_events_total", "Total Uniswap V3 Swap events decoded").unwrap();
         let unsupported_dex_logs_total = IntCounter::new("arb_unsupported_dex_logs_total", "Total DEX logs seen but not supported for state").unwrap();
 
+        // Phase 5: Tickmap & Quoter metrics
+        let cl_ticks_tracked = IntGauge::new("arb_cl_ticks_tracked_total", "Current number of CL ticks tracked").unwrap();
+        let cl_state_updates_total = IntCounter::new("arb_cl_state_updates_total", "Total CL-specific state updates (Mint/Burn/Init)").unwrap();
+        let local_quotes_total = IntCounter::new("arb_local_quotes_total", "Total local quote requests").unwrap();
+        let local_quote_errors_total = IntCounter::new("arb_local_quote_errors_total", "Total local quote errors").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -83,6 +95,10 @@ impl MetricsRegistry {
         registry.register(Box::new(dex_sync_events_total.clone())).unwrap();
         registry.register(Box::new(dex_cl_swap_events_total.clone())).unwrap();
         registry.register(Box::new(unsupported_dex_logs_total.clone())).unwrap();
+        registry.register(Box::new(cl_ticks_tracked.clone())).unwrap();
+        registry.register(Box::new(cl_state_updates_total.clone())).unwrap();
+        registry.register(Box::new(local_quotes_total.clone())).unwrap();
+        registry.register(Box::new(local_quote_errors_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -112,6 +128,10 @@ impl MetricsRegistry {
             dex_sync_events_total,
             dex_cl_swap_events_total,
             unsupported_dex_logs_total,
+            cl_ticks_tracked,
+            cl_state_updates_total,
+            local_quotes_total,
+            local_quote_errors_total,
         }
     }
 
@@ -137,6 +157,22 @@ impl MetricsRegistry {
 
     pub fn inc_unsupported_dex_logs(&self) {
         self.unsupported_dex_logs_total.inc();
+    }
+
+    pub fn set_cl_ticks_tracked(&self, count: i64) {
+        self.cl_ticks_tracked.set(count);
+    }
+
+    pub fn inc_cl_state_updates(&self) {
+        self.cl_state_updates_total.inc();
+    }
+
+    pub fn inc_local_quotes(&self) {
+        self.local_quotes_total.inc();
+    }
+
+    pub fn inc_local_quote_errors(&self) {
+        self.local_quote_errors_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
