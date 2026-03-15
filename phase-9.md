@@ -441,3 +441,120 @@ Provide:
 - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+
+---- update 1 ----
+
+Do a final Phase 9 test-fix pass on the EXISTING branch `phase-9-wallet-signing-submission`.
+
+Do NOT create a new branch.
+Do NOT add any new features.
+Do NOT add flash loans, live trading, mempool tactics, or PGA logic.
+Do NOT expand scope beyond making the workspace test suite pass and documenting Foundry validation honestly.
+
+Goal:
+Make Phase 9 merge-ready by fixing the failing Rust workspace tests caused by the updated Config shape.
+
+==================================================
+FIX 1 — REPAIR arb_providers TEST CONFIG
+==================================================
+
+Current problem:
+`cargo test --workspace` fails because a test in:
+- crates/arb_providers/src/lib.rs
+
+is still instantiating `arb_config::Config` using the old field set.
+
+Error shown:
+missing fields `dry_run_only`, `enable_broadcast`,
+`executor_contract_address`, and another newly added field.
+
+Required fix:
+- update the test(s) in `crates/arb_providers/src/lib.rs` so the `Config` initializer matches the current `arb_config::Config`
+- use explicit placeholder values appropriate for tests
+- do not use real secrets
+- if there is a clean helper/default constructor pattern, use it
+- otherwise populate all required fields directly
+
+==================================================
+FIX 2 — KEEP PHASE 9 SCOPE CLEAN
+==================================================
+
+Do NOT modify unrelated strategy logic.
+Do NOT add execution features.
+Do NOT touch route/sim logic unless absolutely required by the failing test.
+
+Only fix what is necessary to make:
+- cargo check --workspace
+- cargo test --workspace
+pass cleanly.
+
+==================================================
+FIX 3 — FOUNDRY VALIDATION HONESTY
+==================================================
+
+Current local environment does not have `forge` on PATH.
+
+Required action:
+- do NOT fake Foundry validation
+- if Foundry-specific validation cannot be run in this environment, update the walkthrough/checklist/docs honestly to say:
+  - Rust workspace validation was run locally
+  - Foundry validation requires local Foundry install or explicit binary path
+- If the repo already has a documented non-PATH way to run Foundry, mention it clearly
+- Do NOT bundle new binaries into the repo
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-9-wallet-signing-submission
+- git status --short
+- git log --oneline --decorate -5
+
+2. Build/test:
+- cargo check --workspace
+- cargo test --workspace
+
+3. Optional Foundry validation:
+- forge build
+- forge test
+OR, if unavailable:
+- report clearly that forge is not on PATH and no fake success is claimed
+
+4. Proof of the config-test fix:
+- git grep -n 'Config {' -- crates/arb_providers/src/lib.rs
+- git grep -n 'signer_private_key|executor_contract_address|enable_broadcast|dry_run_only' -- crates/arb_providers/src/lib.rs crates/arb_config/src/lib.rs
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict:
+- fully working
+- working with known limitations
+- blocked (and why)
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- arb_providers test config fixed
+- cargo check passes
+- cargo test passes
+- no new execution logic added
+- Foundry validation status is reported honestly
+
+4. Exact outputs for all source-of-truth and proof commands above
+
+5. A short walkthrough describing:
+- what test was fixed
+- how the Config shape mismatch was resolved
+- whether Foundry was actually run or deferred due local setup
+- what remains deferred to the next phase
+
+Do not go beyond this scope.
