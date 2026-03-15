@@ -447,3 +447,88 @@ Provide:
    - docs updated honestly
    - no simulation/execution logic added
 4. Exact source-of-truth outputs listed above
+
+---- updates 2 ----
+
+Do a final Phase 6 merge-readiness pass on the EXISTING branch `phase-6-route-graph-filter`.
+
+Do NOT create a new branch.
+Do NOT add simulation, execution, or external router logic.
+Do NOT expand scope beyond configuration cleanup + documentation honesty + proof outputs.
+
+Goal:
+Make Phase 6 merge-ready by removing hardcoded route/filter settings from the daemon and moving them into arb_config.
+
+==================================================
+FIX 1 — MOVE ROUTE/FILTER SETTINGS INTO CONFIG
+==================================================
+
+Current problem:
+The daemon still hardcodes:
+- root asset
+- minimum gross profit
+- minimum gross bps
+- freshness requirement
+- quote size buckets
+
+Required fix:
+Add route/filter settings to `crates/arb_config`:
+- ROOT_ASSET (single string is fine for now)
+- MIN_GROSS_PROFIT
+- MIN_GROSS_BPS
+- REQUIRE_FRESH
+- QUOTE_BUCKETS
+
+Use simple env parsing.
+Keep it minimal and honest.
+
+Then update `bin/arb_daemon/src/main.rs` to read those values from Config.
+Remove the current hardcoded root asset / thresholds / buckets from the daemon.
+
+==================================================
+FIX 2 — DOCUMENTATION HONESTY
+==================================================
+
+Update the walkthrough/checklist/docs so they clearly state:
+- local graph exists
+- candidate generation exists
+- filter thresholds are now config-driven
+- route generation is still local-only
+- simulation/execution remain deferred
+
+Do not oversell beyond what is implemented.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+- cargo check --workspace
+- cargo test --workspace
+
+Source-of-truth outputs:
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-6-route-graph-filter
+- git status --short
+- git log --oneline --decorate -5
+
+Proof greps:
+- git grep -n 'ROOT_ASSET\|MIN_GROSS_PROFIT\|MIN_GROSS_BPS\|REQUIRE_FRESH\|QUOTE_BUCKETS' -- crates/arb_config/src/lib.rs bin/arb_daemon/src/main.rs
+- git grep -n 'QuoteSizeBucket\|CandidateOpportunity\|RoutePath\|RouteLeg' -- crates/
+- git grep -n 'arb_route_nodes_total\|arb_route_edges_total\|arb_candidates_considered_total\|arb_candidates_promoted_total' -- crates/
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - route/filter config moved into arb_config
+   - daemon no longer hardcodes root asset / thresholds / buckets
+   - docs updated honestly
+   - no simulation/execution logic added
+4. Exact outputs for all source-of-truth and grep commands

@@ -15,6 +15,7 @@ use arb_types::{
 };
 use arb_route::{RouteGraph, CandidateGenerator};
 use arb_filter::{CandidateFilter, FilterConfig};
+use arb_sim::LocalSimulator;
 use alloy_primitives::U256;
 
 async fn metrics_handler(State(metrics): State<Arc<MetricsRegistry>>) -> String {
@@ -121,6 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             min_gross_bps: config_for_route.min_gross_bps,
             require_fresh: config_for_route.require_fresh,
         });
+        let simulator = LocalSimulator::new(route_engine.clone());
 
         let mut graph = RouteGraph::new();
         let root_asset = TokenAddress(config_for_route.root_asset.clone());
@@ -151,13 +153,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let promoted = filter.filter_candidates(candidates);
             for cand in promoted {
                 route_metrics.inc_candidates_promoted();
-                info!(
-                    "PROMOTED Candidate: {} -> {} | Profit: {} bps | Path: {:?}",
-                    cand.amount_in,
-                    cand.estimated_amount_out,
-                    cand.estimated_gross_bps,
-                    cand.path.legs.iter().map(|l| &l.edge.pool_id.0).collect::<Vec<_>>()
-                );
+                
+                // Phase 7: Validation layer
+                let val_res = simulator.validate_candidate(cand.clone()).await;
+                route_metrics.inc_simulations();
+                
+                if val_res.is_valid {
+                    route_metrics.inc_simulations_success();
+                    route_metrics.inc_candidates_validated();
+                    info!(
+                        "VALIDATED Candidate: {} -> {} | Expected Profit: {} | Status: {:?}",
+                        cand.amount_in,
+                        val_res.sim_result.expected_amount_out.unwrap_or_default(),
+                        val_res.sim_result.expected_profit.unwrap_or_default(),
+                        val_res.sim_result.status
+                    );
+                } else {
+                    route_metrics.inc_simulations_failed();
+                    warn!(
+                        "SIMULATION FAILED expected profit: {} | Reason: {:?}",
+                        cand.estimated_gross_profit,
+                        val_res.sim_result.status
+                    );
+                }
             }
 
             // Throttle search loop to avoid CPU pinning
