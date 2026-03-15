@@ -13,4 +13,7 @@ arb_metrics = { path = "../../crates/arb_metrics" }
 arb_providers = { path = "../../crates/arb_providers" }
 arb_ingest = { path = "../../crates/arb_ingest" }
 arb_state = { path = "../../crates/arb_state" }
+arb_route = { path = "../../crates/arb_route" }
+arb_filter = { path = "../../crates/arb_filter" }
 axum = "0.7"
+alloy-primitives = { version = "0.8", features = ["serde"] }

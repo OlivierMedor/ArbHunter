@@ -141,44 +141,47 @@ impl PoolStore {
     pub fn apply_update(&mut self, update: PoolUpdate) -> bool {
         let pool_id = update.pool_id.clone();
 
-        if let Some(existing) = self.pools.get(&pool_id) {
+        if let Some(existing) = self.pools.get_mut(&pool_id) {
             // Reject out-of-order / duplicate updates
             if update.stamp <= existing.freshness.last_stamp {
                 return false;
             }
+            // Update metadata truthfulness
+            if let Some(t0) = update.token0 { existing.token0 = Some(t0); }
+            if let Some(t1) = update.token1 { existing.token1 = Some(t1); }
+            if let Some(fee) = update.fee_bps { existing.fee_bps = fee; }
+            existing.kind = update.kind; 
+        } else {
+            let freshness = PoolFreshness {
+                last_stamp: update.stamp,
+                age_ms: 0,
+                is_stale: false,
+            };
+            let snapshot = PoolStateSnapshot {
+                pool_id: pool_id.clone(),
+                kind: update.kind,
+                token0: update.token0,
+                token1: update.token1,
+                fee_bps: update.fee_bps.unwrap_or(0), 
+                reserves: None, // Will be filled by adapter
+                cl_snapshot: None,
+                cl_full_state: None,
+                freshness,
+            };
+            self.pools.insert(pool_id.clone(), snapshot);
         }
 
-        let freshness = PoolFreshness {
-            last_stamp: update.stamp,
-            age_ms: 0,
-            is_stale: false,
-        };
-
-        let snapshot = PoolStateSnapshot {
-            pool_id: pool_id.clone(),
-            kind: update.kind,
-            token0: update.token0,
-            token1: update.token1,
-            reserves: update.reserves.clone(),
-            cl_snapshot: update.cl_snapshot.clone(),
-            cl_full_state: update.cl_full_state.clone(),
-            freshness,
-        };
-
+        let entry = self.pools.get_mut(&pool_id).unwrap();
         match update.kind {
             PoolKind::ReserveBased => {
-                let entry = self.pools.entry(pool_id.clone()).or_insert(snapshot.clone());
                 if let Some(reserves) = update.reserves {
                     ReservePoolAdapter::apply(entry, reserves, update.stamp);
                 }
             }
             PoolKind::ConcentratedLiquidity => {
-                let entry = self.pools.entry(pool_id.clone()).or_insert(snapshot.clone());
                 CLPoolAdapter::apply(entry, update.cl_snapshot, update.cl_full_state, update.stamp);
             }
-            PoolKind::Unknown => {
-                self.pools.insert(pool_id.clone(), snapshot);
-            }
+            PoolKind::Unknown => {}
         };
 
         self.last_seen.insert(pool_id, Instant::now());
@@ -225,6 +228,10 @@ impl PoolStore {
             .filter_map(|p| p.cl_full_state.as_ref())
             .map(|f| f.ticks.len())
             .sum()
+    }
+
+    pub fn get_all(&self) -> Vec<PoolStateSnapshot> {
+        self.pools.values().cloned().collect()
     }
 }
 
@@ -293,7 +300,7 @@ impl StateEngine {
         let pool = store.get(pool_id)?;
         let reserves = pool.reserves.as_ref()?;
         self.metrics.inc_local_quotes();
-        Some(Quoter::quote_v2_exact_in(reserves, amount_in))
+        Some(Quoter::quote_v2_exact_in(reserves, amount_in, pool.fee_bps))
     }
 
     /// High-level quote accessor for V3-style pools.
@@ -302,7 +309,11 @@ impl StateEngine {
         let pool = store.get(pool_id)?;
         let cl_state = pool.cl_full_state.as_ref()?;
         self.metrics.inc_local_quotes();
-        Some(Quoter::quote_v3_exact_in(cl_state, amount_in, zero_for_one))
+        Some(Quoter::quote_v3_exact_in(cl_state, amount_in, zero_for_one, pool.fee_bps))
+    }
+
+    pub async fn get_all_pools(&self) -> Vec<PoolStateSnapshot> {
+        self.store.read().await.get_all()
     }
 }
 
@@ -313,8 +324,8 @@ impl StateEngine {
 pub struct Quoter;
 
 impl Quoter {
-    /// Pure constant product quote (Uniswap V2 style) with 0.3% fee.
-    pub fn quote_v2_exact_in(reserves: &ReserveSnapshot, amount_in: U256) -> U256 {
+    /// Pure constant product quote (Uniswap V2 style) with dynamic fee.
+    pub fn quote_v2_exact_in(reserves: &ReserveSnapshot, amount_in: U256, fee_bps: u32) -> U256 {
         let r_in = U256::from(reserves.reserve0);
         let r_out = U256::from(reserves.reserve1);
         
@@ -322,20 +333,20 @@ impl Quoter {
             return U256::ZERO;
         }
 
-        let amount_in_with_fee = amount_in * U256::from(997);
+        let amount_in_with_fee = amount_in * U256::from(10000 - fee_bps);
         let numerator = amount_in_with_fee * r_out;
-        let denominator = (r_in * U256::from(1000)) + amount_in_with_fee;
+        let denominator = (r_in * U256::from(10000)) + amount_in_with_fee;
         
         numerator / denominator
     }    /// Concentrated liquidity quote (Uniswap V3 style).
     /// Partial implementation for Phase 5: supports tick crossing.
-    pub fn quote_v3_exact_in(cl_state: &arb_types::CLFullState, amount_in: U256, zero_for_one: bool) -> U256 {
+    pub fn quote_v3_exact_in(cl_state: &arb_types::CLFullState, amount_in: U256, zero_for_one: bool, fee_bps: u32) -> U256 {
         if amount_in.is_zero() || cl_state.liquidity.is_zero() {
             return U256::ZERO;
         }
 
-        // Apply 0.3% fee
-        let mut amount_remaining = (amount_in * U256::from(997)) / U256::from(1000);
+        // Apply dynamic fee
+        let mut amount_remaining = (amount_in * U256::from(10000 - fee_bps)) / U256::from(10000);
         let mut amount_out = U256::ZERO;
 
         let mut sqrt_p = cl_state.sqrt_price_x96;
@@ -411,8 +422,9 @@ mod tests {
         PoolUpdate {
             pool_id: PoolId(pool.to_string()),
             kind: PoolKind::ReserveBased,
-            token0: TokenAddress("0xAAA".to_string()),
-            token1: TokenAddress("0xBBB".to_string()),
+            token0: Some(TokenAddress("0xAAA".to_string())),
+            token1: Some(TokenAddress("0xBBB".to_string())),
+            fee_bps: Some(30),
             reserves: Some(ReserveSnapshot { reserve0: r0, reserve1: r1 }),
             cl_snapshot: None,
             cl_full_state: None,
@@ -425,8 +437,9 @@ mod tests {
         PoolUpdate {
             pool_id: PoolId(pool.to_string()),
             kind: PoolKind::ConcentratedLiquidity,
-            token0: TokenAddress("0xAAA".to_string()),
-            token1: TokenAddress("0xBBB".to_string()),
+            token0: Some(TokenAddress("0xAAA".to_string())),
+            token1: Some(TokenAddress("0xBBB".to_string())),
+            fee_bps: Some(30),
             reserves: None,
             cl_snapshot: Some(CLSnapshot {
                 sqrt_price_x96: U256::from(sqrt_p),
@@ -495,8 +508,9 @@ mod tests {
         let update = PoolUpdate {
             pool_id: PoolId("pool_x".to_string()),
             kind: PoolKind::Unknown,
-            token0: TokenAddress("0xAAA".to_string()),
-            token1: TokenAddress("0xBBB".to_string()),
+            token0: Some(TokenAddress("0xAAA".to_string())),
+            token1: Some(TokenAddress("0xBBB".to_string())),
+            fee_bps: None,
             reserves: None,
             cl_snapshot: None,
             cl_full_state: None,
@@ -568,7 +582,7 @@ mod tests {
         cl_state.ticks.insert(1000, CLTickState { liquidity_gross: 1_000_000, liquidity_net: -1_000_000 });
 
         let amount_in = U256::from(1000u128);
-        let quote = Quoter::quote_v3_exact_in(&cl_state, amount_in, true);
+        let quote = Quoter::quote_v3_exact_in(&cl_state, amount_in, true, 30);
         
         // With L=1M, input=1000 (after 0.3% fee = 997)
         // dy = L * delta_sqrtP 
