@@ -100,7 +100,7 @@ impl LocalSimulator {
                 status: SimOutcomeStatus::Success,
                 expected_amount_out: Some(current_amount),
                 expected_profit: Some(profit),
-                expected_gas_used: Some(150_000), // mock dummy gas estimate for phase 7
+                expected_gas_used: None, // Gas estimation deferred to execution phase
             }
         } else {
             SimulationResult {
@@ -174,5 +174,71 @@ mod tests {
         // With an empty engine, evaluating legs will not find the route, but evaluating 0 legs just returns success if amount_out > amount_in which it isn't, so SlippageExceeded
         assert!(!res.is_valid);
         assert_eq!(res.sim_result.status, SimOutcomeStatus::Failed(SimulationFailureReason::SlippageExceeded));
+    }
+
+    #[tokio::test]
+    async fn test_simulator_successful_path() {
+        use arb_types::{EventStamp, PoolId, PoolKind, ReserveSnapshot, PoolUpdate, GraphEdge};
+        
+        // Build state engine and mock a pool update 
+        let engine = Arc::new(StateEngine::new(std::sync::Arc::new(arb_metrics::MetricsRegistry::new())));
+        
+        let pool_id = PoolId("0xPOOL".to_string());
+        let token_in = TokenAddress("0xA".to_string());
+        let token_out = TokenAddress("0xB".to_string());
+        
+        let update = PoolUpdate {
+            pool_id: pool_id.clone(),
+            kind: PoolKind::ReserveBased,
+            token0: Some(token_in.clone()),
+            token1: Some(token_out.clone()),
+            fee_bps: Some(30), // 0.3%
+            reserves: Some(ReserveSnapshot {
+                reserve0: 1_000_000,
+                reserve1: 2_000_000,
+            }),
+            cl_snapshot: None,
+            cl_full_state: None,
+            stamp: EventStamp { block_number: 1, log_index: 0 },
+        };
+        
+        engine.apply(update).await;
+        
+        let simulator = LocalSimulator::new(engine);
+
+        let path = RoutePath {
+            root_asset: token_in.clone(),
+            legs: vec![arb_types::RouteLeg {
+                edge: GraphEdge {
+                    pool_id: pool_id.clone(),
+                    kind: PoolKind::ReserveBased,
+                    token_in: token_in.clone(),
+                    token_out: token_out.clone(),
+                    fee_bps: 30,
+                    is_stale: false,
+                }
+            }],
+        };
+
+        let candidate = CandidateOpportunity {
+            path,
+            bucket: QuoteSizeBucket::Small,
+            amount_in: U256::from(100),
+            // We just need the out amount to be literally any positive number > 100 since the pool gives roughly 200 - fee
+            // A 100 swap on 1M/2M pool gives roughly 199.
+            // Slippage check in simulator passes if current_amount > amount_in
+            estimated_amount_out: U256::from(199),
+            estimated_gross_profit: U256::from(99),
+            estimated_gross_bps: 9900,
+            is_fresh: true,
+        };
+
+        let res = simulator.validate_candidate(candidate).await;
+        assert!(res.is_valid);
+        assert_eq!(res.sim_result.status, SimOutcomeStatus::Success);
+        
+        // Verify profit and amount out were resolved
+        assert!(res.sim_result.expected_profit.is_some());
+        assert!(res.sim_result.expected_amount_out.is_some());
     }
 }
