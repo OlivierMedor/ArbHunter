@@ -11,7 +11,7 @@ To build a highly performant, Base-first atomic arbitrage execution engine using
 - Project scaffolding (`infra/`, `sql/`, `fixtures/`, `crates/`, `docs/`, `contracts/`).
 - Core generic primitives (`arb_types`).
 - Environment configuration and parsing (`arb_config`).
-- Foundry local environment setup and configuration.
+- Local Foundry environment setup and configuration.
 
 ### Milestone 2: Data & Infrastructure
 - Non-blocking telemetry and performance tracking (`arb_metrics`).

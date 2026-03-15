@@ -13,3 +13,7 @@ repo_tree.txt
 !fixtures/*.jsonl
 tmp_*.json
 .DS_Store
+foundry.zip
+foundry_bin/
+check_err.json
+verify_hash.rs
