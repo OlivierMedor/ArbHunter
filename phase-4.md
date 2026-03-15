@@ -291,3 +291,102 @@ When finished, provide:
 5. The source-of-truth outputs listed above
 
 Do not go beyond Phase 4.
+
+
+---- Updates -----
+
+Do a final Phase 4 merge-readiness cleanup pass on the EXISTING branch `phase-4-dex-event-decoding`.
+
+Do NOT create a new branch.
+Do NOT add routing, simulation, or execution logic.
+Do NOT expand scope beyond cleanup + proof.
+
+Goal:
+Make Phase 4 merge-ready by:
+1. removing tracked runtime/error logs,
+2. proving V3 Swap / CL snapshot decoding exists,
+3. improving honesty of fixtures/documentation.
+
+==================================================
+PART 1 — REMOVE TRACKED LOG / ERROR FILES
+==================================================
+
+If tracked, remove these from git:
+- daemon_stdout.log
+- daemon_stderr.log
+- errors.log
+
+Update `.gitignore` if needed so they do not get tracked again.
+
+After cleanup, provide:
+- git ls-tree -r --name-only origin/phase-4-dex-event-decoding | Select-String 'daemon_stdout\.log|daemon_stderr\.log|errors\.log'
+
+This should return no output.
+
+==================================================
+PART 2 — PROVE V3 / CL DECODING EXISTS
+==================================================
+
+Provide exact grep outputs proving:
+- Swap decoding code exists
+- CL snapshot fields exist
+- metrics for CL swap / unsupported logs exist
+
+Run and include:
+- git grep -n 'Swap' -- crates/ fixtures/
+- git grep -n 'sqrt_price\|sqrtPrice\|liquidity\|tick' -- crates/
+- git grep -n 'arb_dex_sync_events_total\|arb_dex_cl_swap_events_total\|arb_unsupported_dex_logs_total' -- crates/
+
+If any are missing, implement or correct them now.
+
+==================================================
+PART 3 — FIX FIXTURE HONESTY
+==================================================
+
+Current problem:
+pending_logs.jsonl still appears to use synthetic topic strings like "0xSync" instead of real topic hashes.
+
+Required action:
+Choose ONE of these paths:
+
+PATH A (preferred):
+- update fixtures so they use realistic topic0 hashes / realistic-looking payload structure
+
+PATH B:
+- keep simplified fixtures, but explicitly document that they are simplified synthetic fixtures for decoder plumbing only, not real on-chain payload captures
+
+Whichever path is chosen, make the docs honest and explicit.
+
+==================================================
+PART 4 — VALIDATION
+==================================================
+
+Run and report:
+- cargo check --workspace
+- cargo test --workspace
+- git status --short
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Which fixture path was chosen (A or B)
+2. Changed-files summary
+3. Checklist confirming:
+   - daemon_stdout.log removed from tracking
+   - daemon_stderr.log removed from tracking
+   - errors.log removed from tracking
+   - V2 Sync decoding proven
+   - V3 Swap decoding proven
+   - CL snapshot fields proven
+   - DEX metrics proven
+   - fixture honesty fixed
+   - no routing/sim/execution logic added
+4. Exact outputs for:
+   - git ls-tree ... Select-String 'daemon_stdout\.log|daemon_stderr\.log|errors\.log'
+   - git grep -n 'Swap' -- crates/ fixtures/
+   - git grep -n 'sqrt_price\|sqrtPrice\|liquidity\|tick' -- crates/
+   - git grep -n 'arb_dex_sync_events_total\|arb_dex_cl_swap_events_total\|arb_unsupported_dex_logs_total' -- crates/
+   - cargo check --workspace
+   - cargo test --workspace
