@@ -334,3 +334,188 @@ Provide:
 5. The source-of-truth outputs listed above
 
 Do not go beyond Phase 10.
+
+
+---- updates ----
+
+Do a final Phase 10 merge-readiness pass on the EXISTING branch `phase-10-preflight-nonce-broadcast`.
+
+Do NOT create a new branch.
+Do NOT add flash loans, live trading, mempool tactics, PGA logic, private relay logic, or execution strategy changes.
+Do NOT expand scope beyond the concrete Phase 10 preflight/config wiring issues below.
+
+Goal:
+Make Phase 10 merge-ready by ensuring the new config safety flags actually control runtime behavior, and by providing source-of-truth outputs proving the branch is clean and passing.
+
+==================================================
+FIX 1 — WIRE PRELIGHT FLAGS INTO REAL BEHAVIOR
+==================================================
+
+Current problem:
+`arb_config` exposes:
+- require_preflight
+- require_gas_estimate
+- require_eth_call
+
+But the actual submitter/preflight path appears to still behave like:
+- one boolean gate for "preflight yes/no"
+- and PreflightChecker always runs both eth_call and estimate_gas
+
+Required fix:
+Make runtime behavior honor the config fields explicitly.
+
+Expected behavior:
+1. If require_preflight = false
+   - no preflight checks are run
+   - submission path may continue (subject to other safety gates)
+
+2. If require_preflight = true
+   - preflight runs
+   - but it must respect the two sub-flags below
+
+3. If require_eth_call = true
+   - eth_call preflight must run
+4. If require_eth_call = false
+   - eth_call preflight must be skipped honestly
+
+5. If require_gas_estimate = true
+   - gas estimate preflight must run
+6. If require_gas_estimate = false
+   - gas estimate preflight must be skipped honestly
+
+Important:
+- do not fake results
+- do not silently run disabled checks
+- do not silently ignore enabled checks
+
+==================================================
+FIX 2 — STRUCTURED PREFLIGHT RESULT HONESTY
+==================================================
+
+Current problem:
+If preflight has multiple sub-checks, the result needs to clearly distinguish:
+- success
+- failed check
+- skipped check
+
+Required fix:
+Ensure the preflight result structure or result mapping can honestly represent:
+- eth_call passed / failed / skipped
+- gas estimate passed / failed / skipped
+- overall preflight outcome
+
+If your current types are too coarse, add the minimal type changes needed.
+Keep them small and honest.
+Do not overengineer.
+
+==================================================
+FIX 3 — SUBMITTER / EXECUTION FLOW ALIGNMENT
+==================================================
+
+In the submitter or execution path:
+- thread the new config values from arb_config into the submitter/preflight layer
+- ensure dry-run mode still works
+- ensure broadcast gating still works
+- ensure broadcast is still disabled by default
+- ensure failed required preflight blocks broadcast
+- ensure skipped preflight due to config is treated honestly, not as success-by-default unless policy allows it
+
+No live trading logic.
+No flash-loan logic.
+
+==================================================
+FIX 4 — TESTS
+==================================================
+
+Add or update tests for these cases:
+
+1. require_preflight = false
+   - no preflight checks are required
+   - dry-run/submission path behaves consistently
+
+2. require_preflight = true, require_eth_call = true, require_gas_estimate = true
+   - both checks run
+
+3. require_preflight = true, require_eth_call = true, require_gas_estimate = false
+   - only eth_call runs
+   - gas estimate is skipped
+
+4. require_preflight = true, require_eth_call = false, require_gas_estimate = true
+   - only gas estimate runs
+   - eth_call is skipped
+
+5. preflight failure blocks broadcast when required
+6. dry-run path still works and remains safe by default
+
+Tests can be unit tests or local/mock-provider tests.
+Do not require real mainnet broadcasting.
+
+==================================================
+FIX 5 — DOCUMENTATION HONESTY
+==================================================
+
+Update walkthrough/checklist/docs so they accurately state:
+- which preflight checks exist
+- which config flags control them
+- how skipped vs failed vs passed checks are represented
+- that broadcast remains disabled by default unless explicitly enabled
+
+Do not oversell beyond what is implemented.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-10-preflight-nonce-broadcast
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'require_preflight|require_gas_estimate|require_eth_call' -- crates/arb_config crates/arb_execute bin/
+- git grep -n 'eth_call|estimate_gas|Preflight' -- crates/arb_execute bin/
+- git grep -n 'DryRun|Broadcast|Skipped' -- crates/arb_execute
+
+3. Build/test:
+- cargo check --workspace
+- cargo test --workspace
+
+4. If contracts were NOT changed:
+- explicitly report that Foundry validation is unchanged from the previous phase and was not required for this pass
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+
+1. Verdict:
+- fully working
+- working with known limitations
+- blocked (and why)
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- preflight flags are actually wired into behavior
+- eth_call can be independently enabled/disabled
+- gas estimate can be independently enabled/disabled
+- skipped vs failed vs passed states are represented honestly
+- dry-run still works
+- broadcast remains safely gated
+- no flash-loan/live-trading logic added
+
+4. Exact outputs for all source-of-truth and proof commands above
+
+5. A short walkthrough describing:
+- how config controls preflight now
+- how the preflight result model works
+- how the safe broadcast path behaves
+- what remains deferred to the next phase
+
+Do not go beyond this scope.
