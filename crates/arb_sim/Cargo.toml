@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+arb_types = { path = "../arb_types" }
+arb_state = { path = "../arb_state" }
+arb_metrics = { path = "../arb_metrics" }
+alloy-primitives = { version = "0.8", features = ["serde"] }
+tracing = "0.1"
