@@ -1,4 +1,4 @@
-.PHONY: all build test clean format lint
+.PHONY: all build test clean format lint forge-build forge-test
 
 all: format lint build test
 
@@ -7,15 +7,21 @@ build:
 
 test:
 	cargo test --workspace
-	cd contracts && forge test
+	docker compose run --rm forge forge test
+
+forge-build:
+	docker compose run --rm forge forge build
+
+forge-test:
+	docker compose run --rm forge forge test
 
 format:
 	cargo fmt --all
-	cd contracts && forge fmt
+	docker compose run --rm forge forge fmt
 
 lint:
 	cargo clippy --workspace -- -D warnings
 
 clean:
 	cargo clean
-	cd contracts && forge clean
+	docker compose run --rm forge forge clean
