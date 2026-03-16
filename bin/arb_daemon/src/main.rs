@@ -295,7 +295,9 @@ mod tests {
     #[tokio::test]
     async fn test_candidate_pipeline_e2e_replay() {
         let metrics = Arc::new(MetricsRegistry::new());
-        let wallet = Wallet::from_random().unwrap(); // Create a dummy wallet for the test
+        let test_pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        let signer: alloy_signer_local::PrivateKeySigner = test_pk.parse().unwrap();
+        let wallet = Wallet { signer };
         let submitter = Submitter::new(wallet, arb_types::SubmissionMode::DryRun, metrics.clone(), None, false, false, false);
         let ingest_pipeline = Arc::new(IngestPipeline::new(1024, metrics.clone()));
         let mut event_rx = ingest_pipeline.subscribe();

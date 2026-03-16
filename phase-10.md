@@ -519,3 +519,93 @@ Provide:
 - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+
+---- update 2 ----
+
+
+Do a final Phase 10 test-fix pass on the EXISTING branch `phase-10-preflight-nonce-broadcast`.
+
+Do NOT create a new branch.
+Do NOT add any new features.
+Do NOT add flash loans, live trading, mempool tactics, or PGA logic.
+Do NOT expand scope beyond fixing the failing workspace test and preserving Phase 10 behavior.
+
+Goal:
+Make Phase 10 merge-ready by fixing the failing `cargo test --workspace` issue in `bin/arb_daemon/src/main.rs`.
+
+==================================================
+FIX 1 — REPAIR arb_daemon TEST WALLET CREATION
+==================================================
+
+Current problem:
+`cargo test --workspace` fails because `bin/arb_daemon/src/main.rs` references:
+- `Wallet::from_random()`
+
+but `arb_execute::Wallet` does not provide that function.
+
+Required fix:
+- update the test in `bin/arb_daemon/src/main.rs` so it constructs a valid test wallet using the actual available wallet APIs
+- do NOT add a fake helper just for convenience unless truly necessary
+- prefer one of:
+  1. construct a `PrivateKeySigner` from a known deterministic test private key and wrap it in `Wallet`
+  2. use `Wallet::from_env()` with temporary test env setup if that is cleaner and safe
+- keep the test deterministic and local
+- no real secrets
+- no network calls required for this test
+
+==================================================
+FIX 2 — DO NOT CHANGE PHASE 10 SCOPE
+==================================================
+
+Do NOT add:
+- new execution features
+- new signing features
+- broadcast changes
+- strategy logic
+- flash loans
+- extra plumbing unrelated to the failing test
+
+Only fix the test and any tiny supporting code required to make the workspace test suite pass.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-10-preflight-nonce-broadcast
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'from_random' -- bin/arb_daemon crates/arb_execute
+- git grep -n 'from_env|PrivateKeySigner|Wallet {' -- bin/arb_daemon crates/arb_execute
+
+3. Build/test:
+- cargo check --workspace
+- cargo test --workspace
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - failing arb_daemon test fixed
+   - cargo check passes
+   - cargo test passes
+   - no new execution logic added
+4. Exact outputs for all source-of-truth and proof commands above
+5. A short walkthrough describing:
+   - how the test wallet is now created
+   - why the fix is deterministic and safe
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.

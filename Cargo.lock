@@ -489,6 +489,7 @@ name = "arb_daemon"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+ "alloy-signer-local",
  "arb_config",
  "arb_execute",
  "arb_filter",
