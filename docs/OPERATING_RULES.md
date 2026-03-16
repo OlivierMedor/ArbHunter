@@ -18,4 +18,6 @@ The "hot path" encompasses all logic from network ingestion (`arb_ingest`) throu
 ## 3. General Development Constraints
 - **Secrets**: No API keys, private keys, or mnemonic seeds committed to code. Use `.env` or system environment variables.
 - **Docker-First**: All infrastructure (Postgres, Metrics, Daemon) must have a reliable `docker-compose.yml` local-mode equivalent to ensure parity.
+- **Dockerized Foundry**: The project uses the official `ghcr.io/foundry-rs/foundry:latest` container via `docker-compose.yml` (`forge` service). A host `forge` installation is not required. Developers must use `make forge-build` or `make forge-test` (which alias to `docker compose run --rm forge forge build` and `docker compose run --rm forge forge test`) rather than installing binaries locally. Do NOT vendor or commit binaries (`foundry_bin/`, `forge.exe`) to the repository.
 - **Modularity**: Code must remain tightly scoped within its respective pipeline crate. Shared logic belongs in `arb_types` or `arb_config` if it escapes a specific module's domain.
+

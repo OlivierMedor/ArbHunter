@@ -28,6 +28,21 @@ sol! {
         uint256 expectedProfit;
     }
 
+    struct FlashLoanSpec {
+        uint8 provider;
+        address asset;
+        uint256 amount;
+    }
+
+    struct RepaymentGuard {
+        address asset;
+        uint256 amount;
+    }
+
+    struct ProfitGuard {
+        uint256 minProfitWei;
+    }
+
     struct ExecutionPlanSol {
         address targetToken;
         ExecutionPath path;
@@ -36,7 +51,18 @@ sol! {
         bool hasFlashloan;
     }
 
+    struct AtomicExecutionPlanSol {
+        FlashLoanSpec flashloan;
+        ExecutionPath path;
+        uint256 minAmountOut;
+        RepaymentGuard repayment;
+        ProfitGuard profitGuard;
+        bool hasFlashloan;
+        bool hasRepayment;
+    }
+
     function executePlan(ExecutionPlanSol calldata plan) external;
+    function executeAtomicPlan(AtomicExecutionPlanSol calldata plan) external;
 }
 
 pub struct TxBuilder {
@@ -90,6 +116,72 @@ impl TxBuilder {
 
         // Encode calldata
         let call = executePlanCall { plan: sol_plan };
+        let calldata = call.abi_encode();
+
+        Ok(BuiltTransaction {
+            to: format!("{:#x}", self.executor_address),
+            data: calldata,
+            value: U256::ZERO,
+            nonce,
+            gas_limit,
+            max_fee_per_gas: max_fee,
+            max_priority_fee_per_gas: max_priority_fee,
+            chain_id: self.chain_id,
+        })
+    }
+
+    /// Converts an AtomicExecutionPlan into a BuiltTransaction.
+    pub fn build_atomic_tx(
+        &self,
+        plan: &arb_types::AtomicExecutionPlan,
+        nonce: u64,
+        max_fee: u128,
+        max_priority_fee: u128,
+        gas_limit: u64,
+    ) -> Result<BuiltTransaction, String> {
+        let mut sol_legs = Vec::with_capacity(plan.legs.len());
+        for l in &plan.legs {
+            sol_legs.push(ExecutionLeg {
+                poolId: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
+                tokenIn: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
+                tokenOut: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
+                zeroForOne: l.zero_for_one,
+            });
+        }
+
+        let is_flashloan = plan.flash_loan.is_some();
+        let flash_loan_sol = plan.flash_loan.as_ref().map(|f| FlashLoanSpec {
+            provider: f.provider.clone() as u8,
+            asset: f.asset.parse().unwrap_or_default(),
+            amount: f.amount,
+        }).unwrap_or(FlashLoanSpec {
+            provider: 0,
+            asset: Address::ZERO,
+            amount: U256::ZERO,
+        });
+
+        let is_repayment = plan.repayment.is_some();
+        let repayment_sol = plan.repayment.as_ref().map(|r| RepaymentGuard {
+            asset: r.asset.parse().unwrap_or_default(),
+            amount: r.amount,
+        }).unwrap_or(RepaymentGuard {
+            asset: Address::ZERO,
+            amount: U256::ZERO,
+        });
+
+        let sol_plan = AtomicExecutionPlanSol {
+            flashloan: flash_loan_sol,
+            path: ExecutionPath { legs: sol_legs },
+            minAmountOut: plan.min_amount_out,
+            repayment: repayment_sol,
+            profitGuard: ProfitGuard {
+                minProfitWei: plan.profit_guard.min_profit_wei,
+            },
+            hasFlashloan: is_flashloan,
+            hasRepayment: is_repayment,
+        };
+
+        let call = executeAtomicPlanCall { plan: sol_plan };
         let calldata = call.abi_encode();
 
         Ok(BuiltTransaction {

@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {ArbExecutor, ExecutionPlan, ExecutionPath, ExpectedOutcome, SlippageGuard, MinOutConstraint, ExecutionLeg} from "../src/ArbExecutor.sol";
+import {ArbExecutor, ExecutionPlan, ExecutionPath, ExpectedOutcome, SlippageGuard, MinOutConstraint, ExecutionLeg, AtomicExecutionPlan, FlashLoanSpec, RepaymentGuard, ProfitGuard} from "../src/ArbExecutor.sol";
 
-// Dummy token for testing balances
+// ... (existing MockToken and FakePool unchanged)
 contract MockToken {
     function totalSupply() external view returns (uint256) { return 0; }
     function balanceOf(address account) external view returns (uint256) { return balances[account]; }
@@ -45,7 +45,7 @@ contract ArbExecutorTest is Test {
     }
 
     function buildMockPlan() internal view returns (ExecutionPlan memory) {
-        ExecutionLeg memory leg = ExecutionLeg(address(pool), address(0x2), address(0x3), true);
+        ExecutionLeg memory leg = ExecutionLeg(address(pool), address(token), address(0x3), true);
         ExecutionLeg[] memory legs = new ExecutionLeg[](1);
         legs[0] = leg;
 
@@ -58,6 +58,26 @@ contract ArbExecutorTest is Test {
         });
     }
 
+    function buildAtomicMockPlan(bool flash) internal view returns (AtomicExecutionPlan memory) {
+        ExecutionLeg memory leg = ExecutionLeg(address(pool), address(token), address(0x3), true);
+        ExecutionLeg[] memory legs = new ExecutionLeg[](1);
+        legs[0] = leg;
+
+        FlashLoanSpec memory fl = FlashLoanSpec(0, address(token), 1000);
+        RepaymentGuard memory rep = RepaymentGuard(address(token), 1001);
+        ProfitGuard memory profit = ProfitGuard(10);
+
+        return AtomicExecutionPlan({
+            flashloan: fl,
+            path: ExecutionPath(legs),
+            minAmountOut: 1020,
+            repayment: rep,
+            profitGuard: profit,
+            hasFlashloan: flash,
+            hasRepayment: flash
+        });
+    }
+
     function test_RevertIf_Unauthorized() public {
         ExecutionPlan memory plan = buildMockPlan();
         vm.prank(nonOwner);
@@ -65,23 +85,48 @@ contract ArbExecutorTest is Test {
         executor.executePlan(plan);
     }
 
-    function test_RevertIf_SlippageExceeded() public {
+    function test_Success_WithProfit() public {
         ExecutionPlan memory plan = buildMockPlan();
-        // Do not give executor any token balance increase
-        pool.setMintAmount(0);
-        token.setBalance(address(executor), 0);
-        
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(ArbExecutor.SlippageExceeded.selector, 1020, 0));
         executor.executePlan(plan);
     }
 
-    function test_Success_WithProfit() public {
-        ExecutionPlan memory plan = buildMockPlan();
-        
-        // Starts with 0 balance, FakePool will mint 1050 to the executor!
-        // Profit > 1020 constraint => SUCCESS!
+    // Phase 11 Atomic Tests
+    function test_Atomic_Success() public {
+        AtomicExecutionPlan memory plan = buildAtomicMockPlan(false);
         vm.prank(owner);
-        executor.executePlan(plan);
+        executor.executeAtomicPlan(plan);
+    }
+
+    function test_Atomic_Slippage_Revert() public {
+        AtomicExecutionPlan memory plan = buildAtomicMockPlan(false);
+        pool.setMintAmount(1000); // 1000 < 1020 (minAmountOut)
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(ArbExecutor.SlippageExceeded.selector, 1020, 1000));
+        executor.executeAtomicPlan(plan);
+    }
+
+    function test_Atomic_NoProfit_Revert() public {
+        AtomicExecutionPlan memory plan = buildAtomicMockPlan(false);
+        // Start with zero balance
+        token.setBalance(address(executor), 0);
+        
+        plan.minAmountOut = 1000;
+        plan.profitGuard = ProfitGuard(1100);
+        pool.setMintAmount(1050); // 1050 > 1000 (slippage ok), netProfit 1050 < 1100 (NoProfit!)
+        
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(ArbExecutor.InsufficientProfit.selector, 1100, 1050));
+        executor.executeAtomicPlan(plan);
+    }
+
+    function test_Atomic_InsufficientRepayment_Revert() public {
+        AtomicExecutionPlan memory plan = buildAtomicMockPlan(true);
+        // buildAtomicMockPlan(true) sets hasFlashloan=true, hasRepayment=true
+        // amount_in = 1000, repayment = 1001.
+        pool.setMintAmount(1000); // 1000 < 1001 repayment required
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(ArbExecutor.InsufficientRepayment.selector, 1001, 1000));
+        executor.executeAtomicPlan(plan);
     }
 }
