@@ -274,11 +274,7 @@ pub struct SlippageGuard {
     pub min_out: MinOutConstraint,
 }
 
-/// A placeholder for defining flash loan behavior (empty for now)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlashLoanSpec {
-    // Left unimplemented for Phase 8
-}
+// FlashLoanSpec moved to Phase 11 section
 
 /// Reasons why a candidate could not be converted into an execution plan
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -420,4 +416,51 @@ pub struct BroadcastResult {
     pub success: bool,
     pub tx_hash: Option<String>,
     pub error: Option<String>,
+}
+
+// ============================================================
+// Phase 11: Atomic & Flash Loan Execution
+// ============================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum FlashLoanProviderKind {
+    Mock,
+    BalancerV2,
+    UniswapV2,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlashLoanSpec {
+    pub provider: FlashLoanProviderKind,
+    pub asset: String,
+    pub amount: alloy_primitives::U256,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepaymentGuard {
+    pub asset: String,
+    pub amount: alloy_primitives::U256,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProfitGuard {
+    pub min_profit_wei: alloy_primitives::U256,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtomicExecutionPlan {
+    pub flash_loan: Option<FlashLoanSpec>,
+    pub legs: Vec<ExecutionLeg>,
+    pub min_amount_out: alloy_primitives::U256,
+    pub repayment: Option<RepaymentGuard>,
+    pub profit_guard: ProfitGuard,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum AtomicExecutionFailureReason {
+    InsufficientRepayment,
+    SlippageExceeded,
+    NoProfit,
+    FlashLoanFailed(String),
+    ContractReverted(String),
 }

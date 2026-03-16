@@ -39,5 +39,14 @@ services:
     depends_on:
       - prometheus
 
+  forge:
+    image: ghcr.io/foundry-rs/foundry:latest
+    profiles:
+      - tools
+    entrypoint: ["/usr/bin/env"]
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/contracts
+
 volumes:
   pgdata:
