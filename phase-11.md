@@ -290,3 +290,174 @@ Provide:
 5. The source-of-truth outputs listed above
 
 Do not go beyond Phase 11.
+
+
+---- updates 2 ----
+
+Do a focused infrastructure/setup pass on the EXISTING branch `phase-11-flashloan-atomic-path`.
+
+Do NOT create a new branch.
+Do NOT add business logic, flash-loan logic, routing logic, or execution strategy changes.
+Do NOT vendor any binaries into the repo.
+Do NOT download/build local toolchains into the repo.
+Do NOT change Solidity/Rust behavior unless needed for Dockerized Foundry test support.
+
+Goal:
+Add a Dockerized Foundry workflow to the project so Forge build/test can be run from the project itself without requiring a host installation, then run it and prove it works.
+
+==================================================
+OBJECTIVE
+==================================================
+
+By the end of this pass, the repo should support:
+- Dockerized `forge build`
+- Dockerized `forge test`
+
+from within the project, using the official Foundry container.
+
+This should:
+- live in the repo
+- be easy to run repeatedly
+- avoid requiring host PATH setup
+- avoid committing binaries
+
+==================================================
+REQUIRED IMPLEMENTATION
+==================================================
+
+Implement one clean project-integrated Foundry Docker path.
+
+Preferred approach:
+- add a `forge` service to docker-compose using the official Foundry image
+OR
+- add a dedicated compose file if that is clearly cleaner
+
+The setup must:
+- use `ghcr.io/foundry-rs/foundry:latest`
+- mount the repo into the container
+- set working directory to the contracts project
+- support:
+  - forge build
+  - forge test
+
+Acceptable examples:
+- docker compose run --rm forge forge build
+- docker compose run --rm forge forge test
+
+Also add convenient Makefile targets if appropriate, for example:
+- forge-build
+- forge-test
+
+==================================================
+CONSTRAINTS
+==================================================
+
+- Do NOT commit `foundry_bin/`
+- Do NOT commit `foundry.zip`
+- Do NOT add local binary artifacts
+- Do NOT require host `forge` on PATH
+- Do NOT break existing observability/docker services
+- Keep the implementation minimal and project-local
+- Keep contracts under the existing `contracts/` directory
+- Do NOT add unrelated services
+
+==================================================
+FILES YOU MAY MODIFY
+==================================================
+
+Only modify what is necessary, likely including:
+- docker-compose.yml
+- Makefile
+- docs / walkthrough / quick-start docs
+- .gitignore if needed
+
+If a separate compose file is cleaner, that is acceptable, but document it clearly.
+
+==================================================
+VALIDATION — YOU MUST RUN THIS
+==================================================
+
+After setup is implemented, actually run the Dockerized Foundry commands and report the outputs.
+
+Required validation:
+1. Docker config validity:
+- docker compose config
+
+2. Dockerized Foundry build:
+- docker compose run --rm forge forge build
+
+3. Dockerized Foundry test:
+- docker compose run --rm forge forge test
+
+If you choose a separate compose file, use the correct `-f` form consistently and document it.
+
+==================================================
+DOCUMENTATION
+==================================================
+
+Update docs so the project clearly explains:
+- how to run Dockerized Foundry
+- that host `forge` is not required
+- exact commands to use
+- where the contracts project lives
+- that binaries are not vendored into the repo
+
+Keep docs honest and minimal.
+
+==================================================
+SOURCE-OF-TRUTH OUTPUTS REQUIRED
+==================================================
+
+At the end, include these exact commands and outputs:
+
+1. Git identity:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-11-flashloan-atomic-path
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof of Dockerized Foundry setup:
+- git grep -n 'ghcr.io/foundry-rs/foundry:latest' -- .
+- git grep -n 'forge build|forge test|forge-build|forge-test' -- Makefile docker-compose.yml docs/ . 2>$null
+
+3. Validation outputs:
+- docker compose config
+- docker compose run --rm forge forge build
+- docker compose run --rm forge forge test
+
+4. Hygiene proof:
+- git ls-tree -r --name-only origin/phase-11-flashloan-atomic-path | Select-String 'foundry_bin|foundry\.zip|forge\.exe|cast\.exe|anvil\.exe|chisel\.exe'
+
+This should return no output.
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+
+1. Verdict:
+- fully working
+- working with known limitations
+- blocked (and why)
+
+2. Changed-files summary
+
+3. Checklist confirming:
+- Dockerized Foundry setup added
+- forge build works through Docker
+- forge test works through Docker
+- host PATH is no longer required for Foundry validation
+- no binaries were committed
+- no unrelated code logic was changed
+
+4. A short walkthrough describing:
+- how the Dockerized Foundry flow works
+- exact commands developers should run
+- what remains unchanged in the repo
+
+5. Exact outputs for all source-of-truth and validation commands above
+
+Do not go beyond this scope.
