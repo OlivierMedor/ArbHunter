@@ -24,6 +24,12 @@ pub struct Config {
     pub executor_contract_address: Option<String>,
     pub enable_broadcast: bool,
     pub dry_run_only: bool,
+
+    // Phase 10: Preflight & Safe Broadcast
+    pub rpc_http_url: Option<String>,
+    pub require_preflight: bool,
+    pub require_gas_estimate: bool,
+    pub require_eth_call: bool,
 }
 
 impl Config {
@@ -78,6 +84,18 @@ impl Config {
             dry_run_only: env::var("DRY_RUN_ONLY")
                 .map(|v| v.to_lowercase() == "true" || v == "1")
                 .unwrap_or(true),
+            
+            // Phase 10
+            rpc_http_url: env::var("RPC_HTTP_URL").ok().or_else(|| env::var("QUICKNODE_HTTP_URL").ok()),
+            require_preflight: env::var("REQUIRE_PREFLIGHT")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(true),
+            require_gas_estimate: env::var("REQUIRE_GAS_ESTIMATE")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(true),
+            require_eth_call: env::var("REQUIRE_ETH_CALL")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(true),
         }
     }
 }
@@ -107,6 +125,10 @@ mod tests {
             std::env::set_var("EXECUTOR_CONTRACT_ADDRESS", "0xCONTRACT");
             std::env::set_var("ENABLE_BROADCAST", "true");
             std::env::set_var("DRY_RUN_ONLY", "false");
+            std::env::set_var("RPC_HTTP_URL", "http://rpc");
+            std::env::set_var("REQUIRE_PREFLIGHT", "false");
+            std::env::set_var("REQUIRE_GAS_ESTIMATE", "true");
+            std::env::set_var("REQUIRE_ETH_CALL", "1");
         }
 
         let config = Config::load();
@@ -128,5 +150,9 @@ mod tests {
         assert_eq!(config.executor_contract_address, Some("0xCONTRACT".to_string()));
         assert!(config.enable_broadcast);
         assert!(!config.dry_run_only);
+        assert_eq!(config.rpc_http_url, Some("http://rpc".to_string()));
+        assert!(!config.require_preflight);
+        assert!(config.require_gas_estimate);
+        assert!(config.require_eth_call);
     }
 }

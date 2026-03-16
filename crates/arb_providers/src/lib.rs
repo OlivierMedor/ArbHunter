@@ -219,6 +219,10 @@ mod tests {
             executor_contract_address: None,
             enable_broadcast: false,
             dry_run_only: true,
+            rpc_http_url: None,
+            require_preflight: false,
+            require_gas_estimate: false,
+            require_eth_call: false,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());

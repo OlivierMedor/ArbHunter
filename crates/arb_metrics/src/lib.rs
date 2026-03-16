@@ -61,6 +61,13 @@ pub struct MetricsRegistry {
     pub nonce_fetch_failures_total: IntCounter,
     pub tx_build_total: IntCounter,
     pub tx_build_failures_total: IntCounter,
+
+    // Phase 10: Preflight metrics
+    pub preflight_total: IntCounter,
+    pub preflight_success_total: IntCounter,
+    pub preflight_failed_total: IntCounter,
+    pub preflight_eth_call_failed_total: IntCounter,
+    pub preflight_gas_estimate_failed_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -124,6 +131,13 @@ impl MetricsRegistry {
         let tx_build_total = IntCounter::new("arb_tx_build_total", "Total transaction build attempts").unwrap();
         let tx_build_failures_total = IntCounter::new("arb_tx_build_failures_total", "Total transaction build failures").unwrap();
 
+        // Phase 10
+        let preflight_total = IntCounter::new("arb_preflight_total", "Total preflight validation attempts").unwrap();
+        let preflight_success_total = IntCounter::new("arb_preflight_success_total", "Total preflight successes").unwrap();
+        let preflight_failed_total = IntCounter::new("arb_preflight_failed_total", "Total preflight failures").unwrap();
+        let preflight_eth_call_failed_total = IntCounter::new("arb_preflight_eth_call_failed_total", "Total preflight eth_call failures").unwrap();
+        let preflight_gas_estimate_failed_total = IntCounter::new("arb_preflight_gas_estimate_failed_total", "Total preflight gas estimate failures").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -170,6 +184,12 @@ impl MetricsRegistry {
         registry.register(Box::new(nonce_fetch_failures_total.clone())).unwrap();
         registry.register(Box::new(tx_build_total.clone())).unwrap();
         registry.register(Box::new(tx_build_failures_total.clone())).unwrap();
+
+        registry.register(Box::new(preflight_total.clone())).unwrap();
+        registry.register(Box::new(preflight_success_total.clone())).unwrap();
+        registry.register(Box::new(preflight_failed_total.clone())).unwrap();
+        registry.register(Box::new(preflight_eth_call_failed_total.clone())).unwrap();
+        registry.register(Box::new(preflight_gas_estimate_failed_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -222,6 +242,11 @@ impl MetricsRegistry {
             nonce_fetch_failures_total,
             tx_build_total,
             tx_build_failures_total,
+            preflight_total,
+            preflight_success_total,
+            preflight_failed_total,
+            preflight_eth_call_failed_total,
+            preflight_gas_estimate_failed_total,
         }
     }
 
@@ -341,6 +366,27 @@ impl MetricsRegistry {
 
     pub fn inc_tx_build_failures(&self) {
         self.tx_build_failures_total.inc();
+    }
+
+    // Phase 10
+    pub fn inc_preflight(&self) {
+        self.preflight_total.inc();
+    }
+
+    pub fn inc_preflight_success(&self) {
+        self.preflight_success_total.inc();
+    }
+
+    pub fn inc_preflight_failed(&self) {
+        self.preflight_failed_total.inc();
+    }
+
+    pub fn inc_preflight_eth_call_failed(&self) {
+        self.preflight_eth_call_failed_total.inc();
+    }
+
+    pub fn inc_preflight_gas_estimate_failed(&self) {
+        self.preflight_gas_estimate_failed_total.inc();
     }
 
     pub fn inc_provider_connected(&self, provider: &str) {
