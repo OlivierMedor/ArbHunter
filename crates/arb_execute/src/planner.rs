@@ -1,46 +1,86 @@
 use arb_types::{
     CandidateValidationResult, ExecutionLeg, ExecutionPath, ExecutionPlan, ExpectedOutcome,
-    MinOutConstraint, PlanBuildFailureReason, SlippageGuard
+    MinOutConstraint, PlanBuildFailureReason, SlippageGuard, AtomicExecutionPlan, ProfitGuard,
+    RepaymentGuard, FlashLoanSpec, FlashLoanProviderKind
 };
 use alloy_primitives::U256;
 
 pub struct ExecutionPlanner;
 
 impl ExecutionPlanner {
-    /// Attempts to build an execution plan from a validated candidate
+    /// Attempts to build a standard execution plan from a validated candidate
     pub fn build_plan(
         validation_result: &CandidateValidationResult,
     ) -> Result<ExecutionPlan, PlanBuildFailureReason> {
+        // ... (existing implementation unchanged)
         let candidate = &validation_result.sim_result.request.candidate;
-        
-        // Ensure simulation was successful
         if !validation_result.is_valid {
             return Err(PlanBuildFailureReason::InsufficientProfit);
         }
-
-        // Expected output after executing all steps
         let expected_out = validation_result.sim_result.expected_amount_out
             .ok_or(PlanBuildFailureReason::InsufficientProfit)?;
-
-        // Ensure profit is positive in simulation
         if expected_out <= candidate.amount_in {
             return Err(PlanBuildFailureReason::InsufficientProfit);
         }
-
         let profit = expected_out - candidate.amount_in;
-
-        // Ensure we support the routing structures
         let mut legs = Vec::with_capacity(candidate.path.legs.len());
-        
         for leg in &candidate.path.legs {
-            // We require basic PoolKinds for Phase 8 plan representation
             match leg.edge.kind {
                 arb_types::PoolKind::ReserveBased | arb_types::PoolKind::ConcentratedLiquidity => {}
                 arb_types::PoolKind::Unknown => return Err(PlanBuildFailureReason::UnsupportedPoolKind),
             }
-
             let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
+            legs.push(ExecutionLeg {
+                pool_id: leg.edge.pool_id.clone(),
+                token_in: leg.edge.token_in.clone(),
+                token_out: leg.edge.token_out.clone(),
+                zero_for_one,
+            });
+        }
+        if legs.is_empty() {
+            return Err(PlanBuildFailureReason::UnsupportedRouteStructure);
+        }
+        Ok(ExecutionPlan {
+            target_token: candidate.path.root_asset.clone(),
+            path: ExecutionPath { legs },
+            outcome: ExpectedOutcome {
+                amount_in: candidate.amount_in,
+                expected_amount_out: expected_out,
+                expected_profit: profit,
+            },
+            guard: SlippageGuard {
+                min_out: MinOutConstraint {
+                    min_amount_out: candidate.amount_in + (profit / U256::from(2)),
+                },
+            },
+            flash_loan: None,
+        })
+    }
 
+    /// Attempts to build an atomic flash-loan execution plan from a validated candidate
+    pub fn build_atomic_plan(
+        validation_result: &CandidateValidationResult,
+        flash_loan: bool,
+    ) -> Result<AtomicExecutionPlan, PlanBuildFailureReason> {
+        let candidate = &validation_result.sim_result.request.candidate;
+        
+        if !validation_result.is_valid {
+            return Err(PlanBuildFailureReason::InsufficientProfit);
+        }
+
+        let expected_out = validation_result.sim_result.expected_amount_out
+            .ok_or(PlanBuildFailureReason::InsufficientProfit)?;
+        
+        let profit = validation_result.sim_result.expected_profit
+            .ok_or(PlanBuildFailureReason::InsufficientProfit)?;
+
+        let mut legs = Vec::with_capacity(candidate.path.legs.len());
+        for leg in &candidate.path.legs {
+            match leg.edge.kind {
+                arb_types::PoolKind::ReserveBased | arb_types::PoolKind::ConcentratedLiquidity => {}
+                arb_types::PoolKind::Unknown => return Err(PlanBuildFailureReason::UnsupportedPoolKind),
+            }
+            let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
             legs.push(ExecutionLeg {
                 pool_id: leg.edge.pool_id.clone(),
                 token_in: leg.edge.token_in.clone(),
@@ -49,30 +89,35 @@ impl ExecutionPlanner {
             });
         }
 
-        if legs.is_empty() {
-            return Err(PlanBuildFailureReason::UnsupportedRouteStructure);
-        }
-
-        let target_token = candidate.path.root_asset.clone();
-
-        let plan = ExecutionPlan {
-            target_token,
-            path: ExecutionPath { legs },
-            outcome: ExpectedOutcome {
-                amount_in: candidate.amount_in,
-                expected_amount_out: expected_out,
-                expected_profit: profit,
-            },
-            // For Phase 8 we set generic min_out guard to amount_in + (profit / 2)
-            guard: SlippageGuard {
-                min_out: MinOutConstraint {
-                    min_amount_out: candidate.amount_in + (profit / U256::from(2)),
-                },
-            },
-            flash_loan: None, // Unimplemented for Phase 8
+        let flash_loan_spec = if flash_loan {
+            Some(FlashLoanSpec {
+                provider: FlashLoanProviderKind::Mock, // Default for Phase 11
+                asset: candidate.path.root_asset.0.clone(),
+                amount: candidate.amount_in,
+            })
+        } else {
+            None
         };
 
-        Ok(plan)
+        let repayment = if flash_loan {
+            Some(RepaymentGuard {
+                asset: candidate.path.root_asset.0.clone(),
+                // Repay loan + small buffer or just loan if provider is mock
+                amount: candidate.amount_in + (candidate.amount_in * U256::from(5) / U256::from(10000)), // 5bps fee
+            })
+        } else {
+            None
+        };
+
+        Ok(AtomicExecutionPlan {
+            flash_loan: flash_loan_spec,
+            legs,
+            min_amount_out: candidate.amount_in + (profit / U256::from(2)),
+            repayment,
+            profit_guard: ProfitGuard {
+                min_profit_wei: profit / U256::from(4),
+            },
+        })
     }
 }
 
@@ -197,14 +242,14 @@ mod tests {
                 uint256 expectedAmountOut;
                 uint256 expectedProfit;
             }
-            struct ExecutionPlanStruct {
+            struct ExecutionPlanSol {
                 address targetToken;
                 ExecutionPath path;
                 ExpectedOutcome outcome;
                 SlippageGuard guard;
                 bool hasFlashloan;
             }
-            function executePlan(ExecutionPlanStruct calldata plan) external;
+            function executePlan(ExecutionPlanSol calldata plan) external;
         }
 
         // Generate a real Rust planner payload
@@ -232,7 +277,7 @@ mod tests {
             });
         }
 
-        let sol_plan = ExecutionPlanStruct {
+        let sol_plan = ExecutionPlanSol {
             targetToken: rust_plan.target_token.0.parse::<Address>().unwrap_or_default(),
             path: ExecutionPath { legs: sol_legs },
             outcome: ExpectedOutcome {
@@ -255,5 +300,29 @@ mod tests {
         assert_eq!(&encoded[0..4], &executePlanCall::SELECTOR);
         // Ensure payload packs properly without panic
         assert!(encoded.len() > 64, "Calldata should be substantively encoded");
+    }
+
+    #[test]
+    fn test_atomic_plan_build() {
+        let mut candidate = make_base_candidate();
+        candidate.amount_in = U256::from(10000);
+        let val_res = CandidateValidationResult {
+            sim_result: SimulationResult {
+                request: SimulationRequest { candidate: candidate.clone() },
+                status: SimOutcomeStatus::Success,
+                expected_amount_out: Some(U256::from(10400)),
+                expected_profit: Some(U256::from(400)),
+                expected_gas_used: None,
+            },
+            is_valid: true,
+        };
+
+        let plan = ExecutionPlanner::build_atomic_plan(&val_res, true).expect("Atomic plan should build");
+        
+        assert!(plan.flash_loan.is_some());
+        assert_eq!(plan.flash_loan.as_ref().unwrap().amount, U256::from(10000));
+        assert!(plan.repayment.is_some());
+        assert!(plan.repayment.as_ref().unwrap().amount > U256::from(10000));
+        assert_eq!(plan.profit_guard.min_profit_wei, U256::from(100)); // 400 / 4
     }
 }
