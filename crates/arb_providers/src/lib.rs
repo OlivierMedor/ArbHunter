@@ -223,6 +223,8 @@ mod tests {
             require_preflight: false,
             require_gas_estimate: false,
             require_eth_call: false,
+            local_rpc_url: None,
+            test_private_key: None,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());
