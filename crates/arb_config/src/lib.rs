@@ -30,6 +30,10 @@ pub struct Config {
     pub require_preflight: bool,
     pub require_gas_estimate: bool,
     pub require_eth_call: bool,
+
+    // Phase 12: Forked E2E Harness
+    pub test_private_key: Option<String>,
+    pub local_rpc_url: Option<String>,
 }
 
 impl Config {
@@ -96,6 +100,10 @@ impl Config {
             require_eth_call: env::var("REQUIRE_ETH_CALL")
                 .map(|v| v.to_lowercase() == "true" || v == "1")
                 .unwrap_or(true),
+
+            // Phase 12
+            test_private_key: env::var("TEST_PRIVATE_KEY").ok(),
+            local_rpc_url: env::var("LOCAL_RPC_URL").ok(),
         }
     }
 }
@@ -129,6 +137,8 @@ mod tests {
             std::env::set_var("REQUIRE_PREFLIGHT", "false");
             std::env::set_var("REQUIRE_GAS_ESTIMATE", "true");
             std::env::set_var("REQUIRE_ETH_CALL", "1");
+            std::env::set_var("TEST_PRIVATE_KEY", "0xTESTPK");
+            std::env::set_var("LOCAL_RPC_URL", "http://local");
         }
 
         let config = Config::load();
@@ -154,5 +164,7 @@ mod tests {
         assert!(!config.require_preflight);
         assert!(config.require_gas_estimate);
         assert!(config.require_eth_call);
+        assert_eq!(config.test_private_key, Some("0xTESTPK".to_string()));
+        assert_eq!(config.local_rpc_url, Some("http://local".to_string()));
     }
 }

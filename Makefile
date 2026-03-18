@@ -25,3 +25,9 @@ lint:
 clean:
 	cargo clean
 	docker compose run --rm forge forge clean
+
+anvil-start:
+	docker compose up anvil
+
+deploy-local:
+	docker compose run --rm forge forge script script/Deploy.s.sol:DeployScript --rpc-url http://anvil:8545 --broadcast
