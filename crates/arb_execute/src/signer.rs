@@ -22,7 +22,7 @@ impl Wallet {
         }
 
         let signer: PrivateKeySigner = pk.parse()
-            .map_err(|e| format!("Failed to parse SIGNER_PRIVATE_KEY: {}", e))?;
+            .map_err(|_| "Failed to parse SIGNER_PRIVATE_KEY".to_string())?;
             
         Ok(Self { signer })
     }
