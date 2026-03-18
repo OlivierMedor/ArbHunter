@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Load config
     let config = Config::load();
-    let rpc_url = config.local_rpc_url.clone().expect("LOCAL_RPC_URL must be specified in .env");
+    let rpc_url = config.local_rpc_url.clone().expect("ANVIL_RPC_URL must be specified in .env");
     let test_pk = config.test_private_key.clone().expect("TEST_PRIVATE_KEY must be specified in .env");
 
     let executor_address = "0x5FbDB2315678afecb367f032d93F642f64180aa3"

@@ -103,7 +103,7 @@ impl Config {
 
             // Phase 12
             test_private_key: env::var("TEST_PRIVATE_KEY").ok(),
-            local_rpc_url: env::var("LOCAL_RPC_URL").ok(),
+            local_rpc_url: env::var("ANVIL_RPC_URL").ok(),
         }
     }
 }
@@ -138,7 +138,7 @@ mod tests {
             std::env::set_var("REQUIRE_GAS_ESTIMATE", "true");
             std::env::set_var("REQUIRE_ETH_CALL", "1");
             std::env::set_var("TEST_PRIVATE_KEY", "0xTESTPK");
-            std::env::set_var("LOCAL_RPC_URL", "http://local");
+            std::env::set_var("ANVIL_RPC_URL", "http://local");
         }
 
         let config = Config::load();
