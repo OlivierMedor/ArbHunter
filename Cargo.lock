@@ -507,6 +507,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "arb_e2e"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types-eth",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "arb_config",
+ "arb_execute",
+ "arb_metrics",
+ "arb_types",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "arb_execute"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {
+      "rpc": "http://anvil:8545"
+    }
+  ]
+}
