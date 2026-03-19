@@ -1,0 +1,10 @@
+[package]
+name = "arb_battery_generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arb_types = { path = "../../crates/arb_types" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+alloy-primitives = { version = "0.8.14" }
