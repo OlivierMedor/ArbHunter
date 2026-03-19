@@ -1,0 +1,104 @@
+[
+  {
+    "case_id": "case_01_v2_success",
+    "notes": "Standard WETH -> USDC V2 swap designed to succeed naturally.",
+    "fork_block_number": 22000000,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "V2_SingleLeg",
+    "pool_ids": [
+      "0x4a3636608d7bcdd730ce8670a41b53e0fde6ef28"
+    ],
+    "pool_kinds": [
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    ],
+    "leg_directions": [
+      true
+    ],
+    "amount_in": "0x16345785d8a0000",
+    "expected_outcome": "success",
+    "guard_overrides": null,
+    "seed_data": null
+  },
+  {
+    "case_id": "case_02_v2_slippage_revert",
+    "notes": "Same V2 route, but forced to fail simulation due to an impossibly high minAmountOut.",
+    "fork_block_number": 22000000,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "V2_SingleLeg",
+    "pool_ids": [
+      "0x4a3636608d7bcdd730ce8670a41b53e0fde6ef28"
+    ],
+    "pool_kinds": [
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    ],
+    "leg_directions": [
+      true
+    ],
+    "amount_in": "0x16345785d8a0000",
+    "expected_outcome": "slippage_revert",
+    "guard_overrides": {
+      "min_profit_wei": null,
+      "min_amount_out": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "seed_data": null
+  },
+  {
+    "case_id": "case_03_v2_noprofit_revert",
+    "notes": "Same V2 route, but forced to fail due to high minProfit requirement.",
+    "fork_block_number": 22000000,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "V2_SingleLeg",
+    "pool_ids": [
+      "0x4a3636608d7bcdd730ce8670a41b53e0fde6ef28"
+    ],
+    "pool_kinds": [
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    ],
+    "leg_directions": [
+      true
+    ],
+    "amount_in": "0x16345785d8a0000",
+    "expected_outcome": "no_profit_revert",
+    "guard_overrides": {
+      "min_profit_wei": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "min_amount_out": null
+    },
+    "seed_data": null
+  },
+  {
+    "case_id": "case_04_v3_success",
+    "notes": "Standard WETH -> USDC V3 swap designed to succeed naturally (Concentrated Liquidity test).",
+    "fork_block_number": 22000000,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "V3_SingleLeg",
+    "pool_ids": [
+      "0xd0b53D927E91100f074D2338bd4845D884C0F7a8"
+    ],
+    "pool_kinds": [
+      "ConcentratedLiquidity"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    ],
+    "leg_directions": [
+      true
+    ],
+    "amount_in": "0x16345785d8a0000",
+    "expected_outcome": "success",
+    "guard_overrides": null,
+    "seed_data": null
+  }
+]
