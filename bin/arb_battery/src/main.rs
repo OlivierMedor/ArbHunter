@@ -9,6 +9,7 @@ use arb_state::StateEngine;
 use arb_metrics::MetricsRegistry;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_provider::{ProviderBuilder, Provider};
+use alloy_eips::BlockId;
 use reqwest::Url;
 use alloy_primitives::{U256, Address, B256};
 use std::fs;
@@ -53,11 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let update = match kind {
             PoolKind::ReserveBased => {
-                let log_block_hex = format!("0x{:x}", case.fork_block_number);
-                let call_data = serde_json::json!({"to": target_pool_address, "data": "0x0902f1ac"});
-                let res_val: serde_json::Value = provider.raw_request("eth_call".into(), (call_data, &log_block_hex)).await.map_err(|e| e.to_string())?;
-                let res_str = res_val.as_str().unwrap_or("0x");
-                if res_str.len() < 130 { continue; }
+                let req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("0902f1ac").unwrap())));
+                let res_val = provider.call(&req).block(BlockId::number(case.fork_block_number)).await.map_err(|e| e.to_string())?;
+                let res_str = hex::encode(&res_val);
+                if res_str.len() < 128 { continue; }
                 let res_bytes = hex::decode(&res_str[2..]).map_err(|e| e.to_string())?;
                 let reserve0 = u128::from_be_bytes(res_bytes[16..32].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
                 let reserve1 = u128::from_be_bytes(res_bytes[48..64].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
@@ -74,21 +74,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
             PoolKind::ConcentratedLiquidity => {
-                let log_block_hex = format!("0x{:x}", case.fork_block_number);
-                let slot0_data = serde_json::json!({"to": target_pool_address, "data": "0x3850c7bd"});
-                let slot0_val: serde_json::Value = provider.raw_request("eth_call".into(), (slot0_data, &log_block_hex)).await.map_err(|e| e.to_string())?;
-                let slot0_str = slot0_val.as_str().unwrap_or("0x");
-                if slot0_str.len() < 66 { continue; }
-                let slot0_bytes = hex::decode(&slot0_str[2..]).map_err(|e| e.to_string())?;
-                let sqrt_price_x96 = U256::from_be_slice(&slot0_bytes[0..32]);
-                let tick = i32::from_be_bytes(slot0_bytes[60..64].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
-
-                let liq_data = serde_json::json!({"to": target_pool_address, "data": "0x1a686597"});
-                let liq_val: serde_json::Value = provider.raw_request("eth_call".into(), (liq_data, &log_block_hex)).await.map_err(|e| e.to_string())?;
-                let liq_str = liq_val.as_str().unwrap_or("0x");
-                if liq_str.len() < 66 { continue; }
-                let liq_bytes = hex::decode(&liq_str[2..]).map_err(|e| e.to_string())?;
-                let liquidity = u128::from_be_bytes(liq_bytes[16..32].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
+                let slot0_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("3850c7bd").unwrap())));
+                let slot0_res = provider.call(&slot0_req).block(BlockId::number(case.fork_block_number)).await.map_err(|e| e.to_string())?;
+                if slot0_res.len() < 32 { continue; }
+                let sqrt_price_x96 = U256::from_be_slice(&slot0_res[0..32]);
+                let tick = i32::from_be_bytes(slot0_res[60..64].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
+                
+                let liq_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("1a686597").unwrap())));
+                let liq_res = provider.call(&liq_req).block(BlockId::number(case.fork_block_number)).await.map_err(|e| e.to_string())?;
+                if liq_res.len() < 32 { continue; }
+                let liquidity = u128::from_be_bytes(liq_res[16..32].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
 
                 PoolUpdate {
                     pool_id: PoolId(target_pool_address.to_string()),
@@ -171,7 +166,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         addr_padded[12..].copy_from_slice(executor_address.as_slice());
         bal_data.extend_from_slice(&addr_padded);
         
-        let req = alloy_rpc_types_eth::TransactionRequest::default().to(root_token_addr).input(alloy_primitives::Bytes::from(bal_data).into());
+        let req = alloy_rpc_types_eth::TransactionRequest::default().to(root_token_addr).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(bal_data)));
         let bal_before_raw = provider.call(&req).await.map_err(|e| e.to_string())?;
         let bal_before = U256::from_be_slice(&bal_before_raw);
 
