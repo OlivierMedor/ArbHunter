@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {
+      "rpc": "http://host.docker.internal:8545"
+    }
+  ]
+}

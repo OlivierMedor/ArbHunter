@@ -26,9 +26,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cases_json = fs::read_to_string("fixtures/historical_cases.json").map_err(|e| e.to_string())?;
     let cases: Vec<HistoricalCase> = serde_json::from_str(&cases_json).map_err(|e| e.to_string())?;
 
-    let executor_address = Address::from_str("0x5FbDB2315678afecb367f032d93F642f64180aa3").map_err(|e| e.to_string())?;
-
+    let executor_address = Address::from_str("0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9").unwrap();
     let signer = test_pk.parse::<PrivateKeySigner>().map_err(|e| e.to_string())?;
+    let signer_address = signer.address();
     let wallet = Wallet { signer };
     let metrics = Arc::new(MetricsRegistry::new());
     
@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let url = rpc_url.parse::<Url>().map_err(|e| e.to_string())?;
     let provider = ProviderBuilder::new().on_http(url);
     let mut attributions = Vec::new();
-    let mut nonce = provider.get_transaction_count(executor_address).await.unwrap_or(0);
+    let mut nonce = provider.get_transaction_count(signer_address).await.unwrap_or(0);
 
     for case in &cases {
         let state_engine = Arc::new(StateEngine::new(metrics.clone()));
@@ -56,11 +56,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             PoolKind::ReserveBased => {
                 let req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("0902f1ac").unwrap())));
                 let res_val = provider.call(&req).await.map_err(|e| e.to_string())?;
-                let res_str = hex::encode(&res_val);
-                if res_str.len() < 128 { continue; }
-                let res_bytes = hex::decode(&res_str[2..]).map_err(|e| e.to_string())?;
-                let reserve0 = u128::from_be_bytes(res_bytes[16..32].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
-                let reserve1 = u128::from_be_bytes(res_bytes[48..64].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
+                if res_val.len() < 64 { 
+                    println!("[{}] SKIPPED: ReserveBased call returned too short", case.case_id);
+                    continue; 
+                }
+                let res_bytes = res_val;
+                let reserve0 = u128::from_be_bytes(res_bytes[16..32].try_into().unwrap());
+                let reserve1 = u128::from_be_bytes(res_bytes[48..64].try_into().unwrap());
                 PoolUpdate {
                     pool_id: PoolId(target_pool_address.to_string()),
                     kind,
@@ -74,16 +76,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
             PoolKind::ConcentratedLiquidity => {
-                let slot0_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("3850c7bd").unwrap())));
-                let slot0_res = provider.call(&slot0_req).await.map_err(|e| e.to_string())?;
-                if slot0_res.len() < 32 { continue; }
-                let sqrt_price_x96 = U256::from_be_slice(&slot0_res[0..32]);
-                let tick = i32::from_be_bytes(slot0_res[60..64].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
-                
-                let liq_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("1a686597").unwrap())));
-                let liq_res = provider.call(&liq_req).await.map_err(|e| e.to_string())?;
-                if liq_res.len() < 32 { continue; }
-                let liquidity = u128::from_be_bytes(liq_res[16..32].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
+                let (sqrt_price_x96, tick, liquidity) = if let Some(seed) = &case.seed_data {
+                    let parts: Vec<&str> = seed.split(':').collect();
+                    if parts.len() == 2 {
+                        let slot0_bytes = hex::decode(&parts[0][2..]).unwrap_or_default();
+                        let liq_bytes = hex::decode(&parts[1][2..]).unwrap_or_default();
+                        if slot0_bytes.len() >= 64 {
+                            let sp = U256::from_be_slice(&slot0_bytes[0..32]);
+                            let t = i32::from_be_bytes(slot0_bytes[60..64].try_into().unwrap_or_default());
+                            let l = u128::from_be_bytes(liq_bytes[16..32].try_into().unwrap_or_default());
+                            (sp, t, l)
+                        } else {
+                            println!("[{}] SKIPPED: seed data too short", case.case_id);
+                            continue;
+                        }
+                    } else {
+                        println!("[{}] SKIPPED: seed data parts != 2", case.case_id);
+                        continue;
+                    }
+                } else {
+                    let slot0_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("3850c7bd").unwrap())));
+                    let slot0_res = provider.call(&slot0_req).await.map_err(|e| e.to_string())?;
+                    if slot0_res.len() < 32 { 
+                        println!("[{}] SKIPPED: slot0 call failure", case.case_id);
+                        continue; 
+                    }
+                    let sp = U256::from_be_slice(&slot0_res[0..32]);
+                    let t = i32::from_be_bytes(slot0_res[60..64].try_into().unwrap());
+                    
+                    let liq_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("1a686597").unwrap())));
+                    let liq_res = provider.call(&liq_req).await.map_err(|e| e.to_string())?;
+                    if liq_res.len() < 32 { 
+                        println!("[{}] SKIPPED: liquidity call failure", case.case_id);
+                        continue; 
+                    }
+                    let l = u128::from_be_bytes(liq_res[16..32].try_into().unwrap());
+                    (sp, t, l)
+                };
 
                 PoolUpdate {
                     pool_id: PoolId(target_pool_address.to_string()),
@@ -165,10 +194,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let builder = TxBuilder::new(executor_address, 31337);
         let built_tx = match builder.build_tx(&plan, nonce, 10_000_000_000, 100_000_000, 2100000) {
             Ok(tx) => tx,
-            Err(_) => continue,
+            Err(e) => {
+                println!("[{}] build_tx failed: {}", case.case_id, e);
+                continue;
+            }
         };
 
         let root_token_addr = Address::from_str(&case.path_tokens[0].0).map_err(|e| e.to_string())?;
+        
+        // Seed tokens for the executor:
+        // We'll impersonate a known rich address for the root token.
+        // For USDC/DAI/WETH on Base, the pools themselves are rich.
+        let rich_address = Address::from_str(&case.pool_ids[0]).map_err(|e| e.to_string())?; 
+        
+        let _: serde_json::Value = provider.raw_request("anvil_impersonateAccount".into(), (rich_address,)).await.map_err(|e| e.to_string())?;
+        
+        // ERC20 Transfer: transfer(to, amount) -> 0xa9059cbb...
+        let mut transfer_data = hex::decode("a9059cbb").unwrap();
+        let mut to_padded = [0u8; 32];
+        to_padded[12..].copy_from_slice(executor_address.as_slice());
+        let mut amount_padded = [0u8; 32];
+        amount_padded.copy_from_slice(&case.amount_in.to_be_bytes::<32>());
+        transfer_data.extend_from_slice(&to_padded);
+        transfer_data.extend_from_slice(&amount_padded);
+        
+        let transfer_req = alloy_rpc_types_eth::TransactionRequest::default()
+            .from(rich_address)
+            .to(root_token_addr)
+            .input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(transfer_data)));
+        
+        provider.send_transaction(transfer_req).await.map_err(|e| e.to_string())?;
+        let _: serde_json::Value = provider.raw_request("anvil_mine".into(), (1,)).await.map_err(|e| e.to_string())?;
+        let _: serde_json::Value = provider.raw_request("anvil_stopImpersonatingAccount".into(), (rich_address,)).await.map_err(|e| e.to_string())?;
+
         let mut bal_data = hex::decode("70a08231").map_err(|e| e.to_string())?;
         let mut addr_padded = [0u8; 32];
         addr_padded[12..].copy_from_slice(executor_address.as_slice());
@@ -177,8 +235,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let req = alloy_rpc_types_eth::TransactionRequest::default().to(root_token_addr).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(bal_data)));
         let bal_before_raw = provider.call(&req).await.map_err(|e| e.to_string())?;
         let bal_before = U256::from_be_slice(&bal_before_raw);
+        println!("[{}] bal_before={}", case.case_id, bal_before);
 
         let result = submitter.submit(built_tx).await;
+        println!("[{}] submission_result={:?}", case.case_id, result);
         if let SubmissionResult::Success { tx_hash } = result {
             nonce += 1;
             loop {
