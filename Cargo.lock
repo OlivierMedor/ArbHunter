@@ -491,6 +491,7 @@ dependencies = [
  "arb_sim",
  "arb_state",
  "arb_types",
+ "hex",
  "serde",
  "serde_json",
  "tokio",
@@ -503,9 +504,15 @@ name = "arb_battery_generator"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types-eth",
+ "arb_config",
  "arb_types",
+ "hex",
  "serde",
  "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 use arb_types::{
-    HistoricalCase, AttributionResult, CandidateOpportunity, RoutePath, TokenAddress, QuoteSizeBucket, RouteLeg, GraphEdge, EventStamp, PoolUpdate, ReserveSnapshot, PoolId,
+    HistoricalCase, AttributionResult, CandidateOpportunity, RoutePath, TokenAddress, QuoteSizeBucket, RouteLeg, GraphEdge, EventStamp, PoolUpdate, ReserveSnapshot, PoolId, PoolKind,
     ExecutionPlan, ExecutionPath, ExecutionLeg, ExpectedOutcome, SlippageGuard, MinOutConstraint, BuiltTransaction, SubmissionMode, SubmissionResult
 };
 use arb_config::Config;
@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
+use hex;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -60,74 +61,105 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("--- RUNNING CASE: {} ---", case.case_id);
         info!("Reason: {}", case.notes);
 
-        // 1. Candidate -> Simulation
+        // 1. Fetch Real Historical State from RPC
         let state_engine = Arc::new(StateEngine::new(metrics.clone()));
         
-        // Mock a highly profitable state into the engine so simulation mathematically passes
-        let pool_id = PoolId(case.pool_ids.first().unwrap().clone());
-        let update = PoolUpdate {
-            pool_id: pool_id.clone(),
-            kind: *case.pool_kinds.first().unwrap(),
-            token0: Some(case.path_tokens[0].clone()),
-            token1: Some(case.path_tokens[1].clone()),
-            fee_bps: Some(30),
-            reserves: Some(ReserveSnapshot {
-                reserve0: 10_000_000_000_000_000_000_000u128,
-                reserve1: 20_000_000_000_000_000_000_000u128,
-            }),
-            cl_snapshot: None,
-            cl_full_state: None,
-            stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
+        let pool_address = Address::from_str(case.pool_ids.first().unwrap())?;
+        let kind = *case.pool_kinds.first().unwrap();
+
+        let update = match kind {
+            PoolKind::ReserveBased => {
+                // Fetch V2 Reserves: getReserves() -> 0x0902f1ac
+                let data = hex::decode("0902f1ac")?;
+                let res_raw = provider.call(&alloy_rpc_types_eth::TransactionRequest::default().to(pool_address).input(data.into())).await?;
+                
+                let reserve0 = u128::from_be_bytes(res_raw[16..32].try_into()?);
+                let reserve1 = u128::from_be_bytes(res_raw[48..64].try_into()?);
+
+                PoolUpdate {
+                    pool_id: PoolId(pool_address.to_string()),
+                    kind,
+                    token0: Some(case.path_tokens[0].clone()),
+                    token1: Some(case.path_tokens[1].clone()),
+                    fee_bps: Some(30),
+                    reserves: Some(ReserveSnapshot { reserve0, reserve1 }),
+                    cl_snapshot: None,
+                    cl_full_state: None,
+                    stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
+                }
+            }
+            PoolKind::ConcentratedLiquidity => {
+                // Fetch V3 slot0: slot0() -> 0x3850c7bd
+                let slot0_data = hex::decode("3850c7bd")?;
+                let slot0_raw = provider.call(&alloy_rpc_types_eth::TransactionRequest::default().to(pool_address).input(slot0_data.into())).await?;
+                
+                let sqrt_price_x96 = U256::from_be_slice(&slot0_raw[0..32]);
+                let tick = i32::from_be_bytes(slot0_raw[60..64].try_into()?);
+
+                // Fetch Liquidity: liquidity() -> 0x1a686597
+                let liq_data = hex::decode("1a686597")?;
+                let liq_raw = provider.call(&alloy_rpc_types_eth::TransactionRequest::default().to(pool_address).input(liq_data.into())).await?;
+                let liquidity = u128::from_be_bytes(liq_raw[16..32].try_into()?);
+
+                PoolUpdate {
+                    pool_id: PoolId(pool_address.to_string()),
+                    kind,
+                    token0: Some(case.path_tokens[0].clone()),
+                    token1: Some(case.path_tokens[1].clone()),
+                    fee_bps: Some(5),
+                    reserves: None,
+                    cl_snapshot: Some(arb_types::CLSnapshot { sqrt_price_x96, liquidity: alloy_primitives::U128::from(liquidity), tick }),
+                    cl_full_state: None,
+                    stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
+                }
+            }
+            _ => panic!("Unsupported PoolKind in battery"),
         };
+
         state_engine.apply(update).await;
-        
         let simulator = LocalSimulator::new(state_engine);
         
+        // 2. Real Candidate -> Simulation
         let candidate = CandidateOpportunity {
             path: RoutePath {
                 root_asset: case.root_asset.clone(),
                 legs: vec![RouteLeg {
                     edge: GraphEdge {
-                        pool_id: pool_id.clone(),
-                        kind: *case.pool_kinds.first().unwrap(),
+                        pool_id: PoolId(pool_address.to_string()),
+                        kind,
                         token_in: case.path_tokens[0].clone(),
                         token_out: case.path_tokens[1].clone(),
-                        fee_bps: 30,
+                        fee_bps: if kind == PoolKind::ReserveBased { 30 } else { 5 },
                         is_stale: false,
                     }
                 }],
             },
             bucket: QuoteSizeBucket::Small,
             amount_in: case.amount_in,
-            estimated_amount_out: case.amount_in * U256::from(2), // dummy
-            estimated_gross_profit: case.amount_in, // dummy
-            estimated_gross_bps: 10000,
+            estimated_amount_out: U256::ZERO, // Will be filled by simulator
+            estimated_gross_profit: U256::ZERO,
+            estimated_gross_bps: 0,
             is_fresh: true,
         };
 
         let sim_result = simulator.validate_candidate(candidate.clone()).await;
-        // The mathematical mock implies success unless it's a V3 path we didn't mock properly
-        let mut sim_out = sim_result.sim_result.expected_amount_out.unwrap_or(U256::ZERO);
-        let mut sim_profit = sim_result.sim_result.expected_profit.unwrap_or(U256::ZERO);
+        let sim_out = sim_result.sim_result.expected_amount_out.unwrap_or(U256::ZERO);
+        let sim_profit = sim_result.sim_result.expected_profit.unwrap_or(U256::ZERO);
 
-        // 2. Execution Plan Assembly
-        let mut min_amount_out = U256::ZERO;
-        let mut min_profit_wei = U256::ZERO;
-
-        if let Some(guards) = &case.guard_overrides {
-            if let Some(override_out) = guards.min_amount_out {
-                min_amount_out = override_out;
-            }
-            if let Some(override_profit) = guards.min_profit_wei {
-                min_profit_wei = override_profit;
-            }
-        }
+        // 3. Execution Plan Assembly
+        let (min_amount_out, min_profit_wei) = match &case.guard_overrides {
+            Some(guards) => (
+                guards.min_amount_out.unwrap_or(U256::ZERO),
+                guards.min_profit_wei.unwrap_or(U256::ZERO)
+            ),
+            None => (U256::ZERO, U256::ZERO),
+        };
 
         let plan = ExecutionPlan {
             target_token: case.path_tokens[1].clone(),
             path: ExecutionPath {
                 legs: vec![ExecutionLeg {
-                    pool_id: pool_id.clone(),
+                    pool_id: PoolId(pool_address.to_string()),
                     token_in: case.path_tokens[0].clone(),
                     token_out: case.path_tokens[1].clone(),
                     zero_for_one: *case.leg_directions.first().unwrap(),
@@ -146,7 +178,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             flash_loan: None,
         };
 
-        // 3. Signed Tx Generation
+        // 4. Signed Tx Generation
         let builder = TxBuilder::new(executor_address, 31337);
         let built_tx = match builder.build_tx(&plan, nonce, 10_000_000_000, 100_000_000, 2100000) {
             Ok(tx) => tx,
@@ -156,11 +188,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // 4. Local Submit
+        // 5. Local Submit
         info!("Submitting built transaction for {}...", case.case_id);
         let result = submitter.submit(built_tx).await;
 
-        // 5. Receipt processing and Attribution
+        // 6. Receipt processing and Honest Attribution
         let mut actual_out = U256::ZERO;
         let mut actual_profit = U256::ZERO;
         let mut gas_used = 0;
@@ -175,11 +207,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     gas_used = r.gas_used.try_into().unwrap_or(0);
                     success = r.status() == true;
                     if !success {
-                        revert_reason = Some("Reverted on-chain (trace parsing deferred)".to_string());
+                        revert_reason = Some("Reverted on-chain".to_string());
                     } else {
-                        // For Phase 13, local mock bypass returns 0 actual profit unless parsed from traces
-                        actual_out = U256::ZERO;
-                        actual_profit = U256::ZERO;
+                        // Honest extraction: look for Swap/Sync logs or Transfer to executor
+                        // For simplicity in Phase 13 single-leg, find the last Transfer event to executor_address
+                        let transfer_topic = B256::from_slice(&hex::decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")?);
+                        for log in r.inner.logs() {
+                            if log.topics().first() == Some(&transfer_topic) {
+                                // check if topic2 (to) matches executor
+                                if log.topics().get(2).map(|t| Address::from_word(*t)) == Some(executor_address) {
+                                    actual_out = U256::from_be_slice(log.data().data.as_ref());
+                                }
+                            }
+                        }
+                        if actual_out > case.amount_in {
+                            actual_profit = actual_out - case.amount_in;
+                        }
                     }
                     break;
                 }
@@ -191,7 +234,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let abs_err = if sim_profit > actual_profit { sim_profit - actual_profit } else { actual_profit - sim_profit };
-        let rel_err = if sim_profit > U256::ZERO { 1.0 } else { 0.0 }; // Naive for phase 13
+        let rel_err = if sim_profit > U256::ZERO { 
+            (abs_err.to::<u128>() as f64) / (sim_profit.to::<u128>() as f64)
+        } else if actual_profit > U256::ZERO {
+            1.0
+        } else {
+            0.0
+        };
 
         let attribution = AttributionResult {
             case_id: case.case_id.clone(),
@@ -207,7 +256,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         attributions.push(attribution.clone());
         
-        info!("Outcome for {}: success={}, gas={}", case.case_id, success, gas_used);
+        info!("Outcome for {}: success={}, gas={}, predicted_profit={}, actual_profit={}, rel_err={:.4}", 
+            case.case_id, success, gas_used, sim_profit, actual_profit, rel_err);
         info!("--- END CASE ---\n");
     }
 
