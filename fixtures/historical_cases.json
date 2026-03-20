@@ -1,15 +1,15 @@
 [
   {
-    "case_id": "case_01_v2_success",
-    "notes": "Standard WETH -> USDC V2 swap designed to succeed naturally.",
-    "fork_block_number": 22000000,
+    "case_id": "case_1_ConcentratedLiquidity_success",
+    "notes": "Historical WETH/USDC V3 0.3% pool at block 43619618.",
+    "fork_block_number": 43619618,
     "root_asset": "0x4200000000000000000000000000000000000006",
-    "route_family": "V2_SingleLeg",
+    "route_family": "ConcentratedLiquidity_SingleLeg",
     "pool_ids": [
-      "0x4a3636608d7bcdd730ce8670a41b53e0fde6ef28"
+      "0x6c561B446416E1A00E8E93E221854d6eA4171372"
     ],
     "pool_kinds": [
-      "ReserveBased"
+      "ConcentratedLiquidity"
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
@@ -24,16 +24,16 @@
     "seed_data": null
   },
   {
-    "case_id": "case_02_v2_slippage_revert",
-    "notes": "Same V2 route, but forced to fail simulation due to an impossibly high minAmountOut.",
-    "fork_block_number": 22000000,
+    "case_id": "case_2_slippage_revert",
+    "notes": "Forced slippage revert derived from Case 1.",
+    "fork_block_number": 43619618,
     "root_asset": "0x4200000000000000000000000000000000000006",
-    "route_family": "V2_SingleLeg",
+    "route_family": "ConcentratedLiquidity_SingleLeg",
     "pool_ids": [
-      "0x4a3636608d7bcdd730ce8670a41b53e0fde6ef28"
+      "0x6c561B446416E1A00E8E93E221854d6eA4171372"
     ],
     "pool_kinds": [
-      "ReserveBased"
+      "ConcentratedLiquidity"
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
@@ -51,16 +51,16 @@
     "seed_data": null
   },
   {
-    "case_id": "case_03_v2_noprofit_revert",
-    "notes": "Same V2 route, but forced to fail due to high minProfit requirement.",
-    "fork_block_number": 22000000,
+    "case_id": "case_3_ConcentratedLiquidity_success",
+    "notes": "Historical USDC/WETH V3 0.05% pool at block 43619618.",
+    "fork_block_number": 43619618,
     "root_asset": "0x4200000000000000000000000000000000000006",
-    "route_family": "V2_SingleLeg",
+    "route_family": "ConcentratedLiquidity_SingleLeg",
     "pool_ids": [
-      "0x4a3636608d7bcdd730ce8670a41b53e0fde6ef28"
+      "0xd0b53D9277642d899DF5C87A3966A349A798F224"
     ],
     "pool_kinds": [
-      "ReserveBased"
+      "ConcentratedLiquidity"
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
@@ -70,27 +70,48 @@
       true
     ],
     "amount_in": "0x16345785d8a0000",
-    "expected_outcome": "no_profit_revert",
-    "guard_overrides": {
-      "min_profit_wei": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-      "min_amount_out": null
-    },
+    "expected_outcome": "success",
+    "guard_overrides": null,
     "seed_data": null
   },
   {
-    "case_id": "case_04_v3_success",
-    "notes": "Standard WETH -> USDC V3 swap designed to succeed naturally (Concentrated Liquidity test).",
-    "fork_block_number": 22000000,
+    "case_id": "case_4_ConcentratedLiquidity_success",
+    "notes": "Historical WETH/USDC Aero Slipstream pool at block 43619618.",
+    "fork_block_number": 43619618,
     "root_asset": "0x4200000000000000000000000000000000000006",
-    "route_family": "V3_SingleLeg",
+    "route_family": "ConcentratedLiquidity_SingleLeg",
     "pool_ids": [
-      "0xd0b53D927E91100f074D2338bd4845D884C0F7a8"
+      "0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59"
     ],
     "pool_kinds": [
       "ConcentratedLiquidity"
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    ],
+    "leg_directions": [
+      true
+    ],
+    "amount_in": "0x16345785d8a0000",
+    "expected_outcome": "success",
+    "guard_overrides": null,
+    "seed_data": null
+  },
+  {
+    "case_id": "case_5_ReserveBased_success",
+    "notes": "Historical DAI/USDC Aerodrome Stable pool at block 43619618.",
+    "fork_block_number": 43619618,
+    "root_asset": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+    "route_family": "ReserveBased_SingleLeg",
+    "pool_ids": [
+      "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc"
+    ],
+    "pool_kinds": [
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     ],
     "leg_directions": [

@@ -235,3 +235,120 @@ Provide:
 5. The source-of-truth outputs listed above
 
 Do not go beyond Phase 13.
+
+
+---- update ----
+
+Do a final Phase 13 merge-readiness pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add live trading logic.
+Do NOT add new strategy logic.
+Do NOT expand scope beyond making Phase 13 honestly historical and attribution-driven.
+
+Goal:
+Make Phase 13 merge-ready by replacing the remaining canned/mock battery behavior with a truthful historical replay battery and real attribution.
+
+==================================================
+FIX 1 — GENERATOR MUST BE A REAL BOUNDED SCAN
+==================================================
+
+Current problem:
+`arb_battery_generator` appears to hardcode one block number and a few static pools/cases.
+
+Required fix:
+- replace the hardcoded generator behavior with a real bounded scan OR a real selection from previously promoted candidates
+- the first battery may still produce only 3–5 cases, but they must be selected from real historical data, not just written as canned cases
+- keep the chosen cases small/simple, but honest
+
+At minimum, the output cases should be selected from:
+- a bounded historical window
+OR
+- previously promoted candidates from the pipeline
+
+==================================================
+FIX 2 — BATTERY MUST REUSE THE REAL PIPELINE HONESTLY
+==================================================
+
+Current problem:
+`arb_battery` appears to construct dummy state and dummy candidate estimates instead of reusing the real historical case data honestly.
+
+Required fix:
+- stop fabricating giant reserve snapshots and dummy estimated outputs/profits for replay cases
+- the replay battery must use:
+  candidate -> simulation -> execution plan -> signed tx -> local submit -> receipt
+- if a simplification remains, document it explicitly and keep it minimal
+
+The important rule:
+Do not call it “historical replay battery” if it still mostly runs on invented state.
+
+==================================================
+FIX 3 — ACTUAL OUTCOME / ATTRIBUTION MUST BE REAL
+==================================================
+
+Current problem:
+`actual_amount_out`, `actual_profit`, and `relative_error` appear to be placeholder/naive values.
+
+Required fix:
+- derive actual_amount_out and actual_profit from the real local execution result
+- compute absolute_error honestly
+- compute relative_error honestly
+- if some field cannot yet be made real, document it clearly and do not pretend otherwise
+
+==================================================
+FIX 4 — CASE FILE SHOULD REMAIN SMALL BUT HONEST
+==================================================
+
+Keep the first battery to 3–5 cases, but ensure:
+- at least 1 likely success
+- at least 1 slippage revert
+- at least 1 no-profit revert
+- at least 1 V3/CL case
+
+Plain-English notes are good; keep them.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n -E '22000000|v2_pool|v3_pool|U256::MAX' -- bin/arb_battery_generator fixtures/historical_cases.json
+- git grep -n -E 'actual_out = U256::ZERO|actual_profit = U256::ZERO|relative_error = if sim_profit > U256::ZERO' -- bin/arb_battery
+- git grep -n -E 'predicted_amount_out|predicted_profit|actual_amount_out|actual_profit|gas_used|revert_reason|absolute_error|relative_error' -- crates/ bin/
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- one actual replay battery run with multiple cases
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - generator now selects cases from real historical data or prior promoted candidates
+   - battery reuses the real pipeline honestly
+   - actual outcomes and attribution are real
+   - no live trading logic added
+4. Exact outputs for all source-of-truth and proof commands above
+5. A short walkthrough describing:
+   - how cases are selected
+   - how the battery reuses the real pipeline
+   - how attribution is computed
+   - what remains deferred
