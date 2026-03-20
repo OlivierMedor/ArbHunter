@@ -706,3 +706,114 @@ Provide:
    - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+---- update 6 ----
+Do a final Phase 13 success-path completion pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add live trading logic.
+Do NOT add new strategy logic.
+Do NOT expand scope beyond making the historical battery demonstrate at least one real success case on the fork.
+
+Goal:
+Make Phase 13 truly merge-ready by achieving at least one actual successful historical replay execution, while preserving honest revert attribution for failure cases.
+
+==================================================
+FIX 1 — ADD ONE REAL FORK-EXECUTABLE SWAP PATH
+==================================================
+
+Current problem:
+The battery runs, but all cases revert because the current executor path is still mock-only for real fork swaps.
+
+Required fix:
+- implement the minimum real swap-call path needed for at least one supported venue on the fork
+- this can be one simple venue/path only
+- keep it narrow and deterministic
+- do NOT broaden into full multi-venue production logic
+
+Acceptable target:
+- one reserve-based path OR one CL/V3 path
+- enough to make at least one historical battery case succeed on the fork
+
+==================================================
+FIX 2 — BATTERY MUST PRODUCE BOTH:
+==================================================
+
+At least:
+- 1 successful case
+- 1 revert case
+
+The final battery output must show both.
+
+==================================================
+FIX 3 — KEEP ATTRIBUTION HONEST
+==================================================
+
+For successful cases:
+- actual_amount_out must be real
+- actual_profit must be real
+- gas_used must be real
+- absolute_error and relative_error must be real
+
+For revert cases:
+- actual_amount_out / actual_profit may be null
+- revert_reason must be populated
+- relative_error may be 1.0 if that is the honest interpretation
+
+==================================================
+FIX 4 — CASE COUNT
+==================================================
+
+Restore the intended small-but-meaningful battery:
+- 1 likely success
+- 1 forced slippage revert
+- 1 forced no-profit revert
+- 1 V3/CL case if practical
+
+At least 4 cases total if feasible.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+3. Proof commands:
+- git grep -n -E 'actual_amount_out|actual_profit|absolute_error|relative_error|revert_reason' -- bin/arb_battery crates/
+- git grep -n -E 'swap|exactInput|exactInputSingle|sync|executeAtomicPlan' -- contracts/ crates/ bin/
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - at least one historical success case works
+   - at least one revert case works
+   - attribution is real
+   - battery includes multiple cases
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - what success path was added
+   - why it is enough for this phase
+   - what remains deferred
