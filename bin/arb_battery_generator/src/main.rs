@@ -8,9 +8,7 @@ use std::str::FromStr;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("DEBUG: Generator main started.");
     let config = Config::load();
-    println!("DEBUG: Config loaded.");
     
     let rpc_url = config.rpc_http_url.as_ref()
         .filter(|s| !s.is_empty())
@@ -18,22 +16,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .or(config.alchemy_wss_url.as_ref().map(|s| s.replace("wss://", "https://")))
         .expect("No valid RPC URL found in .env");
         
-    println!("Using RPC URL: {}", rpc_url);
     let provider = ProviderBuilder::new().on_http(rpc_url.parse()?);
 
-    println!("DEBUG: Calling get_block_number...");
     let latest_block = provider.get_block_number().await.expect("FAILED get_block_number");
-    println!("DEBUG: Latest block retrieved: {}", latest_block);
 
     let mut cases = Vec::new();
 
     // 1. Success Case (V2) - Aerodrome Stable DAI/USDC
     let p_dai_usdc = Address::from_str("0x67b00b46fA4F4F24c03855c5c8013C0b938b3Eec")?;
-    let block = latest_block - 50;
+    let block = latest_block - 2000;
     let log_block_hex = format!("0x{:x}", block);
     
-    let t0_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_dai_usdc, "data": "0x0dfe1681"}), &log_block_hex)).await?;
-    let t1_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_dai_usdc, "data": "0xd21220a7"}), &log_block_hex)).await?;
+    let t0_val: serde_json::Value = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_dai_usdc, "data": "0x0dfe1681"}), &log_block_hex)).await?;
+    let t1_val: serde_json::Value = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_dai_usdc, "data": "0xd21220a7"}), &log_block_hex)).await?;
     let token0 = Address::from_str(&format!("0x{}", &t0_val.as_str().unwrap()[26..]))?;
     let token1 = Address::from_str(&format!("0x{}", &t1_val.as_str().unwrap()[26..]))?;
 
@@ -98,8 +93,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. V3 / CL Case - Uniswap V3 USDC/WETH 0.05%
     let p_v3_usdc_weth = Address::from_str("0xd0b53D9277642d899df5C87A3966a349A798f224")?;
-    let t0_v3_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_v3_usdc_weth, "data": "0x0dfe1681"}), &log_block_hex)).await?;
-    let t1_v3_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_v3_usdc_weth, "data": "0xd21220a7"}), &log_block_hex)).await?;
+    let t0_v3_val: serde_json::Value = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_v3_usdc_weth, "data": "0x0dfe1681"}), &log_block_hex)).await?;
+    let t1_v3_val: serde_json::Value = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_v3_usdc_weth, "data": "0xd21220a7"}), &log_block_hex)).await?;
     let token0_v3 = Address::from_str(&format!("0x{}", &t0_v3_val.as_str().unwrap()[26..]))?;
     let token1_v3 = Address::from_str(&format!("0x{}", &t1_v3_val.as_str().unwrap()[26..]))?;
 

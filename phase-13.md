@@ -501,3 +501,96 @@ Provide:
    - 1 V3/CL case
 
 7. Final output must include source-of-truth commands and the actual battery run output.
+
+---- update 4 ----
+
+Do a final Phase 13 merge-readiness pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add live trading logic or new strategy logic.
+Do NOT expand scope beyond cleanup + proof.
+
+Goal:
+Make Phase 13 merge-ready by removing debug/secret-leaking output and providing the actual source-of-truth + battery execution outputs.
+
+==================================================
+FIX 1 — REMOVE DEBUG / SECRET-LEAKING PRINTS
+==================================================
+
+Current problem:
+The generator appears to print debug messages and may print the RPC URL directly.
+
+Required fix:
+- remove all DEBUG prints from arb_battery_generator and arb_battery
+- do NOT print RPC URLs, endpoint tokens, private keys, or other secrets
+- keep logs concise and safe
+
+Acceptance criteria:
+- no `println!` or logging of RPC URLs / secrets in generator or battery runner
+- no `DEBUG:` strings remain in these binaries
+
+==================================================
+FIX 2 — PROVIDE ACTUAL SOURCE-OF-TRUTH OUTPUTS
+==================================================
+
+Do NOT summarize.
+Run and paste the exact outputs of:
+
+1. Git identity:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n -E 'DEBUG:|Using RPC URL' -- bin/arb_battery_generator bin/arb_battery
+- git grep -n -E 'HistoricalCase|AttributionResult|ReplayCaseResult|ReplayFailureReason|AttributionSummary|fork_block_number' -- crates/ bin/ fixtures/ docs/
+- git grep -n -E 'predicted_amount_out|predicted_profit|actual_amount_out|actual_profit|gas_used|revert_reason|absolute_error|relative_error' -- crates/ bin/
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+==================================================
+FIX 3 — SHOW THE REAL BATTERY RUN
+==================================================
+
+The final output must include the actual terminal output of:
+- arb_battery_generator
+- arb_battery
+
+The arb_battery output must clearly show:
+- multiple cases executed
+- success/revert status per case
+- gas used
+- predicted vs actual values
+- revert reasons where applicable
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - debug/secret-leaking prints removed
+   - source-of-truth outputs included
+   - battery actually executed
+   - multiple cases were run
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - how the battery was run
+   - what happened in each case
+   - what remains deferred
+
+Do not go beyond this scope.
