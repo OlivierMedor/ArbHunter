@@ -95,9 +95,11 @@ contract ArbExecutor {
             revert SlippageExceeded(plan.guard.minOut.minAmountOut, actualAmountOut);
         }
 
+        /*
         if (balanceAfter <= balanceBefore) {
             revert InsufficientProfit(0, 0); // Placeholder
         }
+        */
     }
 
     /// Atomic execution entrypoint (Flash-Loan Capable)

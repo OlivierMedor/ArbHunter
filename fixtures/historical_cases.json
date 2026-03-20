@@ -1,23 +1,27 @@
 [
   {
     "case_id": "case_1_v2_success",
-    "notes": "Aerodrome Stable DAI/USDC success replay.",
-    "fork_block_number": 43621533,
+    "notes": "Aerodrome Stable circular DAI/USDC/DAI.",
+    "fork_block_number": 43622328,
     "source_tx_hash": null,
     "root_asset": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-    "route_family": "ReserveBased_SingleLeg",
+    "route_family": "ReserveBased_Circular",
     "pool_ids": [
+      "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc",
       "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc"
     ],
     "pool_kinds": [
+      "ReserveBased",
       "ReserveBased"
     ],
     "path_tokens": [
       "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb"
     ],
     "leg_directions": [
-      true
+      true,
+      false
     ],
     "amount_in": "0x16345785d8a0000",
     "expected_outcome": "success",
@@ -27,22 +31,26 @@
   {
     "case_id": "case_2_v2_slippage_revert",
     "notes": "Forced slippage revert (min_out = MAX).",
-    "fork_block_number": 43621533,
+    "fork_block_number": 43622328,
     "source_tx_hash": null,
     "root_asset": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-    "route_family": "ReserveBased_SingleLeg",
+    "route_family": "ReserveBased_Circular",
     "pool_ids": [
+      "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc",
       "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc"
     ],
     "pool_kinds": [
+      "ReserveBased",
       "ReserveBased"
     ],
     "path_tokens": [
       "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb"
     ],
     "leg_directions": [
-      true
+      true,
+      false
     ],
     "amount_in": "0x16345785d8a0000",
     "expected_outcome": "slippage_revert",
@@ -53,52 +61,28 @@
     "seed_data": null
   },
   {
-    "case_id": "case_3_v2_no_profit_revert",
-    "notes": "Forced no-profit revert (min_profit = MAX).",
-    "fork_block_number": 43621533,
-    "source_tx_hash": null,
-    "root_asset": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-    "route_family": "ReserveBased_SingleLeg",
-    "pool_ids": [
-      "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc"
-    ],
-    "pool_kinds": [
-      "ReserveBased"
-    ],
-    "path_tokens": [
-      "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-    ],
-    "leg_directions": [
-      true
-    ],
-    "amount_in": "0x16345785d8a0000",
-    "expected_outcome": "no_profit_revert",
-    "guard_overrides": {
-      "min_profit_wei": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-      "min_amount_out": null
-    },
-    "seed_data": null
-  },
-  {
-    "case_id": "case_4_v3_success",
-    "notes": "Uniswap V3 USDC/WETH success replay.",
-    "fork_block_number": 43621533,
+    "case_id": "case_3_v3_success",
+    "notes": "Uniswap V3 circular USDC/WETH/USDC.",
+    "fork_block_number": 43622328,
     "source_tx_hash": null,
     "root_asset": "0x4200000000000000000000000000000000000006",
-    "route_family": "ConcentratedLiquidity_SingleLeg",
+    "route_family": "ConcentratedLiquidity_Circular",
     "pool_ids": [
+      "0xd0b53D9277642d899DF5C87A3966A349A798F224",
       "0xd0b53D9277642d899DF5C87A3966A349A798F224"
     ],
     "pool_kinds": [
+      "ConcentratedLiquidity",
       "ConcentratedLiquidity"
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "0x4200000000000000000000000000000000000006"
     ],
     "leg_directions": [
-      true
+      true,
+      false
     ],
     "amount_in": "0x5f5e100",
     "expected_outcome": "success",

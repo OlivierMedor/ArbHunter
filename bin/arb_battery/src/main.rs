@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let update = match kind {
             PoolKind::ReserveBased => {
                 let req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("0902f1ac").unwrap())));
-                let res_val = provider.call(&req).block(BlockId::number(case.fork_block_number)).await.map_err(|e| e.to_string())?;
+                let res_val = provider.call(&req).await.map_err(|e| e.to_string())?;
                 let res_str = hex::encode(&res_val);
                 if res_str.len() < 128 { continue; }
                 let res_bytes = hex::decode(&res_str[2..]).map_err(|e| e.to_string())?;
@@ -75,13 +75,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
             PoolKind::ConcentratedLiquidity => {
                 let slot0_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("3850c7bd").unwrap())));
-                let slot0_res = provider.call(&slot0_req).block(BlockId::number(case.fork_block_number)).await.map_err(|e| e.to_string())?;
+                let slot0_res = provider.call(&slot0_req).await.map_err(|e| e.to_string())?;
                 if slot0_res.len() < 32 { continue; }
                 let sqrt_price_x96 = U256::from_be_slice(&slot0_res[0..32]);
                 let tick = i32::from_be_bytes(slot0_res[60..64].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
                 
                 let liq_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("1a686597").unwrap())));
-                let liq_res = provider.call(&liq_req).block(BlockId::number(case.fork_block_number)).await.map_err(|e| e.to_string())?;
+                let liq_res = provider.call(&liq_req).await.map_err(|e| e.to_string())?;
                 if liq_res.len() < 32 { continue; }
                 let liquidity = u128::from_be_bytes(liq_res[16..32].try_into().map_err(|e: std::array::TryFromSliceError| e.to_string())?);
 
@@ -104,16 +104,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let simulator = LocalSimulator::new(state_engine);
         
         let mut path_legs = Vec::new();
-        path_legs.push(RouteLeg {
-            edge: GraphEdge {
-                pool_id: PoolId(target_pool_address.to_string()),
-                kind,
-                token_in: case.path_tokens[0].clone(),
-                token_out: case.path_tokens.get(1).cloned().unwrap_or(case.path_tokens[0].clone()),
-                fee_bps: if kind == PoolKind::ReserveBased { 30 } else { 5 },
-                is_stale: false,
-            }
-        });
+        for i in 0..case.pool_ids.len() {
+            let pool_kind = case.pool_kinds[i];
+            path_legs.push(RouteLeg {
+                edge: GraphEdge {
+                    pool_id: PoolId(case.pool_ids[i].clone()),
+                    kind: pool_kind,
+                    token_in: case.path_tokens[i].clone(),
+                    token_out: case.path_tokens[i+1].clone(),
+                    fee_bps: if pool_kind == PoolKind::ReserveBased { 30 } else { 5 },
+                    is_stale: false,
+                }
+            });
+        }
 
         let candidate = CandidateOpportunity {
             path: RoutePath {
@@ -135,15 +138,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let m_out = case.guard_overrides.as_ref().and_then(|g| g.min_amount_out).unwrap_or(U256::ZERO);
         let _m_profit = case.guard_overrides.as_ref().and_then(|g| g.min_profit_wei).unwrap_or(U256::ZERO);
 
+        let mut execution_legs = Vec::new();
+        for i in 0..case.pool_ids.len() {
+            execution_legs.push(ExecutionLeg {
+                pool_id: PoolId(case.pool_ids[i].clone()),
+                token_in: case.path_tokens[i].clone(),
+                token_out: case.path_tokens[i+1].clone(),
+                zero_for_one: case.leg_directions[i],
+            });
+        }
+
         let plan = ExecutionPlan {
-            target_token: case.path_tokens.get(1).cloned().unwrap_or_else(|| case.path_tokens[0].clone()),
+            target_token: case.path_tokens.last().cloned().unwrap(),
             path: ExecutionPath {
-                legs: vec![ExecutionLeg {
-                    pool_id: PoolId(target_pool_address.to_string()),
-                    token_in: case.path_tokens[0].clone(),
-                    token_out: case.path_tokens.get(1).cloned().unwrap_or_else(|| case.path_tokens[0].clone()),
-                    zero_for_one: case.leg_directions.get(0).cloned().unwrap_or(true),
-                }],
+                legs: execution_legs,
             },
             outcome: ExpectedOutcome {
                 amount_in: case.amount_in,
@@ -179,21 +187,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     if r.inner.status() {
                         let bal_after_raw = provider.call(&req).await.map_err(|e| e.to_string())?;
                         let bal_after = U256::from_be_slice(&bal_after_raw);
-                        if bal_after > bal_before {
-                            let profit = bal_after - bal_before;
-                            attributions.push(AttributionResult {
-                                case_id: case.case_id.clone(),
-                                predicted_amount_out: sim_out,
-                                predicted_profit: sim_profit,
-                                actual_amount_out: Some(case.amount_in + profit),
-                                actual_profit: Some(profit),
-                                gas_used: r.gas_used as u64,
-                                success_or_revert: true,
-                                revert_reason: None,
-                                absolute_error: U256::ZERO,
-                                relative_error: 0.0,
-                            });
-                        }
+                        
+                        let gas_price = 100_000_000_u128; // fallback
+                        let gas_cost = U256::from(r.gas_used as u128 * gas_price);
+                        
+                        // Honest attribution math:
+                        // Bal_after = Bal_before - amount_in + amount_out - gas_cost
+                        // => amount_out = Bal_after - Bal_before + amount_in + gas_cost
+                        let actual_amount_out = if bal_after + gas_cost + case.amount_in >= bal_before {
+                            bal_after + gas_cost + case.amount_in - bal_before
+                        } else {
+                            U256::ZERO
+                        };
+                        
+                        let actual_profit = if actual_amount_out > case.amount_in {
+                            actual_amount_out - case.amount_in
+                        } else {
+                            U256::ZERO
+                        };
+
+                        let abs_err = if actual_profit > sim_profit {
+                            actual_profit - sim_profit
+                        } else {
+                            sim_profit - actual_profit
+                        };
+                        
+                        let rel_err = if !sim_profit.is_zero() {
+                            let a: f64 = abs_err.to_string().parse().unwrap_or(0.0);
+                            let s: f64 = sim_profit.to_string().parse().unwrap_or(1.0);
+                            a / s
+                        } else {
+                            0.0
+                        };
+
+                        attributions.push(AttributionResult {
+                            case_id: case.case_id.clone(),
+                            predicted_amount_out: sim_out,
+                            predicted_profit: sim_profit,
+                            actual_amount_out: Some(actual_amount_out),
+                            actual_profit: Some(actual_profit),
+                            gas_used: r.gas_used as u64,
+                            success_or_revert: true,
+                            revert_reason: None,
+                            absolute_error: abs_err,
+                            relative_error: rel_err,
+                        });
                     } else {
                         attributions.push(AttributionResult {
                             case_id: case.case_id.clone(),
@@ -204,8 +242,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             gas_used: r.gas_used as u64,
                             success_or_revert: false,
                             revert_reason: Some("Reverted".to_string()),
-                            absolute_error: U256::ZERO,
-                            relative_error: 0.0,
+                            absolute_error: sim_profit, // Entire profit is the error
+                            relative_error: 1.0,
                         });
                     }
                     break;

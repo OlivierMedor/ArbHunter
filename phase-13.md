@@ -594,3 +594,115 @@ Provide:
    - what remains deferred
 
 Do not go beyond this scope.
+
+
+---- update 5 ----
+
+Do a final Phase 13 correctness pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add live trading logic or new strategy logic.
+Do NOT expand scope beyond making the historical replay battery actually execute and report honest attribution.
+
+Goal:
+Make Phase 13 merge-ready by:
+1. getting the battery to run successfully,
+2. replacing placeholder attribution with real values,
+3. leaving the branch clean and fully tested.
+
+==================================================
+FIX 1 — MAKE THE BATTERY ACTUALLY RUN
+==================================================
+
+Current problem:
+`cargo run --bin arb_battery` fails with:
+- eth_call error
+
+Required fix:
+- diagnose and fix the battery execution path so the replay battery actually runs against the local Dockerized Anvil fork
+- if the selected historical blocks are too old / unsupported by the provider, choose cases that are still historically real but reliably executable through the available fork provider
+- during replay execution, use the local Anvil RPC as the execution-time source of truth
+- do not claim success unless the battery actually runs to completion across multiple cases
+
+==================================================
+FIX 2 — MAKE ATTRIBUTION REAL
+==================================================
+
+Current problem:
+The code still appears to use placeholder-style attribution:
+- actual_amount_out = case.amount_in + profit
+- actual_profit = profit
+- absolute_error = 0
+- relative_error = 0.0
+
+Required fix:
+- derive actual_amount_out from real post-trade balance delta or honest local execution outcome
+- derive actual_profit from the actual execution result
+- compute absolute_error honestly
+- compute relative_error honestly
+- for revert cases, actual_amount_out / actual_profit may be null/omitted, but revert_reason must be populated
+
+Do NOT leave placeholder attribution in merge-ready code.
+
+==================================================
+FIX 3 — CLEAN BRANCH STATE
+==================================================
+
+Current problem:
+The branch is not clean.
+
+Required fix:
+- commit or revert all intended changes
+- final `git status --short` must be clean
+
+==================================================
+FIX 4 — FULL VALIDATION
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n -E 'actual_amount_out|actual_profit|absolute_error|relative_error' -- bin/arb_battery crates/
+- git grep -n -E 'case.amount_in \+ profit|U256::ZERO|0.0' -- bin/arb_battery crates/
+- git ls-files .env
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - battery actually runs successfully
+   - attribution is real
+   - branch is clean
+   - cargo check passes
+   - cargo test passes
+   - .env is not tracked
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - how the battery was fixed
+   - how attribution is now computed
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.
