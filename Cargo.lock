@@ -492,6 +492,7 @@ dependencies = [
  "arb_state",
  "arb_types",
  "hex",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

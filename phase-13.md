@@ -352,3 +352,152 @@ Provide:
    - how the battery reuses the real pipeline
    - how attribution is computed
    - what remains deferred
+
+
+   ---- update 2 ----
+
+   Do a final Phase 13 execution-validation pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add live trading logic, new strategy logic, or mempool tactics.
+Do NOT expand scope beyond proving the historical fork battery actually runs end to end.
+
+Goal:
+Make Phase 13 merge-ready by actually running the replay battery against the local Dockerized Anvil harness and providing full source-of-truth outputs.
+
+Important:
+Do NOT claim success based only on compilation.
+You must actually execute the battery and show the results.
+
+==================================================
+FIX 1 — USE DOCKERIZED ANVIL, NOT HOST PATH ANVIL
+==================================================
+
+Current problem:
+The battery was not executed because `anvil` was not found on PATH.
+
+Required fix:
+- use the project’s Dockerized Anvil path instead
+- start Anvil through docker compose
+- do not require host `anvil` on PATH
+
+Expected commands:
+- docker compose config
+- docker compose up -d anvil
+
+Then run the battery against the local RPC URL.
+
+==================================================
+FIX 2 — ACTUALLY RUN THE BATTERY
+==================================================
+
+Run the real battery, not just the generator.
+
+Required:
+- execute `arb_battery_generator` if needed
+- execute `arb_battery`
+- produce results for multiple cases
+- show per-case success/revert and attribution fields
+
+The battery output must include at least:
+- case id
+- expected outcome
+- actual outcome
+- gas used
+- success/revert
+- revert reason if failed
+- predicted vs actual comparison
+
+==================================================
+FIX 3 — SOURCE-OF-TRUTH OUTPUTS
+==================================================
+
+Provide these exact outputs:
+
+1. Git identity:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git show origin/phase-13-historical-fork-battery:fixtures/historical_cases.json
+- git grep -n -E 'ReplayCase|ReplayCaseResult|ReplayFailureReason|AttributionSummary|fork_block_number' -- crates/ bin/ fixtures/ docs/
+- git grep -n -E 'predicted_amount_out|predicted_profit|actual_amount_out|actual_profit|gas_used|revert_reason|absolute_error|relative_error' -- crates/ bin/
+
+3. Validation commands:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - historical cases file exists
+   - generator works
+   - battery actually runs
+   - attribution fields are populated
+   - multiple cases were executed
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - how the battery was run
+   - how Anvil was started
+   - what happened in each case
+   - what remains deferred
+
+
+   ----- updates 3 -----
+
+   Proceed with Phase 13, but tighten the implementation with these constraints:
+
+1. Keep arb_battery_generator and arb_battery separate.
+   - generator scans once and writes fixtures/historical_cases.json
+   - battery only consumes that file and does not rescan history
+
+2. Make historical_cases.json deterministic enough for replay.
+   Each case should include at least:
+   - case_id
+   - fork_block_number
+   - tx_hash or source event reference if available
+   - root_asset
+   - route_family
+   - pool_ids
+   - amount_in
+   - expected_outcome
+   - guard_overrides
+   - notes
+   If practical, also include token path / leg order and pool kind per leg.
+
+3. During battery execution, use the local Anvil RPC as the execution-time source of truth.
+   - external provider may be used for case generation
+   - local Anvil RPC must be used during replay execution
+
+4. Compute actual_amount_out primarily from final balance delta, not only Transfer logs.
+   Transfer logs may be used as supporting evidence, but balance delta should be the primary attribution method.
+
+5. For revert cases:
+   - actual_amount_out should be null/omitted
+   - actual_profit should be null/omitted
+   - revert_reason must be populated
+   - success_or_revert must be explicit
+
+6. Keep the first battery to 4 cases:
+   - 1 likely success
+   - 1 forced slippage revert
+   - 1 forced no-profit revert
+   - 1 V3/CL case
+
+7. Final output must include source-of-truth commands and the actual battery run output.

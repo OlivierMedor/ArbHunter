@@ -27,81 +27,103 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cases = Vec::new();
 
-    // 4 ACTIVE POOLS ON BASE MAINNET (Verified via Browser)
-    let pools = vec![
-        ("0x6C561b446416e1a00e8e93e221854d6EA4171372", PoolKind::ConcentratedLiquidity, "WETH/USDC V3 0.3%"),
-        ("0xd0b53D9277642d899df5C87A3966a349A798f224", PoolKind::ConcentratedLiquidity, "USDC/WETH V3 0.05%"),
-        ("0xb2cc224c1C9fEE385f8ad6A55b4D94E92359dc59", PoolKind::ConcentratedLiquidity, "WETH/USDC Aero Slipstream"),
-        ("0x67b00b46fA4F4F24c03855c5c8013C0b938b3Eec", PoolKind::ReserveBased, "DAI/USDC Aerodrome Stable"),
-    ];
+    // 1. Success Case (V2) - Aerodrome Stable DAI/USDC
+    let p_dai_usdc = Address::from_str("0x67b00b46fA4F4F24c03855c5c8013C0b938b3Eec")?;
+    let block = latest_block - 50;
+    let log_block_hex = format!("0x{:x}", block);
+    
+    let t0_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_dai_usdc, "data": "0x0dfe1681"}), &log_block_hex)).await?;
+    let t1_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_dai_usdc, "data": "0xd21220a7"}), &log_block_hex)).await?;
+    let token0 = Address::from_str(&format!("0x{}", &t0_val.as_str().unwrap()[26..]))?;
+    let token1 = Address::from_str(&format!("0x{}", &t1_val.as_str().unwrap()[26..]))?;
 
-    for (p_addr, kind, label) in pools {
-        let pool_address = Address::from_str(p_addr)?;
-        let block_number = latest_block - 50; // Use a very recent block to ensure it's "live"
-        let log_block_hex = format!("0x{:x}", block_number);
-        
-        let t0_val: serde_json::Value = provider.raw_request("eth_call".into(), (serde_json::json!({"to": pool_address, "data": "0x0dfe1681"}), &log_block_hex)).await.unwrap_or(serde_json::Value::Null);
-        let t1_val: serde_json::Value = provider.raw_request("eth_call".into(), (serde_json::json!({"to": pool_address, "data": "0xd21220a7"}), &log_block_hex)).await.unwrap_or(serde_json::Value::Null);
+    cases.push(HistoricalCase {
+        case_id: "case_1_v2_success".into(),
+        notes: "Aerodrome Stable DAI/USDC success replay.".into(),
+        fork_block_number: block,
+        source_tx_hash: None,
+        root_asset: TokenAddress(token0.to_string()),
+        route_family: "ReserveBased_SingleLeg".into(),
+        pool_ids: vec![p_dai_usdc.to_string()],
+        pool_kinds: vec![PoolKind::ReserveBased],
+        path_tokens: vec![TokenAddress(token0.to_string()), TokenAddress(token1.to_string())],
+        leg_directions: vec![true],
+        amount_in: U256::from(100_000_000_000_000_000u128), // 0.1 tokens
+        expected_outcome: "success".into(),
+        guard_overrides: None,
+        seed_data: None,
+    });
 
-        let t0_str = t0_val.as_str().unwrap_or("0x");
-        let t1_str = t1_val.as_str().unwrap_or("0x");
+    // 2. Forced Slippage Revert (Derived from Case 1)
+    cases.push(HistoricalCase {
+        case_id: "case_2_v2_slippage_revert".into(),
+        notes: "Forced slippage revert (min_out = MAX).".into(),
+        fork_block_number: block,
+        source_tx_hash: None,
+        root_asset: TokenAddress(token0.to_string()),
+        route_family: "ReserveBased_SingleLeg".into(),
+        pool_ids: vec![p_dai_usdc.to_string()],
+        pool_kinds: vec![PoolKind::ReserveBased],
+        path_tokens: vec![TokenAddress(token0.to_string()), TokenAddress(token1.to_string())],
+        leg_directions: vec![true],
+        amount_in: U256::from(100_000_000_000_000_000u128),
+        expected_outcome: "slippage_revert".into(),
+        guard_overrides: Some(GuardOverrides {
+            min_amount_out: Some(U256::MAX),
+            min_profit_wei: None,
+        }),
+        seed_data: None,
+    });
 
-        if t0_str == "0x" || t1_str == "0x" || t0_str.len() < 66 || t1_str.len() < 66 {
-            println!("DEBUG: Failed to fetch tokens for {} ({}) - response was {} / {}", label, pool_address, t0_str, t1_str);
-            continue;
-        }
+    // 3. Forced No-Profit Revert (Derived from Case 1)
+    cases.push(HistoricalCase {
+        case_id: "case_3_v2_no_profit_revert".into(),
+        notes: "Forced no-profit revert (min_profit = MAX).".into(),
+        fork_block_number: block,
+        source_tx_hash: None,
+        root_asset: TokenAddress(token0.to_string()),
+        route_family: "ReserveBased_SingleLeg".into(),
+        pool_ids: vec![p_dai_usdc.to_string()],
+        pool_kinds: vec![PoolKind::ReserveBased],
+        path_tokens: vec![TokenAddress(token0.to_string()), TokenAddress(token1.to_string())],
+        leg_directions: vec![true],
+        amount_in: U256::from(100_000_000_000_000_000u128),
+        expected_outcome: "no_profit_revert".into(),
+        guard_overrides: Some(GuardOverrides {
+            min_amount_out: None,
+            min_profit_wei: Some(U256::MAX),
+        }),
+        seed_data: None,
+    });
 
-        let token0 = Address::from_str(&format!("0x{}", &t0_str[t0_str.len()-40..]))?;
-        let token1 = Address::from_str(&format!("0x{}", &t1_str[t1_str.len()-40..]))?;
+    // 4. V3 / CL Case - Uniswap V3 USDC/WETH 0.05%
+    let p_v3_usdc_weth = Address::from_str("0xd0b53D9277642d899df5C87A3966a349A798f224")?;
+    let t0_v3_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_v3_usdc_weth, "data": "0x0dfe1681"}), &log_block_hex)).await?;
+    let t1_v3_val = provider.raw_request("eth_call".into(), (serde_json::json!({"to": p_v3_usdc_weth, "data": "0xd21220a7"}), &log_block_hex)).await?;
+    let token0_v3 = Address::from_str(&format!("0x{}", &t0_v3_val.as_str().unwrap()[26..]))?;
+    let token1_v3 = Address::from_str(&format!("0x{}", &t1_v3_val.as_str().unwrap()[26..]))?;
 
-        let case_id = format!("case_{}_{:?}_success", cases.len() + 1, kind);
-        cases.push(HistoricalCase {
-            case_id: case_id.clone(),
-            notes: format!("Historical {} pool at block {}.", label, block_number),
-            fork_block_number: block_number,
-            root_asset: TokenAddress(token0.to_string()),
-            route_family: format!("{:?}_SingleLeg", kind),
-            pool_ids: vec![pool_address.to_string()],
-            pool_kinds: vec![kind],
-            path_tokens: vec![TokenAddress(token0.to_string()), TokenAddress(token1.to_string())],
-            leg_directions: vec![true],
-            amount_in: U256::from(100_000_000_000_000_000u128), // 0.1 tokens nominal
-            expected_outcome: "success".to_string(),
-            guard_overrides: None,
-            seed_data: None,
-        });
-        
-        // Add one failure case derivative for logic testing
-        if cases.len() == 1 {
-            cases.push(HistoricalCase {
-                case_id: "case_2_slippage_revert".to_string(),
-                notes: "Forced slippage revert derived from Case 1.".to_string(),
-                fork_block_number: block_number,
-                root_asset: TokenAddress(token0.to_string()),
-                route_family: format!("{:?}_SingleLeg", kind),
-                pool_ids: vec![pool_address.to_string()],
-                pool_kinds: vec![kind],
-                path_tokens: vec![TokenAddress(token0.to_string()), TokenAddress(token1.to_string())],
-                leg_directions: vec![true],
-                amount_in: U256::from(100_000_000_000_000_000u128),
-                expected_outcome: "slippage_revert".to_string(),
-                guard_overrides: Some(GuardOverrides {
-                    min_amount_out: Some(U256::MAX),
-                    min_profit_wei: None,
-                }),
-                seed_data: None,
-            });
-        }
-    }
-
-    if cases.is_empty() {
-        return Err("No historical cases generated.".into());
-    }
+    cases.push(HistoricalCase {
+        case_id: "case_4_v3_success".into(),
+        notes: "Uniswap V3 USDC/WETH success replay.".into(),
+        fork_block_number: block,
+        source_tx_hash: None,
+        root_asset: TokenAddress(token0_v3.to_string()),
+        route_family: "ConcentratedLiquidity_SingleLeg".into(),
+        pool_ids: vec![p_v3_usdc_weth.to_string()],
+        pool_kinds: vec![PoolKind::ConcentratedLiquidity],
+        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(token1_v3.to_string())],
+        leg_directions: vec![true],
+        amount_in: U256::from(100_000_000u64), // 0.1 USDC (6 decimals)
+        expected_outcome: "success".into(),
+        guard_overrides: None,
+        seed_data: None,
+    });
 
     fs::create_dir_all("fixtures").unwrap();
     let json = serde_json::to_string_pretty(&cases).unwrap();
     fs::write("fixtures/historical_cases.json", json).unwrap();
-    println!("Successfully generated fixtures/historical_cases.json with {} honest cases.", cases.len());
+    println!("Successfully generated fixtures/historical_cases.json with 4 honest cases.");
     
     Ok(())
 }
