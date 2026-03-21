@@ -31,7 +31,7 @@ contract ReplayCase4 is Test {
             tokenIn: USDC,
             tokenOut: WETH,
             zeroForOne: false,
-            amountOut: 46511627906976744 // dummy, should be calculated normally but we use seed_data in battery
+            amountOut: 46434034500969921 // Sourced from arb_battery deterministic simulator for Case 4 Leg 0
         });
         legs[1] = ExecutionLeg({
             poolId: POOLV3,
