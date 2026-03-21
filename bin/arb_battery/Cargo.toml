@@ -1,0 +1,25 @@
+[package]
+name = "arb_battery"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arb_types = { path = "../../crates/arb_types" }
+arb_config = { path = "../../crates/arb_config" }
+arb_metrics = { path = "../../crates/arb_metrics" }
+arb_sim = { path = "../../crates/arb_sim" }
+arb_state = { path = "../../crates/arb_state" }
+arb_execute = { path = "../../crates/arb_execute" }
+alloy-provider = "0.8.2"
+alloy-primitives = { version = "0.8", features = ["serde"] }
+alloy-signer = "0.8.2"
+alloy-signer-local = "0.8.2"
+alloy-rpc-types-eth = "0.8.2"
+alloy-eips = "0.8.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+hex = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+reqwest = "0.12"

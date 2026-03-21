@@ -272,6 +272,7 @@ pub struct MinOutConstraint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlippageGuard {
     pub min_out: MinOutConstraint,
+    pub min_profit_wei: U256,
 }
 
 // FlashLoanSpec moved to Phase 11 section
@@ -331,6 +332,7 @@ pub struct BuiltTransaction {
     pub gas_limit: u64,
     pub max_fee_per_gas: u128,
     pub max_priority_fee_per_gas: u128,
+    pub gas_price: Option<u128>,
     pub chain_id: u64,
 }
 
@@ -463,4 +465,46 @@ pub enum AtomicExecutionFailureReason {
     NoProfit,
     FlashLoanFailed(String),
     ContractReverted(String),
+}
+
+// ============================================================
+// Phase 13: Historical Replay Battery & Attribution
+// ============================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuardOverrides {
+    pub min_profit_wei: Option<U256>,
+    pub min_amount_out: Option<U256>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricalCase {
+    pub case_id: String,
+    pub notes: String,
+    pub fork_block_number: u64,
+    pub source_tx_hash: Option<String>,
+    pub root_asset: TokenAddress,
+    pub route_family: String,
+    pub pool_ids: Vec<String>,
+    pub pool_kinds: Vec<PoolKind>,
+    pub path_tokens: Vec<TokenAddress>,
+    pub leg_directions: Vec<bool>, // zero_for_one mapping
+    pub amount_in: U256,
+    pub expected_outcome: String, // "success", "slippage_revert", "no_profit_revert"
+    pub guard_overrides: Option<GuardOverrides>,
+    pub seed_data: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributionResult {
+    pub case_id: String,
+    pub predicted_amount_out: U256,
+    pub predicted_profit: U256,
+    pub actual_amount_out: Option<U256>,
+    pub actual_profit: Option<U256>,
+    pub gas_used: u64,
+    pub success_or_revert: bool,
+    pub revert_reason: Option<String>,
+    pub absolute_error: U256,
+    pub relative_error: f64,
 }
