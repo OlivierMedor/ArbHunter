@@ -101,17 +101,24 @@ impl Submitter {
 
     fn build_request(&self, tx: &BuiltTransaction) -> TransactionRequest {
         let to = tx.to.parse::<Address>().ok().map(alloy_primitives::TxKind::Call);
-        TransactionRequest {
+        let mut req = TransactionRequest {
             to,
             input: alloy_rpc_types_eth::TransactionInput::new(tx.data.clone().into()),
             value: Some(tx.value),
             nonce: Some(tx.nonce),
             gas: Some(tx.gas_limit),
-            max_fee_per_gas: Some(tx.max_fee_per_gas),
-            max_priority_fee_per_gas: Some(tx.max_priority_fee_per_gas),
             chain_id: Some(tx.chain_id),
             ..Default::default()
+        };
+
+        if let Some(gas_price) = tx.gas_price {
+            req.gas_price = Some(gas_price);
+        } else {
+            req.max_fee_per_gas = Some(tx.max_fee_per_gas);
+            req.max_priority_fee_per_gas = Some(tx.max_priority_fee_per_gas);
         }
+        
+        req
     }
 
     async fn broadcast(&self, tx: BuiltTransaction, rpc_url: &str) -> SubmissionResult {
@@ -193,6 +200,7 @@ mod tests {
             gas_limit: 21000,
             max_fee_per_gas: 1000,
             max_priority_fee_per_gas: 100,
+            gas_price: None,
             chain_id: 1,
         };
 
@@ -224,6 +232,7 @@ mod tests {
             gas_limit: 21000,
             max_fee_per_gas: 1000,
             max_priority_fee_per_gas: 100,
+            gas_price: None,
             chain_id: 1,
         };
 
@@ -249,6 +258,7 @@ mod tests {
             gas_limit: 21000,
             max_fee_per_gas: 1000,
             max_priority_fee_per_gas: 100,
+            gas_price: None,
             chain_id: 1,
         };
 

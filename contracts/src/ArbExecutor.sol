@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 struct MinOutConstraint { uint256 minAmountOut; }
-struct SlippageGuard { MinOutConstraint minOut; }
+struct SlippageGuard { MinOutConstraint minOut; uint256 minProfitWei; }
 struct ExecutionLeg { address poolId; address tokenIn; address tokenOut; bool zeroForOne; }
 struct ExecutionPath { ExecutionLeg[] legs; }
 struct ExpectedOutcome { uint256 amountIn; uint256 expectedAmountOut; uint256 expectedProfit; }
@@ -19,6 +19,8 @@ contract ArbExecutor {
 
     error Unauthorized();
     error SlippageExceeded(uint256 expected, uint256 actual);
+    error ProfitTooLow(uint256 expected, uint256 actual);
+    error InsufficientRepayment(uint256 expected, uint256 actual);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -59,10 +61,15 @@ contract ArbExecutor {
         uint256 balanceAfter = targetToken.balanceOf(address(this));
         uint256 actualAmountOut = balanceAfter > balanceBefore ? balanceAfter - balanceBefore : 0;
 
-        // Allowing success even if slippage exceeded for honest attribution measurement
-        // if (actualAmountOut < plan.guard.minOut.minAmountOut) {
-        //    revert SlippageExceeded(plan.guard.minOut.minAmountOut, actualAmountOut);
-        // }
+        // Strict guards for Update 7 validation
+        if (actualAmountOut < plan.guard.minOut.minAmountOut) {
+            revert SlippageExceeded(plan.guard.minOut.minAmountOut, actualAmountOut);
+        }
+
+        uint256 actualProfit = actualAmountOut > plan.outcome.amountIn ? actualAmountOut - plan.outcome.amountIn : 0;
+        if (actualProfit < plan.guard.minProfitWei) {
+            revert ProfitTooLow(plan.guard.minProfitWei, actualProfit);
+        }
     }
 
     function uniswapV3SwapCallback(
@@ -93,6 +100,18 @@ contract ArbExecutor {
 
         if (actualAmountOut < plan.minAmountOut) {
             revert SlippageExceeded(plan.minAmountOut, actualAmountOut);
+        }
+
+        if (plan.hasRepayment) {
+            if (actualAmountOut < plan.repayment.amount) {
+                revert InsufficientRepayment(plan.repayment.amount, actualAmountOut);
+            }
+        }
+
+        uint256 baseAmount = plan.hasRepayment ? plan.repayment.amount : 0; // Or standard amountIn if we had it
+        uint256 actualProfit = actualAmountOut > baseAmount ? actualAmountOut - baseAmount : 0;
+        if (actualProfit < plan.profitGuard.minProfitWei) {
+            revert ProfitTooLow(plan.profitGuard.minProfitWei, actualProfit);
         }
     }
 }

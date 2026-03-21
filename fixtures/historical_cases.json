@@ -1,8 +1,8 @@
 [
   {
     "case_id": "case_1_v3_success",
-    "notes": "Uniswap V3 USDC/WETH success replay (USDC -> WETH).",
-    "fork_block_number": 43623331,
+    "notes": "Uniswap V3 USDC/WETH success replay.",
+    "fork_block_number": 43637670,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ConcentratedLiquidity_SingleLeg",
@@ -21,13 +21,16 @@
     ],
     "amount_in": "0x5f5e100",
     "expected_outcome": "success",
-    "guard_overrides": null,
-    "seed_data": null
+    "guard_overrides": {
+      "min_profit_wei": "0x0",
+      "min_amount_out": "0x0"
+    },
+    "seed_data": "0x0000000000000000000000000000000000000000000000c99f92960c9df764210000000000000000000000000000000000000000000000000000000000fcf48f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000:0x00000000000000000000000000000000000000000000000013df38488e01bd8c"
   },
   {
     "case_id": "case_2_v3_slippage_revert",
-    "notes": "Forced slippage revert (min_out = MAX).",
-    "fork_block_number": 43623331,
+    "notes": "USDC/WETH revert due to impossible minOut.",
+    "fork_block_number": 43637670,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ConcentratedLiquidity_SingleLeg",
@@ -47,15 +50,15 @@
     "amount_in": "0x5f5e100",
     "expected_outcome": "slippage_revert",
     "guard_overrides": {
-      "min_profit_wei": null,
+      "min_profit_wei": "0x0",
       "min_amount_out": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     },
-    "seed_data": null
+    "seed_data": "0x0000000000000000000000000000000000000000000000c99f92960c9df764210000000000000000000000000000000000000000000000000000000000fcf48f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000:0x00000000000000000000000000000000000000000000000013df38488e01bd8c"
   },
   {
     "case_id": "case_3_v3_no_profit_revert",
-    "notes": "Forced revert via high min_amount_out.",
-    "fork_block_number": 43623331,
+    "notes": "USDC/WETH revert due to high profit guard.",
+    "fork_block_number": 43637670,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ConcentratedLiquidity_SingleLeg",
@@ -73,19 +76,19 @@
       true
     ],
     "amount_in": "0x5f5e100",
-    "expected_outcome": "revert",
+    "expected_outcome": "no_profit_revert",
     "guard_overrides": {
-      "min_profit_wei": null,
-      "min_amount_out": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      "min_profit_wei": "0x56bc75e2d63100000",
+      "min_amount_out": "0x0"
     },
-    "seed_data": null
+    "seed_data": "0x0000000000000000000000000000000000000000000000c99f92960c9df764210000000000000000000000000000000000000000000000000000000000fcf48f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000:0x00000000000000000000000000000000000000000000000013df38488e01bd8c"
   },
   {
     "case_id": "case_4_v2_success",
-    "notes": "Aerodrome Stable DAI/USDC success replay.",
-    "fork_block_number": 43623331,
+    "notes": "Aerodrome USDC/DAI success replay.",
+    "fork_block_number": 43637670,
     "source_tx_hash": null,
-    "root_asset": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+    "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ReserveBased_SingleLeg",
     "pool_ids": [
       "0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc"
@@ -94,15 +97,18 @@
       "ReserveBased"
     ],
     "path_tokens": [
-      "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "0x50c5725949a6510A2929456A59912743d28b8821"
     ],
     "leg_directions": [
       true
     ],
-    "amount_in": "0x16345785d8a0000",
+    "amount_in": "0x5f5e100",
     "expected_outcome": "success",
-    "guard_overrides": null,
-    "seed_data": null
+    "guard_overrides": {
+      "min_profit_wei": "0x0",
+      "min_amount_out": "0x0"
+    },
+    "seed_data": "0x000000000000000000000000000000000000000000000000000000736d5be95300000000000000000000000000000000000000178ea52e043681432faf0000000000000000000000000000000000000000000000000000000067dcb7d7"
   }
 ]

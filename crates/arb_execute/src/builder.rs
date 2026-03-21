@@ -9,6 +9,7 @@ sol! {
 
     struct SlippageGuard {
         MinOutConstraint minOut;
+        uint256 minProfitWei;
     }
 
     struct ExecutionLeg {
@@ -68,6 +69,7 @@ sol! {
 pub struct TxBuilder {
     pub executor_address: Address,
     pub chain_id: u64,
+    pub force_legacy: bool,
 }
 
 impl TxBuilder {
@@ -75,7 +77,13 @@ impl TxBuilder {
         Self {
             executor_address,
             chain_id,
+            force_legacy: false,
         }
+    }
+
+    pub fn with_force_legacy(mut self, force: bool) -> Self {
+        self.force_legacy = force;
+        self
     }
 
     /// Converts an ExecutionPlan into a BuiltTransaction.
@@ -110,6 +118,7 @@ impl TxBuilder {
                 minOut: MinOutConstraint {
                     minAmountOut: plan.guard.min_out.min_amount_out,
                 },
+                minProfitWei: plan.guard.min_profit_wei,
             },
             hasFlashloan: plan.flash_loan.is_some(),
         };
@@ -124,8 +133,9 @@ impl TxBuilder {
             value: U256::ZERO,
             nonce,
             gas_limit,
-            max_fee_per_gas: max_fee,
-            max_priority_fee_per_gas: max_priority_fee,
+            max_fee_per_gas: if self.force_legacy { 0 } else { max_fee },
+            max_priority_fee_per_gas: if self.force_legacy { 0 } else { max_priority_fee },
+            gas_price: if self.force_legacy { Some(max_fee) } else { None },
             chain_id: self.chain_id,
         })
     }
@@ -190,8 +200,9 @@ impl TxBuilder {
             value: U256::ZERO,
             nonce,
             gas_limit,
-            max_fee_per_gas: max_fee,
-            max_priority_fee_per_gas: max_priority_fee,
+            max_fee_per_gas: if self.force_legacy { 0 } else { max_fee },
+            max_priority_fee_per_gas: if self.force_legacy { 0 } else { max_priority_fee },
+            gas_price: if self.force_legacy { Some(max_fee) } else { None },
             chain_id: self.chain_id,
         })
     }
