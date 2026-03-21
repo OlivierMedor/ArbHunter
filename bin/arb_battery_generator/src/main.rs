@@ -21,81 +21,90 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cases = Vec::new();
 
-    // 1. Success Case (V3) - USDC/WETH
     let token0_v3 = Address::from_str("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")?;
-    
-    let v3_slot0 = "0x0000000000000000000000000000000000000000000000c99f92960c9df764210000000000000000000000000000000000000000000000000000000000fcf48f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-    let v3_liq = "0x00000000000000000000000000000000000000000000000013df38488e01bd8c";
-    let v3_seed = format!("{}:{}", v3_slot0, v3_liq);
+    let weth = "0x4200000000000000000000000000000000000006".to_string();
 
-    let v2_seed = "0x000000000000000000000000000000000000000000000000000000736d5be95300000000000000000000000000000000000000178ea52e043681432faf0000000000000000000000000000000000000000000000000000000067dcb7d7";
-
+    // 1. Success Case (V3)
     cases.push(HistoricalCase {
         case_id: "case_1_v3_success".into(),
-        notes: "Uniswap V3 USDC/WETH success replay.".into(),
+        notes: "V3 Cyclic Success: USDC-WETH-USDC".into(),
         fork_block_number: latest_block - 10,
-        source_tx_hash: None,
+        source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000001".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ConcentratedLiquidity_SingleLeg".into(),
-        pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".to_string()],
-        pool_kinds: vec![PoolKind::ConcentratedLiquidity],
-        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress("0x4200000000000000000000000000000000000006".to_string())],
-        leg_directions: vec![true],
+        route_family: "ConcentratedLiquidity_Cyclic".into(),
+        pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".into(), "0x6c561b446416e1a00e8e93e221854d6ea4171372".into()],
+        pool_kinds: vec![PoolKind::ConcentratedLiquidity, PoolKind::ConcentratedLiquidity],
+        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone()), TokenAddress(token0_v3.to_string())],
+        leg_directions: vec![false, true],
         amount_in: U256::from(100_000_000u64),
         expected_outcome: "success".into(),
         guard_overrides: None,
-        seed_data: Some(vec![serde_json::Value::String(v3_seed.clone())]),
+        seed_data: Some(vec![
+            serde_json::json!({"sqrt_price_x96": "0x2610bde4a5309320e6", "tick": -192130, "liquidity": "0x1234567890abcdef"}),
+            serde_json::json!({"sqrt_price_x96": "0x2650bde4a5309320e6", "tick": -192130, "liquidity": "0x1234567890abcdef"}),
+        ]),
     });
 
+    // 2. Slippage Revert
     cases.push(HistoricalCase {
         case_id: "case_2_v3_slippage_revert".into(),
-        notes: "USDC/WETH revert due to impossible minOut.".into(),
+        notes: "Extreme slippage guard forced.".into(),
         fork_block_number: latest_block - 10,
-        source_tx_hash: None,
+        source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000002".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ConcentratedLiquidity_SingleLeg".into(),
-        pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".to_string()],
+        route_family: "ConcentratedLiquidity_Cyclic".into(),
+        pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".into()],
         pool_kinds: vec![PoolKind::ConcentratedLiquidity],
-        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress("0x4200000000000000000000000000000000000006".to_string())],
-        leg_directions: vec![true],
+        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone())],
+        leg_directions: vec![false],
         amount_in: U256::from(100_000_000u64),
         expected_outcome: "slippage_revert".into(),
-        guard_overrides: Some(GuardOverrides { min_amount_out: Some(U256::MAX), min_profit_wei: Some(U256::ZERO) }),
-        seed_data: Some(vec![serde_json::Value::String(v3_seed.clone())]),
+        guard_overrides: Some(GuardOverrides { min_amount_out: Some(U256::from(200_000_000u64)), min_profit_wei: Some(U256::ZERO) }),
+        seed_data: Some(vec![
+            serde_json::json!({"sqrt_price_x96": "0x2610bde4a5309320e6", "tick": -192130, "liquidity": "0x1234567890abcdef"}),
+        ]),
     });
 
+    // 3. No-Profit Revert
     cases.push(HistoricalCase {
         case_id: "case_3_v3_no_profit_revert".into(),
-        notes: "USDC/WETH revert due to high profit guard.".into(),
+        notes: "Min profit requirement not met (slight profit < high guard).".into(),
         fork_block_number: latest_block - 10,
-        source_tx_hash: None,
+        source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000003".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ConcentratedLiquidity_SingleLeg".into(),
-        pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".to_string()],
-        pool_kinds: vec![PoolKind::ConcentratedLiquidity],
-        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress("0x4200000000000000000000000000000000000006".to_string())],
-        leg_directions: vec![true],
+        route_family: "ConcentratedLiquidity_Cyclic".into(),
+        pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".into(), "0x6c561b446416e1a00e8e93e221854d6ea4171372".into()],
+        pool_kinds: vec![PoolKind::ConcentratedLiquidity, PoolKind::ConcentratedLiquidity],
+        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone()), TokenAddress(token0_v3.to_string())],
+        leg_directions: vec![false, true],
         amount_in: U256::from(100_000_000u64),
         expected_outcome: "no_profit_revert".into(),
-        guard_overrides: Some(GuardOverrides { min_amount_out: Some(U256::ZERO), min_profit_wei: Some(U256::from(100_000_000_000_000_000_000_u128)) }),
-        seed_data: Some(vec![serde_json::Value::String(v3_seed)]),
+        guard_overrides: Some(GuardOverrides { min_amount_out: Some(U256::ZERO), min_profit_wei: Some(U256::from(50_000_000u64)) }),
+        seed_data: Some(vec![
+            serde_json::json!({"sqrt_price_x96": "0x2610bde4a5309320e6", "tick": -192130, "liquidity": "0x1234567890abcdef"}),
+            serde_json::json!({"sqrt_price_x96": "0x2650bde4a5309320e6", "tick": -192130, "liquidity": "0x1234567890abcdef"}),
+        ]),
     });
 
+    // 4. Mixed Success
     cases.push(HistoricalCase {
-        case_id: "case_4_v2_unsupported_revert".into(),
-        notes: "Aerodrome USDC/DAI (V2)".into(),
+        case_id: "case_4_mixed_v2_v3_success".into(),
+        notes: "Mixed V2/V3 Cyclic: USDC-WETH-USDC".into(),
         fork_block_number: latest_block - 10,
-        source_tx_hash: None,
+        source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000004".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ReserveBased_SingleLeg".into(),
-        pool_ids: vec!["0x67b00b46fa4f4f24c03855c5c8013c0b938b3eec".to_string()],
-        pool_kinds: vec![PoolKind::ReserveBased],
-        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress("0x50c5725949a6510A2929456A59912743D28b8821".to_string())],
-        leg_directions: vec![true],
+        route_family: "Mixed_Cyclic".into(),
+        pool_ids: vec!["0xcdac0d6c6c59727a65f871236188350531885c43".into(), "0xd0b53d9277642d899df5c87a3966a349a798f224".into()],
+        pool_kinds: vec![PoolKind::ReserveBased, PoolKind::ConcentratedLiquidity],
+        path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone()), TokenAddress(token0_v3.to_string())],
+        leg_directions: vec![false, true],
         amount_in: U256::from(100_000_000u64),
-        expected_outcome: "unsupported_route_revert".into(),
+        expected_outcome: "success".into(),
         guard_overrides: None,
-        seed_data: Some(vec![serde_json::Value::String(v2_seed.into())]),
+        seed_data: Some(vec![
+            serde_json::json!({"reserve0": "0x000000000000000000000000000000000000000000000000000001b3d6448d00", "reserve1": "0x000000000000000000000000000000000000000000000322bcc7689000000000"}),
+            serde_json::json!({"sqrt_price_x96": "0x2650bde4a5309320e6", "tick": -192130, "liquidity": "0x1234567890abcdef"}),
+        ]),
     });
 
     fs::create_dir_all("fixtures").unwrap();
