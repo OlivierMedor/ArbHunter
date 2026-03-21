@@ -62,6 +62,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let bytecode_hex_str = format!("0x{}", hex::encode(&bytecode));
         let _ : serde_json::Value = provider.raw_request("anvil_setCode".into(), (executor_address, &bytecode_hex_str)).await.unwrap_or_default();
+        
+        let mut owner_slot_val = [0u8; 32];
+        owner_slot_val[12..].copy_from_slice(signer_address.as_slice());
+        let _ : serde_json::Value = provider.raw_request(
+            "anvil_setStorageAt".into(),
+            (executor_address, "0x0", format!("0x{}", hex::encode(owner_slot_val))),
+        ).await.unwrap_or_default();
+
+        let mut call_req = alloy_rpc_types_eth::TransactionRequest::default();
+        call_req.to = Some(executor_address.into());
+        call_req.input = alloy_rpc_types_eth::TransactionInput::new(hex::decode("8da5cb5b").unwrap().into()); // owner()
+        if let Ok(owner_res) = provider.call(&call_req).await {
+            println!("[{}] Verified owner() slot 0 against ArbExecutor: 0x{}", case.case_id, hex::encode(&owner_res));
+        }
+
         let hundred_eth = "0x56bc75e2d63100000";
         let _ : serde_json::Value = provider.raw_request("anvil_setBalance".into(), (signer_address, hundred_eth)).await.unwrap_or_default();
         let _ : serde_json::Value = provider.raw_request("anvil_setBalance".into(), (executor_address, hundred_eth)).await.unwrap_or_default();
@@ -140,10 +155,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut execution_legs = Vec::new();
         for i in 0..case.pool_ids.len() {
+            let leg_out = sim_result.sim_result.leg_amounts_out.get(i).cloned().unwrap_or(U256::ZERO);
+            if case.case_id == "case_4_mixed_v2_v3_success" {
+                println!("[case 4] leg {} sim out: {}", i, leg_out);
+            }
             execution_legs.push(ExecutionLeg {
                 pool_id: PoolId(case.pool_ids[i].clone()), pool_kind: case.pool_kinds[i],
                 token_in: case.path_tokens[i].clone(), token_out: case.path_tokens[i+1].clone(),
-                zero_for_one: case.leg_directions[i], amount_out: sim_result.sim_result.leg_amounts_out.get(i).cloned().unwrap_or(U256::ZERO),
+                zero_for_one: case.leg_directions[i], amount_out: leg_out,
             });
         }
 

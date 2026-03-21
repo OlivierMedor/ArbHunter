@@ -507,3 +507,124 @@ Provide:
    - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+---- update 3 ----
+
+Do a final Phase 14 Foundry-alignment pass on the EXISTING branch `phase-14-v2-venue-execution`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add live trading logic, aggregator logic, or new strategy logic.
+Do NOT expand scope beyond fixing the remaining Foundry test failures and aligning contract/test behavior with the now-working battery.
+
+Goal:
+Make Phase 14 merge-ready by getting the Solidity/Foundry suite fully green without regressing the Rust-side battery results.
+
+==================================================
+FIX 1 — RESTORE / ALIGN UNAUTHORIZED CALLER PROTECTION
+==================================================
+
+Current problem:
+`test_RevertIf_Unauthorized()` is failing in Foundry.
+
+Required fix:
+- inspect the current access-control/authorized-caller behavior in `ArbExecutor.sol`
+- restore or align the expected authorization restriction so unauthorized callers revert again
+- do NOT “fix” this by weakening or deleting the test
+- keep the contract security model honest
+
+Success criteria:
+- `test_RevertIf_Unauthorized()` passes
+
+==================================================
+FIX 2 — ALIGN ReplayCase4.t.sol WITH THE WORKING MIXED PATH
+==================================================
+
+Current problem:
+The Rust battery now shows:
+- `case_4_mixed_v2_v3_success` -> success
+
+But the Foundry replay test:
+- `test/ReplayCase4.t.sol:ReplayCase4`
+still fails.
+
+Required fix:
+- update the ReplayCase4 Foundry test and/or its fixture assumptions so it matches the actual mixed V2/V3 success path now implemented
+- do NOT relabel the case back to failure
+- keep the battery case and Foundry replay case consistent
+
+Success criteria:
+- `ReplayCase4.t.sol` passes
+- the contract/test assumptions match the battery’s Case 4 behavior
+
+==================================================
+FIX 3 — DO NOT REGRESS THE BATTERY
+==================================================
+
+The Rust-side battery currently shows:
+- V3 success
+- slippage revert
+- no-profit revert
+- mixed V2/V3 success
+
+Do NOT regress that behavior while fixing Foundry tests.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-14-v2-venue-execution
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n -E 'onlyOwner|Unauthorized|owner|authorized' -- contracts/
+- git grep -n -E 'ReplayCase4|case_4_mixed_v2_v3_success|mixed_v2_v3' -- contracts/test fixtures/ bin/
+- git grep -n -E 'V2_Success|V3_Success|Slippage_Revert|Profit_TooLow_Revert' -- contracts/test
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+The final outputs must show:
+- cargo check --workspace passes
+- cargo test --workspace passes
+- docker compose run --rm forge forge test passes with NO failing tests
+- cargo run --bin arb_battery still shows:
+  - case_1_v3_success -> TRUE
+  - case_2_v3_slippage_revert -> TRUE
+  - case_3_v3_no_profit_revert -> TRUE
+  - case_4_mixed_v2_v3_success -> TRUE
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - unauthorized caller protection is restored/aligned
+   - ReplayCase4 Foundry test now passes
+   - Rust battery behavior was preserved
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - what caused the unauthorized test failure
+   - what caused the ReplayCase4 mismatch
+   - how both were fixed
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.
