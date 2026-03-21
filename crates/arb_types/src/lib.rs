@@ -495,7 +495,7 @@ pub struct HistoricalCase {
     pub amount_in: U256,
     pub expected_outcome: String, // "success", "slippage_revert", "no_profit_revert"
     pub guard_overrides: Option<GuardOverrides>,
-    pub seed_data: Option<String>,
+    pub seed_data: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -108,6 +108,7 @@ contract ArbExecutor {
 
         for (uint256 i = 0; i < plan.path.legs.length; i++) {
              ExecutionLeg calldata leg = plan.path.legs[i];
+             uint256 balBeforeLeg = IERC20(leg.tokenOut).balanceOf(address(this));
              if (leg.poolKind == 1) { // V3
                  uint160 sqrtPriceLimit = leg.zeroForOne ? uint160(4295128740) : uint160(1461446703485210103287273052203988822378723970341);
                  (bool success, ) = leg.poolId.call(
@@ -121,13 +122,13 @@ contract ArbExecutor {
                      )
                  );
                  if (!success) revert("V3 Atomic Swap Failed");
-                 currentAmountIn = leg.amountOut;
              } else if (leg.poolKind == 0) { // V2
                  IERC20(leg.tokenIn).transfer(leg.poolId, currentAmountIn);
-                 (uint256 amount0Out, uint256 amount1Out) = leg.zeroForOne ? (uint256(0), leg.amountOut) : (leg.amountOut, uint256(0));
-                 IUniswapV2Pair(leg.poolId).swap(amount0Out, amount1Out, address(this), "");
-                 currentAmountIn = leg.amountOut;
+                 uint256 out0 = leg.zeroForOne ? 0 : (leg.amountOut * 995) / 1000;
+                 uint256 out1 = leg.zeroForOne ? (leg.amountOut * 995) / 1000 : 0;
+                 IUniswapV2Pair(leg.poolId).swap(out0, out1, address(this), "");
              }
+             currentAmountIn = IERC20(leg.tokenOut).balanceOf(address(this)) - balBeforeLeg;
         }
 
         uint256 balanceAfter = IERC20(rootAsset).balanceOf(address(this));
