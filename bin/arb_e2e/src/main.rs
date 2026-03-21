@@ -1,6 +1,6 @@
 use arb_config::Config;
 use arb_types::{
-    ExecutionPlan, ExpectedOutcome, ExecutionPath, ExecutionLeg, SlippageGuard, MinOutConstraint, TokenAddress, PoolId, BuiltTransaction, SubmissionMode, SubmissionResult
+    ExecutionPlan, ExpectedOutcome, ExecutionPath, ExecutionLeg, SlippageGuard, MinOutConstraint, TokenAddress, PoolId, SubmissionMode, SubmissionResult, PoolKind
 };
 use arb_execute::builder::TxBuilder;
 use arb_execute::submitter::Submitter;
@@ -57,9 +57,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: ExecutionPath {
             legs: vec![ExecutionLeg {
                 pool_id: PoolId("0x0000000000000000000000000000000000022222".to_string()),
+                pool_kind: PoolKind::ConcentratedLiquidity,
                 token_in: TokenAddress("0x4200000000000000000000000000000000000006".to_string()),
                 token_out: TokenAddress("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913".to_string()),
                 zero_for_one: true,
+                amount_out: alloy_primitives::U256::from(99),
             }],
         },
         outcome: ExpectedOutcome {

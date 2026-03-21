@@ -24,17 +24,23 @@ impl ExecutionPlanner {
         }
         let profit = expected_out - candidate.amount_in;
         let mut legs = Vec::with_capacity(candidate.path.legs.len());
-        for leg in &candidate.path.legs {
+        for (i, leg) in candidate.path.legs.iter().enumerate() {
             match leg.edge.kind {
                 arb_types::PoolKind::ReserveBased | arb_types::PoolKind::ConcentratedLiquidity => {}
                 arb_types::PoolKind::Unknown => return Err(PlanBuildFailureReason::UnsupportedPoolKind),
             }
             let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
+            let leg_amount_out = validation_result.sim_result.leg_amounts_out.get(i)
+                .cloned()
+                .ok_or(PlanBuildFailureReason::UnsupportedRouteStructure)?;
+
             legs.push(ExecutionLeg {
                 pool_id: leg.edge.pool_id.clone(),
+                pool_kind: leg.edge.kind,
                 token_in: leg.edge.token_in.clone(),
                 token_out: leg.edge.token_out.clone(),
                 zero_for_one,
+                amount_out: leg_amount_out,
             });
         }
         if legs.is_empty() {
@@ -69,24 +75,30 @@ impl ExecutionPlanner {
             return Err(PlanBuildFailureReason::InsufficientProfit);
         }
 
-        let expected_out = validation_result.sim_result.expected_amount_out
+        let _expected_out = validation_result.sim_result.expected_amount_out
             .ok_or(PlanBuildFailureReason::InsufficientProfit)?;
         
         let profit = validation_result.sim_result.expected_profit
             .ok_or(PlanBuildFailureReason::InsufficientProfit)?;
 
         let mut legs = Vec::with_capacity(candidate.path.legs.len());
-        for leg in &candidate.path.legs {
+        for (i, leg) in candidate.path.legs.iter().enumerate() {
             match leg.edge.kind {
                 arb_types::PoolKind::ReserveBased | arb_types::PoolKind::ConcentratedLiquidity => {}
                 arb_types::PoolKind::Unknown => return Err(PlanBuildFailureReason::UnsupportedPoolKind),
             }
             let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
+            let leg_amount_out = validation_result.sim_result.leg_amounts_out.get(i)
+                .cloned()
+                .ok_or(PlanBuildFailureReason::UnsupportedRouteStructure)?;
+
             legs.push(ExecutionLeg {
                 pool_id: leg.edge.pool_id.clone(),
+                pool_kind: leg.edge.kind,
                 token_in: leg.edge.token_in.clone(),
                 token_out: leg.edge.token_out.clone(),
                 zero_for_one,
+                amount_out: leg_amount_out,
             });
         }
 
@@ -132,22 +144,25 @@ mod tests {
     use alloy_sol_types::{sol, SolCall};
     use alloy_primitives::Address;
 
-    fn make_base_candidate() -> CandidateOpportunity {
-        CandidateOpportunity {
-            path: RoutePath {
-                legs: vec![RouteLeg {
-                    edge: GraphEdge {
-                        pool_id: PoolId("0xPOOL".into()),
-                        kind: PoolKind::ReserveBased,
-                        token_in: TokenAddress("0xA".into()),
-                        token_out: TokenAddress("0xB".into()),
+    fn make_base_candidate() -> arb_types::CandidateOpportunity {
+        let addr_a = "0x000000000000000000000000000000000000000A".to_string();
+        let addr_b = "0x000000000000000000000000000000000000000B".to_string();
+        let pool = "0x0000000000000000000000000000000000000001".to_string();
+        arb_types::CandidateOpportunity {
+            path: arb_types::RoutePath {
+                legs: vec![arb_types::RouteLeg {
+                    edge: arb_types::GraphEdge {
+                        pool_id: arb_types::PoolId(pool),
+                        kind: arb_types::PoolKind::ReserveBased,
+                        token_in: arb_types::TokenAddress(addr_a.clone()),
+                        token_out: arb_types::TokenAddress(addr_b.clone()),
                         fee_bps: 30,
                         is_stale: false,
                     }
                 }],
-                root_asset: TokenAddress("0xA".into()),
+                root_asset: arb_types::TokenAddress(addr_a),
             },
-            bucket: QuoteSizeBucket::Small,
+            bucket: arb_types::QuoteSizeBucket::Small,
             amount_in: U256::from(1000),
             estimated_amount_out: U256::from(1050),
             estimated_gross_profit: U256::from(50),
@@ -166,15 +181,16 @@ mod tests {
                 expected_amount_out: Some(U256::from(1040)), // real sim outcome
                 expected_profit: Some(U256::from(40)),
                 expected_gas_used: None,
+                leg_amounts_out: vec![U256::ZERO],
             },
             is_valid: true,
         };
 
         let plan = ExecutionPlanner::build_plan(&val_res).expect("Plan should build");
         
-        assert_eq!(plan.target_token.0, "0xA");
+        assert_eq!(plan.target_token.0, "0x000000000000000000000000000000000000000A");
         assert_eq!(plan.path.legs.len(), 1);
-        assert_eq!(plan.path.legs[0].pool_id.0, "0xPOOL");
+        assert_eq!(plan.path.legs[0].pool_id.0, "0x0000000000000000000000000000000000000001");
         // Ensure MinOut / guard encoded correctly (amount_in + profit/2)
         // amount_in = 1000, profit = 40, min_out = 1020
         assert_eq!(plan.guard.min_out.min_amount_out, U256::from(1020));
@@ -192,6 +208,7 @@ mod tests {
                 expected_amount_out: Some(U256::from(1040)),
                 expected_profit: Some(U256::from(40)),
                 expected_gas_used: None,
+                leg_amounts_out: vec![U256::ZERO],
             },
             is_valid: true,
         };
@@ -211,6 +228,7 @@ mod tests {
                 expected_amount_out: Some(U256::from(990)), 
                 expected_profit: None,
                 expected_gas_used: None,
+                leg_amounts_out: vec![U256::ZERO],
             },
             is_valid: false,
         };
@@ -232,9 +250,11 @@ mod tests {
             }
             struct ExecutionLeg {
                 address poolId;
+                uint8 poolKind;
                 address tokenIn;
                 address tokenOut;
                 bool zeroForOne;
+                uint256 amountOut;
             }
             struct ExecutionPath {
                 ExecutionLeg[] legs;
@@ -263,21 +283,23 @@ mod tests {
                 expected_amount_out: Some(U256::from(1040)),
                 expected_profit: Some(U256::from(40)),
                 expected_gas_used: None,
+                leg_amounts_out: vec![U256::ZERO],
             },
             is_valid: true,
         };
         let rust_plan = ExecutionPlanner::build_plan(&val_res).expect("Should build");
 
         // Map Rust types to Alloy Sol types
-        let mut sol_legs = Vec::new();
-        for leg in rust_plan.path.legs {
-            sol_legs.push(ExecutionLeg {
-                poolId: leg.pool_id.0.parse::<Address>().unwrap_or_default(),
-                tokenIn: leg.token_in.0.parse::<Address>().unwrap_or_default(),
-                tokenOut: leg.token_out.0.parse::<Address>().unwrap_or_default(),
-                zeroForOne: leg.zero_for_one,
-            });
-        }
+        let sol_legs: Vec<_> = rust_plan.path.legs.iter().map(|l| {
+            ExecutionLeg {
+                poolId: l.pool_id.0.parse().unwrap(),
+                poolKind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8, // Correct logic for 0: V2, 1: V3
+                tokenIn: l.token_in.0.parse().unwrap(),
+                tokenOut: l.token_out.0.parse().unwrap(),
+                zeroForOne: l.zero_for_one,
+                amountOut: l.amount_out,
+            }
+        }).collect();
 
         let sol_plan = ExecutionPlanSol {
             targetToken: rust_plan.target_token.0.parse::<Address>().unwrap_or_default(),
@@ -316,6 +338,7 @@ mod tests {
                 expected_amount_out: Some(U256::from(10400)),
                 expected_profit: Some(U256::from(400)),
                 expected_gas_used: None,
+                leg_amounts_out: vec![U256::ZERO],
             },
             is_valid: true,
         };
