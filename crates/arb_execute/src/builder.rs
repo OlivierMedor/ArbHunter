@@ -14,9 +14,11 @@ sol! {
 
     struct ExecutionLeg {
         address poolId;
+        uint8 poolKind;
         address tokenIn;
         address tokenOut;
         bool zeroForOne;
+        uint256 amountOut;
     }
 
     struct ExecutionPath {
@@ -100,9 +102,11 @@ impl TxBuilder {
         for l in &plan.path.legs {
             sol_legs.push(ExecutionLeg {
                 poolId: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
+                poolKind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8, // 1 for V3, 0 for V2
                 tokenIn: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
                 tokenOut: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
                 zeroForOne: l.zero_for_one,
+                amountOut: l.amount_out,
             });
         }
 
@@ -153,9 +157,11 @@ impl TxBuilder {
         for l in &plan.legs {
             sol_legs.push(ExecutionLeg {
                 poolId: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
+                poolKind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8,
                 tokenIn: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
                 tokenOut: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
                 zeroForOne: l.zero_for_one,
+                amountOut: l.amount_out,
             });
         }
 
@@ -225,6 +231,8 @@ mod tests {
                     token_in: TokenAddress("0x4200000000000000000000000000000000000006".to_string()),
                     token_out: TokenAddress("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913".to_string()),
                     zero_for_one: true,
+                    pool_kind: arb_types::PoolKind::ConcentratedLiquidity,
+                    amount_out: U256::ZERO,
                 }],
             },
             outcome: ArbOutcome {
@@ -282,6 +290,8 @@ mod tests {
             token_in: TokenAddress(format!("{:#x}", Address::ZERO)),
             token_out: TokenAddress(format!("{:#x}", Address::ZERO)),
             zero_for_one: true,
+            pool_kind: arb_types::PoolKind::ConcentratedLiquidity,
+            amount_out: U256::ZERO,
         });
 
         let result = builder.build_tx(&plan, 1, 1000, 10, 200000);

@@ -31,10 +31,9 @@ impl LocalSimulator {
         let candidate = &request.candidate;
         let mut current_amount = candidate.amount_in;
         let required_amount_in = candidate.amount_in;
-
-        // Fetch the absolute newest states
         let pools = self.state_engine.get_all_pools().await;
-        
+        let mut leg_amounts_out = Vec::with_capacity(candidate.path.legs.len());
+
         // Re-simulate step by step
         for leg in &candidate.path.legs {
             let pool_snapshot = match pools.iter().find(|p| p.pool_id == leg.edge.pool_id) {
@@ -46,6 +45,7 @@ impl LocalSimulator {
                         expected_amount_out: None,
                         expected_profit: None,
                         expected_gas_used: None,
+                        leg_amounts_out,
                     };
                 }
             };
@@ -58,12 +58,14 @@ impl LocalSimulator {
                     expected_amount_out: None,
                     expected_profit: None,
                     expected_gas_used: None,
+                    leg_amounts_out,
                 };
             }
 
             let next_amount = match leg.edge.kind {
                 PoolKind::ReserveBased => {
-                    self.state_engine.quote_v2(&leg.edge.pool_id, current_amount).await
+                    let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
+                    self.state_engine.quote_v2(&leg.edge.pool_id, current_amount, zero_for_one).await
                 }
                 PoolKind::ConcentratedLiquidity => {
                     let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
@@ -81,25 +83,24 @@ impl LocalSimulator {
                     expected_amount_out: None,
                     expected_profit: None,
                     expected_gas_used: None,
+                    leg_amounts_out,
                 };
             }
             current_amount = amount_out;
+            leg_amounts_out.push(amount_out);
         }
 
         // Evaluate outcome
         if current_amount > required_amount_in {
             let profit = current_amount - required_amount_in;
             
-            // Check if it slipped below our initial candidate's threshold
-            // In a real execution environment, we might reject if profit drops significantly.
-            // For now, any positive profit is a success if it validates.
-            
             SimulationResult {
                 request,
                 status: SimOutcomeStatus::Success,
                 expected_amount_out: Some(current_amount),
                 expected_profit: Some(profit),
-                expected_gas_used: None, // Gas estimation deferred to execution phase
+                expected_gas_used: None,
+                leg_amounts_out,
             }
         } else {
             SimulationResult {
@@ -108,6 +109,7 @@ impl LocalSimulator {
                 expected_amount_out: Some(current_amount),
                 expected_profit: None,
                 expected_gas_used: None,
+                leg_amounts_out,
             }
         }
     }

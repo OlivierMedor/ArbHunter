@@ -295,21 +295,35 @@ impl StateEngine {
     }
 
     /// High-level quote accessor for V2-style pools.
-    pub async fn quote_v2(&self, pool_id: &PoolId, amount_in: alloy_primitives::U256) -> Option<alloy_primitives::U256> {
+    pub async fn quote_v2(&self, pool_id: &PoolId, amount_in: alloy_primitives::U256, zero_for_one: bool) -> Option<alloy_primitives::U256> {
         let store = self.store.read().await;
         let pool = store.get(pool_id)?;
         let reserves = pool.reserves.as_ref()?;
         self.metrics.inc_local_quotes();
-        Some(Quoter::quote_v2_exact_in(reserves, amount_in, pool.fee_bps))
+        Some(Quoter::quote_v2_exact_in(reserves, amount_in, zero_for_one, pool.fee_bps))
     }
 
     /// High-level quote accessor for V3-style pools.
     pub async fn quote_v3(&self, pool_id: &PoolId, amount_in: alloy_primitives::U256, zero_for_one: bool) -> Option<alloy_primitives::U256> {
         let store = self.store.read().await;
         let pool = store.get(pool_id)?;
-        let cl_state = pool.cl_full_state.as_ref()?;
+        
+        // Fallback to cl_snapshot if full state is missing
+        let cl_state = if let Some(full) = pool.cl_full_state.as_ref() {
+            full.clone()
+        } else if let Some(snap) = pool.cl_snapshot.as_ref() {
+            arb_types::CLFullState {
+                sqrt_price_x96: snap.sqrt_price_x96,
+                liquidity: snap.liquidity,
+                tick: snap.tick,
+                ticks: std::collections::HashMap::new(), // Single-range fallback
+            }
+        } else {
+            return None;
+        };
+
         self.metrics.inc_local_quotes();
-        Some(Quoter::quote_v3_exact_in(cl_state, amount_in, zero_for_one, pool.fee_bps))
+        Some(Quoter::quote_v3_exact_in(&cl_state, amount_in, zero_for_one, pool.fee_bps))
     }
 
     pub async fn get_all_pools(&self) -> Vec<PoolStateSnapshot> {
@@ -325,9 +339,12 @@ pub struct Quoter;
 
 impl Quoter {
     /// Pure constant product quote (Uniswap V2 style) with dynamic fee.
-    pub fn quote_v2_exact_in(reserves: &ReserveSnapshot, amount_in: U256, fee_bps: u32) -> U256 {
-        let r_in = U256::from(reserves.reserve0);
-        let r_out = U256::from(reserves.reserve1);
+    pub fn quote_v2_exact_in(reserves: &ReserveSnapshot, amount_in: U256, zero_for_one: bool, fee_bps: u32) -> U256 {
+        let (r_in, r_out) = if zero_for_one {
+            (U256::from(reserves.reserve0), U256::from(reserves.reserve1))
+        } else {
+            (U256::from(reserves.reserve1), U256::from(reserves.reserve0))
+        };
         
         if amount_in.is_zero() || r_in.is_zero() || r_out.is_zero() {
             return U256::ZERO;
@@ -338,7 +355,8 @@ impl Quoter {
         let denominator = (r_in * U256::from(10000)) + amount_in_with_fee;
         
         numerator / denominator
-    }    /// Concentrated liquidity quote (Uniswap V3 style).
+    }
+    /// Concentrated liquidity quote (Uniswap V3 style).
     /// Partial implementation for Phase 5: supports tick crossing.
     pub fn quote_v3_exact_in(cl_state: &arb_types::CLFullState, amount_in: U256, zero_for_one: bool, fee_bps: u32) -> U256 {
         if amount_in.is_zero() || cl_state.liquidity.is_zero() {

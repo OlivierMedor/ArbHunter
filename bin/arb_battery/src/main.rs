@@ -100,21 +100,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let update = match kind {
             PoolKind::ReserveBased => {
-                let res_val = if let Some(seed) = &case.seed_data {
-                    hex::decode(seed.trim_start_matches("0x")).unwrap_or_default()
+                let (reserve0, reserve1) = if let Some(seed) = &case.seed_data {
+                    let parts: Vec<&str> = seed.split(':').collect();
+                    if parts.len() >= 2 {
+                        let r0_raw = hex::decode(parts[0].trim_start_matches("0x")).unwrap_or_default();
+                        let r1_raw = hex::decode(parts[1].trim_start_matches("0x")).unwrap_or_default();
+                        let r0 = u128::from_be_bytes(r0_raw[r0_raw.len().saturating_sub(16)..].try_into().unwrap_or([0u8; 16]));
+                        let r1 = u128::from_be_bytes(r1_raw[r1_raw.len().saturating_sub(16)..].try_into().unwrap_or([0u8; 16]));
+                        (r0, r1)
+                    } else {
+                        (0, 0)
+                    }
                 } else {
                     println!("[{}] Fetching reserves...", case.case_id);
                     let req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("0902f1ac").unwrap())));
-                    provider.call(&req).await.map_err(|e| format!("provider.call(reserves) failed: {}", e))?.to_vec()
+                    let res_val = provider.call(&req).await.map_err(|e| format!("provider.call(reserves) failed: {}", e))?.to_vec();
+                    if res_val.len() < 64 { 
+                        println!("[{}] SKIPPED: ReserveBased call returned too short (got {})", case.case_id, res_val.len());
+                        continue; 
+                    }
+                    let res0 = u128::from_be_bytes(res_val[16..32].try_into().unwrap());
+                    let res1 = u128::from_be_bytes(res_val[48..64].try_into().unwrap());
+                    (res0, res1)
                 };
 
-                if res_val.len() < 64 { 
-                    println!("[{}] SKIPPED: ReserveBased call returned too short (got {})", case.case_id, res_val.len());
-                    continue; 
+                if reserve0 == 0 && reserve1 == 0 {
+                    println!("[{}] SKIPPED: Invalid reserves", case.case_id);
+                    continue;
                 }
-                let res_bytes = res_val;
-                let reserve0 = u128::from_be_bytes(res_bytes[16..32].try_into().unwrap());
-                let reserve1 = u128::from_be_bytes(res_bytes[48..64].try_into().unwrap());
+
                 PoolUpdate {
                     pool_id: PoolId(target_pool_address.to_string()),
                     kind,
@@ -130,20 +144,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             PoolKind::ConcentratedLiquidity => {
                 let (sqrt_price_x96, tick, liquidity) = if let Some(seed) = &case.seed_data {
                     let parts: Vec<&str> = seed.split(':').collect();
-                    if parts.len() == 2 {
-                        let slot0_bytes = hex::decode(&parts[0][2..]).unwrap_or_default();
-                        let liq_bytes = hex::decode(&parts[1][2..]).unwrap_or_default();
-                        if slot0_bytes.len() >= 64 {
-                            let sp = U256::from_be_slice(&slot0_bytes[0..32]);
-                            let t = i32::from_be_bytes(slot0_bytes[60..64].try_into().unwrap_or_default());
-                            let l = u128::from_be_bytes(liq_bytes[16..32].try_into().unwrap_or_default());
-                            (sp, t, l)
-                        } else {
-                            println!("[{}] SKIPPED: seed data too short", case.case_id);
-                            continue;
-                        }
+                    if parts.len() == 3 {
+                        let sp_raw = hex::decode(parts[0].trim_start_matches("0x")).unwrap_or_default();
+                        let l_raw = hex::decode(parts[1].trim_start_matches("0x")).unwrap_or_default();
+                        let t_raw = hex::decode(parts[2].trim_start_matches("0x")).unwrap_or_default();
+                        
+                        let sp = U256::from_be_slice(&sp_raw);
+                        let l = u128::from_be_bytes(l_raw[l_raw.len().saturating_sub(16)..].try_into().unwrap_or([0u8; 16]));
+                        let t = i32::from_be_bytes(t_raw[t_raw.len().saturating_sub(4)..].try_into().unwrap_or([0u8; 4]));
+                        (sp, t, l)
                     } else {
-                        println!("[{}] SKIPPED: seed data parts != 2", case.case_id);
+                        println!("[{}] SKIPPED: seed data parts != 3 (got {})", case.case_id, parts.len());
                         continue;
                     }
                 } else {
@@ -223,11 +234,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut execution_legs = Vec::new();
         for i in 0..case.pool_ids.len() {
+            let leg_amount_out = sim_result.sim_result.leg_amounts_out.get(i)
+                .cloned()
+                .unwrap_or(U256::ZERO);
+
             execution_legs.push(ExecutionLeg {
                 pool_id: PoolId(case.pool_ids[i].clone()),
+                pool_kind: case.pool_kinds[i],
                 token_in: case.path_tokens[i].clone(),
                 token_out: case.path_tokens[i+1].clone(),
                 zero_for_one: case.leg_directions[i],
+                amount_out: leg_amount_out,
             });
         }
 
@@ -292,6 +309,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let _: serde_json::Value = provider.raw_request::<_, serde_json::Value>("anvil_stopImpersonatingAccount".into(), (rich_address,)).await.map_err(|e| format!("anvil_stopImpersonatingAccount failed: {}", e))?;
 
+        println!("[{}] Sim result: {} out, {} profit. Leg amounts: {:?}", case.case_id, sim_out, sim_profit, sim_result.sim_result.leg_amounts_out);
         println!("[{}] Checking balance before...", case.case_id);
         let mut bal_data = hex::decode("70a08231").map_err(|e| e.to_string())?;
         let mut addr_padded = [0u8; 32];
