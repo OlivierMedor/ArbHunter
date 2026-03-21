@@ -97,8 +97,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token1_v2 = Address::from_str("0x50c5725949a6510A2929456A59912743D28b8821")?;
 
     cases.push(HistoricalCase {
-        case_id: "case_4_v2_success".into(),
-        notes: "Aerodrome USDC/DAI success replay.".into(),
+        case_id: "case_4_v2_unsupported_revert".into(),
+        notes: "Aerodrome USDC/DAI (V2) - Expected to revert because ArbExecutor currently only supports Uniswap V3 swap paths.".into(),
         fork_block_number: latest_block - 10,
         source_tx_hash: None,
         root_asset: TokenAddress(token0_v2.to_string()),
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path_tokens: vec![TokenAddress(token0_v2.to_string()), TokenAddress(token1_v2.to_string())],
         leg_directions: vec![true],
         amount_in: U256::from(100_000_000u64), // 100 USDC
-        expected_outcome: "success".into(),
+        expected_outcome: "unsupported_route_revert".into(),
         guard_overrides: Some(GuardOverrides { min_amount_out: Some(U256::ZERO), min_profit_wei: Some(U256::ZERO) }),
         seed_data: Some(v2_seed.into()),
     });

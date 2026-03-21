@@ -2,7 +2,7 @@
   {
     "case_id": "case_1_v3_success",
     "notes": "Uniswap V3 USDC/WETH success replay.",
-    "fork_block_number": 43638882,
+    "fork_block_number": 43639583,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ConcentratedLiquidity_SingleLeg",
@@ -30,7 +30,7 @@
   {
     "case_id": "case_2_v3_slippage_revert",
     "notes": "USDC/WETH revert due to impossible minOut.",
-    "fork_block_number": 43638882,
+    "fork_block_number": 43639583,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ConcentratedLiquidity_SingleLeg",
@@ -58,7 +58,7 @@
   {
     "case_id": "case_3_v3_no_profit_revert",
     "notes": "USDC/WETH revert due to high profit guard.",
-    "fork_block_number": 43638882,
+    "fork_block_number": 43639583,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ConcentratedLiquidity_SingleLeg",
@@ -84,9 +84,9 @@
     "seed_data": "0x0000000000000000000000000000000000000000000000c99f92960c9df764210000000000000000000000000000000000000000000000000000000000fcf48f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000:0x00000000000000000000000000000000000000000000000013df38488e01bd8c"
   },
   {
-    "case_id": "case_4_v2_success",
-    "notes": "Aerodrome USDC/DAI success replay.",
-    "fork_block_number": 43638882,
+    "case_id": "case_4_v2_unsupported_revert",
+    "notes": "Aerodrome USDC/DAI (V2) - Expected to revert because ArbExecutor currently only supports Uniswap V3 swap paths.",
+    "fork_block_number": 43639583,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "route_family": "ReserveBased_SingleLeg",
@@ -104,7 +104,7 @@
       true
     ],
     "amount_in": "0x5f5e100",
-    "expected_outcome": "success",
+    "expected_outcome": "unsupported_route_revert",
     "guard_overrides": {
       "min_profit_wei": "0x0",
       "min_amount_out": "0x0"
