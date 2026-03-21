@@ -12,7 +12,7 @@ members = [
   "crates/arb_route",
   "crates/arb_sim",
   "crates/arb_execute",
-  "crates/arb_storage", "bin/arb_e2e",
+  "crates/arb_storage", "bin/arb_e2e", "bin/arb_battery_generator", "bin/arb_battery",
 ]
 
 [workspace.package]

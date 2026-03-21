@@ -53,7 +53,7 @@ contract ArbExecutorTest is Test {
             targetToken: address(token),
             path: ExecutionPath(legs),
             outcome: ExpectedOutcome(1000, 1050, 50),
-            guard: SlippageGuard(MinOutConstraint(1020)),
+            guard: SlippageGuard(MinOutConstraint(1020), 0),
             hasFlashloan: false
         });
     }
@@ -116,7 +116,7 @@ contract ArbExecutorTest is Test {
         pool.setMintAmount(1050); // 1050 > 1000 (slippage ok), netProfit 1050 < 1100 (NoProfit!)
         
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(ArbExecutor.InsufficientProfit.selector, 1100, 1050));
+        vm.expectRevert(abi.encodeWithSelector(ArbExecutor.ProfitTooLow.selector, 1100, 1050));
         executor.executeAtomicPlan(plan);
     }
 
@@ -124,6 +124,7 @@ contract ArbExecutorTest is Test {
         AtomicExecutionPlan memory plan = buildAtomicMockPlan(true);
         // buildAtomicMockPlan(true) sets hasFlashloan=true, hasRepayment=true
         // amount_in = 1000, repayment = 1001.
+        plan.minAmountOut = 1000; // Pass slippage check
         pool.setMintAmount(1000); // 1000 < 1001 repayment required
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(ArbExecutor.InsufficientRepayment.selector, 1001, 1000));

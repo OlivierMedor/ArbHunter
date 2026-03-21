@@ -379,3 +379,107 @@ Provide:
    - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+---- updates 2 ----
+Do a final Phase 12 test-fix pass on the EXISTING branch `phase-12-forked-e2e-harness`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add strategy logic, live trading logic, flash-loan changes, or execution behavior changes.
+Do NOT expand scope beyond fixing the failing Rust test and preserving current Phase 12 behavior.
+
+Goal:
+Make Phase 12 merge-ready by fixing the failing `arb_execute` signer test so the full Rust workspace test suite passes.
+
+==================================================
+FIX 1 — REPAIR signer::test_wallet_from_env_invalid
+==================================================
+
+Current problem:
+`cargo test --workspace` fails in:
+- crates/arb_execute/src/signer.rs
+
+Specifically:
+- test_wallet_from_env_invalid expects:
+  "Failed to parse SIGNER_PRIVATE_KEY"
+- but the current implementation returns something else
+
+Required fix:
+- inspect `Wallet::from_env()` and the failing test
+- make the test and implementation agree honestly
+- prefer stable, explicit error semantics
+
+Acceptable approaches:
+PATH A:
+- keep implementation as-is and update the test to assert the correct real error message or a stable substring
+
+PATH B:
+- standardize the implementation error message so it explicitly includes "Failed to parse SIGNER_PRIVATE_KEY"
+- keep the test aligned with that
+
+Either path is acceptable, but:
+- the behavior and test must match
+- do not weaken the test into something meaningless
+- keep the error reporting honest and useful
+
+==================================================
+FIX 2 — KEEP PHASE 12 SCOPE CLEAN
+==================================================
+
+Do NOT change:
+- local/fork harness behavior
+- Anvil setup
+- deployment logic
+- E2E flow
+- execution strategy
+- flash-loan logic
+
+Only fix the failing signer test and any tiny supporting code required.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-12-forked-e2e-harness
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'test_wallet_from_env_invalid' -- crates/arb_execute
+- git grep -n 'Failed to parse SIGNER_PRIVATE_KEY|SIGNER_PRIVATE_KEY' -- crates/arb_execute/src/signer.rs
+- git grep -n 'from_env' -- crates/arb_execute/src/signer.rs
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge build
+- docker compose run --rm forge forge test
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - failing signer test fixed
+   - cargo check passes
+   - cargo test passes
+   - dockerized Foundry validation still passes
+   - no new execution behavior added
+4. Exact outputs for all source-of-truth and proof commands above
+5. A short walkthrough describing:
+   - what changed in the signer test or error path
+   - why the fix is honest and stable
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.
