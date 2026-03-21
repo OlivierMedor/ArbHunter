@@ -71,6 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             min_out: MinOutConstraint {
                 min_amount_out: alloy_primitives::U256::from(0), // Will pass
             },
+            min_profit_wei: alloy_primitives::U256::ZERO,
         },
         flash_loan: None,
     };
@@ -118,6 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             min_out: MinOutConstraint {
                 min_amount_out: alloy_primitives::U256::from(99999), // Will revert slippage
             },
+            min_profit_wei: alloy_primitives::U256::ZERO,
         },
         flash_loan: None,
     };
