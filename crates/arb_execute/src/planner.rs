@@ -228,6 +228,7 @@ mod tests {
             }
             struct SlippageGuard {
                 MinOutConstraint minOut;
+                uint256 minProfitWei;
             }
             struct ExecutionLeg {
                 address poolId;

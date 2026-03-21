@@ -236,6 +236,7 @@ mod tests {
                 min_out: ArbMinOut {
                     min_amount_out: U256::from(98),
                 },
+                min_profit_wei: U256::ZERO,
             },
             flash_loan: None,
         };
@@ -265,6 +266,7 @@ mod tests {
             },
             guard: ArbGuard {
                 min_out: ArbMinOut { min_amount_out: U256::ZERO },
+                min_profit_wei: U256::ZERO,
             },
             flash_loan: None,
         };

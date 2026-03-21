@@ -997,3 +997,125 @@ Provide:
    - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+
+---- update 8 ----
+
+Do a final Phase 13 test-fix and case-honesty pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add live trading logic or new strategy logic.
+Do NOT expand scope beyond fixing the failing workspace tests and cleaning up the battery case honesty.
+
+Goal:
+Make Phase 13 merge-ready by:
+1. fixing the failing Rust workspace compile/test errors,
+2. ensuring the battery case labels/expectations are honest,
+3. rerunning the full validation successfully.
+
+==================================================
+FIX 1 — REPAIR SlippageGuard API MISMATCHES
+==================================================
+
+Current problem:
+`cargo test --workspace` fails because several code paths still use the old SlippageGuard shape and are missing:
+- min_profit_wei
+
+Required fix:
+Update all remaining affected files so they match the current SlippageGuard type exactly.
+
+Known failing areas from the last run:
+- bin/arb_e2e/src/main.rs
+- crates/arb_execute/src/planner.rs
+- crates/arb_execute/src/builder.rs
+
+Required behavior:
+- all SlippageGuard initializers must include min_profit_wei
+- any ABI alignment test structs must match the current Rust/contract shape exactly
+- no partial outdated legacy fields should remain
+
+==================================================
+FIX 2 — BATTERY CASE HONESTY
+==================================================
+
+Current problem:
+The battery currently reports:
+- case_4_v2_success -> success=false
+
+Required fix:
+Choose one honest path:
+
+PATH A (preferred):
+- fix the V2 success path so it actually succeeds in the battery
+
+PATH B:
+- if a true V2 success cannot be made reliable in this phase, rename/relabel the case and update expected_outcome/notes honestly so it is not falsely presented as a success case
+
+Do NOT keep a case named “success” if it consistently reverts.
+
+==================================================
+FIX 3 — KEEP ATTRIBUTION AND BATTERY OUTPUT INTACT
+==================================================
+
+Do not regress:
+- real balance-delta attribution
+- success/revert reporting
+- battery runner execution
+
+You may keep the current battery output style, but correctness matters more than formatting.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n 'min_profit_wei' -- bin/arb_e2e crates/arb_execute crates/arb_types
+- git grep -n -E 'case_4_v2_success|expected_outcome|success=false|success=true' -- fixtures/historical_cases.json bin/arb_battery
+- git grep -n -E 'actual_amount_out|actual_profit|absolute_error|relative_error|revert_reason' -- bin/arb_battery crates/
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Which case-honesty path was chosen:
+- PATH A = V2 success fixed
+- PATH B = V2 case relabeled honestly
+
+2. Verdict
+3. Changed-files summary
+4. Checklist confirming:
+   - workspace compile/test errors fixed
+   - SlippageGuard shape aligned everywhere
+   - battery labels/expected outcomes are honest
+   - battery still runs
+   - no live trading logic added
+
+5. Exact outputs for all commands above
+
+6. A short walkthrough describing:
+   - how the SlippageGuard mismatch was fixed
+   - whether the V2 case now succeeds or was relabeled
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.

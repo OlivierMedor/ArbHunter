@@ -225,6 +225,7 @@ mod tests {
             require_eth_call: false,
             local_rpc_url: None,
             test_private_key: None,
+            anvil_fork_url: None,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());
