@@ -248,6 +248,7 @@ pub struct SimulationResult {
     pub expected_amount_out: Option<U256>,
     pub expected_profit: Option<U256>,
     pub expected_gas_used: Option<u64>,
+    pub leg_amounts_out: Vec<U256>,
 }
 
 /// The high-level validation result to be logged or passed to execution.
@@ -289,9 +290,11 @@ pub enum PlanBuildFailureReason {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionLeg {
     pub pool_id: PoolId,
+    pub pool_kind: PoolKind,
     pub token_in: TokenAddress,
     pub token_out: TokenAddress,
     pub zero_for_one: bool, // Helps with generic route encoding
+    pub amount_out: U256,
 }
 
 /// A deterministic, sequential path to execute
@@ -492,12 +495,13 @@ pub struct HistoricalCase {
     pub amount_in: U256,
     pub expected_outcome: String, // "success", "slippage_revert", "no_profit_revert"
     pub guard_overrides: Option<GuardOverrides>,
-    pub seed_data: Option<String>,
+    pub seed_data: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttributionResult {
     pub case_id: String,
+    pub actual_status: String,
     pub predicted_amount_out: U256,
     pub predicted_profit: U256,
     pub actual_amount_out: Option<U256>,
