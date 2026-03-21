@@ -35,6 +35,14 @@ pub struct Config {
     pub test_private_key: Option<String>,
     pub local_rpc_url: Option<String>,
     pub anvil_fork_url: Option<String>,
+
+    // Phase 15: Shadow Mode
+    pub enable_shadow_mode: bool,
+    pub shadow_recheck_delay_ms: u64,
+    pub shadow_min_profit_threshold: String,
+    pub shadow_max_candidates_per_window: u32,
+    pub shadow_write_journal: bool,
+    pub shadow_journal_path: String,
 }
 
 impl Config {
@@ -42,7 +50,7 @@ impl Config {
         // Attempt to load .env file, ignore error if it doesn't exist
         let _ = dotenv();
 
-        Self {
+        let parsed_config = Self {
             quicknode_wss_url: env::var("QUICKNODE_WSS_URL")
                 .expect("FATAL: QUICKNODE_WSS_URL missing! A real endpoint is strictly required for Phase 2 live provider mode."),
             alchemy_wss_url: env::var("ALCHEMY_WSS_URL").ok(),
@@ -106,7 +114,33 @@ impl Config {
             test_private_key: env::var("TEST_PRIVATE_KEY").ok(),
             local_rpc_url: env::var("ANVIL_RPC_URL").ok(),
             anvil_fork_url: env::var("ANVIL_FORK_URL").ok(),
+
+            // Phase 15
+            enable_shadow_mode: env::var("ENABLE_SHADOW_MODE")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
+            shadow_recheck_delay_ms: env::var("SHADOW_RECHECK_DELAY_MS")
+                .unwrap_or_else(|_| "5000".to_string())
+                .parse()
+                .unwrap_or(5000),
+            shadow_min_profit_threshold: env::var("SHADOW_MIN_PROFIT_THRESHOLD")
+                .unwrap_or_else(|_| "0".to_string()),
+            shadow_max_candidates_per_window: env::var("SHADOW_MAX_CANDIDATES_PER_WINDOW")
+                .unwrap_or_else(|_| "100".to_string())
+                .parse()
+                .unwrap_or(100),
+            shadow_write_journal: env::var("SHADOW_WRITE_JOURNAL")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(true),
+            shadow_journal_path: env::var("SHADOW_JOURNAL_PATH")
+                .unwrap_or_else(|_| "shadow_journal.jsonl".to_string()),
+        };
+
+        if parsed_config.enable_shadow_mode && parsed_config.enable_broadcast {
+            panic!("FATAL SECURITY GATE: ENABLE_SHADOW_MODE and ENABLE_BROADCAST cannot both be true. Shadow mode must never have live broadcast capability.");
         }
+
+        parsed_config
     }
 }
 
@@ -165,8 +199,9 @@ mod tests {
         assert_eq!(config.rpc_http_url, Some("http://rpc".to_string()));
         assert!(!config.require_preflight);
         assert!(config.require_gas_estimate);
-        assert!(config.require_eth_call);
+        assert_eq!(config.require_eth_call, true);
         assert_eq!(config.test_private_key, Some("0xTESTPK".to_string()));
         assert_eq!(config.local_rpc_url, Some("http://local".to_string()));
+        assert_eq!(config.enable_shadow_mode, false);
     }
 }

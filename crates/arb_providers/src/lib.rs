@@ -226,6 +226,13 @@ mod tests {
             local_rpc_url: None,
             test_private_key: None,
             anvil_fork_url: None,
+            // Phase 15
+            enable_shadow_mode: false,
+            shadow_recheck_delay_ms: 5000,
+            shadow_min_profit_threshold: "0".to_string(),
+            shadow_max_candidates_per_window: 100,
+            shadow_write_journal: false,
+            shadow_journal_path: "shadow_journal.jsonl".to_string(),
         };
         
         let metrics = Arc::new(MetricsRegistry::new());
