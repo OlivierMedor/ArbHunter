@@ -817,3 +817,183 @@ Provide:
    - what success path was added
    - why it is enough for this phase
    - what remains deferred
+
+
+   ---- update 7 ----
+
+   Do a final Phase 13 success-proof pass on the EXISTING branch `phase-13-historical-fork-battery`.
+
+Do NOT create a new branch.
+Do NOT add live trading logic.
+Do NOT add new strategy logic.
+Do NOT expand scope beyond making the historical replay battery produce a genuinely meaningful result set.
+
+Goal:
+Make Phase 13 merge-ready by:
+1. producing at least one real success case and one real revert case,
+2. making the no-profit case genuinely distinct from the slippage case,
+3. removing remaining debug-style output,
+4. providing exact source-of-truth outputs and real battery-run evidence.
+
+==================================================
+FIX 1 — BATTERY MUST PRODUCE A REAL SUCCESS CASE
+==================================================
+
+Current problem:
+The earlier battery output did not prove a real successful case.
+
+Required fix:
+- adjust the case generator and/or battery execution path so the battery produces at least:
+  - 1 actual successful case
+  - 1 actual revert case
+- success must come from a real local/fork execution, not a fabricated status
+- the success case should have:
+  - success=true
+  - actual_amount_out populated
+  - actual_profit populated
+  - gas_used populated
+  - absolute_error / relative_error computed honestly
+
+You may keep the battery small, but it must demonstrate both a success and a revert.
+
+==================================================
+FIX 2 — MAKE THE NO-PROFIT CASE GENUINELY DISTINCT
+==================================================
+
+Current problem:
+The no-profit case risks being just another slippage-style revert.
+
+Required fix:
+- ensure the no-profit case fails because of the profit guard, not because of minOut/slippage
+- ensure the slippage case fails because of slippage/minOut, not because of profit guard
+- document clearly which guard is responsible in each case
+- battery output should make the distinction obvious
+
+==================================================
+FIX 3 — CASE SET SHOULD BE SMALL BUT MEANINGFUL
+==================================================
+
+Required case mix:
+- 1 likely success
+- 1 slippage revert
+- 1 no-profit revert
+- 1 V3/CL case
+
+If 5th case remains, it must add real value.
+Do not pad the battery with redundant cases.
+
+Each case in fixtures/historical_cases.json should include:
+- case_id
+- fork_block_number
+- root_asset
+- route_family
+- pool_ids
+- amount_in
+- expected_outcome
+- guard_overrides
+- notes
+- source_tx_hash if available
+
+Keep the file deterministic and readable.
+
+==================================================
+FIX 4 — REMOVE DEBUG-STYLE OUTPUT
+==================================================
+
+Current problem:
+arb_battery still emits internal/debug-style prints.
+
+Required fix:
+- remove noisy debug-style prints such as raw balance debug lines or internal submission dumps
+- keep output concise and useful:
+  - case id
+  - expected outcome
+  - actual outcome
+  - gas used
+  - actual profit
+  - revert reason if failed
+  - aggregate summary
+
+Do NOT print secrets, RPC URLs, or noisy internal-only details.
+
+==================================================
+FIX 5 — ATTRIBUTION MUST STAY HONEST
+==================================================
+
+For successful cases:
+- actual_amount_out must come from real balance delta or equivalent honest local execution outcome
+- actual_profit must be real
+- gas_used must be real
+- absolute_error must be real
+- relative_error must be real
+
+For revert cases:
+- actual_amount_out may be null
+- actual_profit may be null
+- revert_reason must be populated
+- absolute_error / relative_error must still be computed honestly where applicable
+
+Do NOT reintroduce placeholder attribution.
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-13-historical-fork-battery
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n -E 'actual_amount_out|actual_profit|absolute_error|relative_error|revert_reason' -- bin/arb_battery crates/
+- git grep -n -E 'DEBUG:|bal_before|bal_after|submission_result|Using RPC URL' -- bin/arb_battery bin/arb_battery_generator
+- git show origin/phase-13-historical-fork-battery:fixtures/historical_cases.json
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose config
+- docker compose up -d anvil
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+The final arb_battery output must show:
+- at least 1 case with success=true
+- at least 1 case with success=false
+- a distinct slippage revert case
+- a distinct no-profit revert case
+- at least 1 V3/CL case
+- aggregate summary
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - at least one successful case exists
+   - at least one revert case exists
+   - slippage and no-profit cases are distinct
+   - debug-style output removed
+   - attribution remains honest
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - how the successful case was made to work
+   - how the revert cases differ
+   - how attribution is computed
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.

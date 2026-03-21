@@ -34,6 +34,7 @@ pub struct Config {
     // Phase 12: Forked E2E Harness
     pub test_private_key: Option<String>,
     pub local_rpc_url: Option<String>,
+    pub anvil_fork_url: Option<String>,
 }
 
 impl Config {
@@ -104,6 +105,7 @@ impl Config {
             // Phase 12
             test_private_key: env::var("TEST_PRIVATE_KEY").ok(),
             local_rpc_url: env::var("ANVIL_RPC_URL").ok(),
+            anvil_fork_url: env::var("ANVIL_FORK_URL").ok(),
         }
     }
 }

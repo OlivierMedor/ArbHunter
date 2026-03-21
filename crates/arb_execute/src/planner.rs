@@ -52,6 +52,7 @@ impl ExecutionPlanner {
                 min_out: MinOutConstraint {
                     min_amount_out: candidate.amount_in + (profit / U256::from(2)),
                 },
+                min_profit_wei: profit / U256::from(4),
             },
             flash_loan: None,
         })
@@ -288,7 +289,8 @@ mod tests {
             guard: SlippageGuard {
                 minOut: MinOutConstraint {
                     minAmountOut: rust_plan.guard.min_out.min_amount_out,
-                }
+                },
+                minProfitWei: rust_plan.guard.min_profit_wei,
             },
             hasFlashloan: rust_plan.flash_loan.is_some(),
         };

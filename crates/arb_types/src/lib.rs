@@ -272,6 +272,7 @@ pub struct MinOutConstraint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlippageGuard {
     pub min_out: MinOutConstraint,
+    pub min_profit_wei: U256,
 }
 
 // FlashLoanSpec moved to Phase 11 section
@@ -331,6 +332,7 @@ pub struct BuiltTransaction {
     pub gas_limit: u64,
     pub max_fee_per_gas: u128,
     pub max_priority_fee_per_gas: u128,
+    pub gas_price: Option<u128>,
     pub chain_id: u64,
 }
 

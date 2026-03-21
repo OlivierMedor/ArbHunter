@@ -1,6 +1,6 @@
 use alloy_signer_local::PrivateKeySigner;
 use alloy_signer::Signer;
-use alloy_consensus::{TxEip1559, TxEnvelope, SignableTransaction};
+use alloy_consensus::{TxEip1559, TxLegacy, TxEnvelope, SignableTransaction};
 use alloy_network::TxSigner;
 use alloy_primitives::{Address, Bytes};
 use arb_types::BuiltTransaction;
@@ -37,28 +37,39 @@ impl Wallet {
         let to_addr = tx.to.parse::<Address>()
             .map_err(|e| format!("Invalid 'to' address in BuiltTransaction: {}", e))?;
 
-        let mut tx_inner = TxEip1559 {
-            chain_id: tx.chain_id,
-            nonce: tx.nonce,
-            gas_limit: tx.gas_limit,
-            max_fee_per_gas: tx.max_fee_per_gas,
-            max_priority_fee_per_gas: tx.max_priority_fee_per_gas,
-            to: alloy_primitives::TxKind::Call(to_addr),
-            value: tx.value,
-            input: Bytes::from(tx.data),
-            access_list: Default::default(),
+        let signed_raw = if let Some(gas_price) = tx.gas_price {
+            let mut tx_inner = TxLegacy {
+                chain_id: Some(tx.chain_id),
+                nonce: tx.nonce,
+                gas_limit: tx.gas_limit,
+                gas_price,
+                to: alloy_primitives::TxKind::Call(to_addr),
+                value: tx.value,
+                input: Bytes::from(tx.data),
+            };
+            let signature = self.signer.sign_transaction(&mut tx_inner).await
+                .map_err(|e| format!("Failed to sign legacy transaction: {}", e))?;
+            let envelope = TxEnvelope::Legacy(tx_inner.into_signed(signature));
+            alloy_rlp::encode(&envelope)
+        } else {
+            let mut tx_inner = TxEip1559 {
+                chain_id: tx.chain_id,
+                nonce: tx.nonce,
+                gas_limit: tx.gas_limit,
+                max_fee_per_gas: tx.max_fee_per_gas,
+                max_priority_fee_per_gas: tx.max_priority_fee_per_gas,
+                to: alloy_primitives::TxKind::Call(to_addr),
+                value: tx.value,
+                input: Bytes::from(tx.data),
+                access_list: Default::default(),
+            };
+            let signature = self.signer.sign_transaction(&mut tx_inner).await
+                .map_err(|e| format!("Failed to sign EIP-1559 transaction: {}", e))?;
+            let envelope = TxEnvelope::Eip1559(tx_inner.into_signed(signature));
+            alloy_rlp::encode(&envelope)
         };
 
-        // Sign the transaction
-        let signature = self.signer.sign_transaction(&mut tx_inner).await
-            .map_err(|e| format!("Failed to sign transaction: {}", e))?;
-
-        // Create the envelope
-        let envelope = TxEnvelope::Eip1559(tx_inner.into_signed(signature));
-        
-        // Encode and get hash
-        let signed_raw = alloy_rlp::encode(&envelope);
-        let hash = format!("{:#x}", envelope.tx_hash());
+        let hash = format!("0x{:x}", alloy_primitives::keccak256(&signed_raw));
 
         Ok((signed_raw, hash))
     }

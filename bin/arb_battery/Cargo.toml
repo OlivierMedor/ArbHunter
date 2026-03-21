@@ -12,6 +12,7 @@ arb_state = { path = "../../crates/arb_state" }
 arb_execute = { path = "../../crates/arb_execute" }
 alloy-provider = "0.8.2"
 alloy-primitives = { version = "0.8", features = ["serde"] }
+alloy-signer = "0.8.2"
 alloy-signer-local = "0.8.2"
 alloy-rpc-types-eth = "0.8.2"
 alloy-eips = "0.8.2"
