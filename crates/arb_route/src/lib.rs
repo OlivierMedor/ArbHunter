@@ -203,7 +203,8 @@ impl CandidateGenerator {
 
             let next_amount = match edge.kind {
                 PoolKind::ReserveBased => {
-                    self.engine.quote_v2(&edge.pool_id, current_amount).await?
+                    let zero_for_one = edge.token_in.0 < edge.token_out.0;
+                self.engine.quote_v2(&edge.pool_id, current_amount, zero_for_one).await?
                 }
                 PoolKind::ConcentratedLiquidity => {
                     // We need zero_for_one. 
