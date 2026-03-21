@@ -97,104 +97,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let state_engine = Arc::new(StateEngine::new(metrics.clone()));
         let target_pool_address = Address::from_str(&case.pool_ids[0]).map_err(|e| e.to_string())?;
         let kind = case.pool_kinds[0];
+        for (i, pool_id_str) in case.pool_ids.iter().enumerate() {
+            let target_pool_address = Address::from_str(pool_id_str).map_err(|e| e.to_string())?;
+            let kind = case.pool_kinds[i];
+            
+            let leg_seed = case.seed_data.as_ref().and_then(|v| v.get(i));
 
-        let update = match kind {
-            PoolKind::ReserveBased => {
-                let (reserve0, reserve1) = if let Some(seed) = &case.seed_data {
-                    let parts: Vec<&str> = seed.split(':').collect();
-                    if parts.len() >= 2 {
-                        let r0_raw = hex::decode(parts[0].trim_start_matches("0x")).unwrap_or_default();
-                        let r1_raw = hex::decode(parts[1].trim_start_matches("0x")).unwrap_or_default();
-                        let r0 = u128::from_be_bytes(r0_raw[r0_raw.len().saturating_sub(16)..].try_into().unwrap_or([0u8; 16]));
-                        let r1 = u128::from_be_bytes(r1_raw[r1_raw.len().saturating_sub(16)..].try_into().unwrap_or([0u8; 16]));
+            let update = match kind {
+                PoolKind::ReserveBased => {
+                    let (reserve0, reserve1) = if let Some(j) = leg_seed {
+                        let r0 = j["reserve0"].as_str().unwrap_or("0").parse::<u128>().unwrap_or(0);
+                        let r1 = j["reserve1"].as_str().unwrap_or("0").parse::<u128>().unwrap_or(0);
                         (r0, r1)
                     } else {
-                        (0, 0)
-                    }
-                } else {
-                    println!("[{}] Fetching reserves...", case.case_id);
-                    let req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("0902f1ac").unwrap())));
-                    let res_val = provider.call(&req).await.map_err(|e| format!("provider.call(reserves) failed: {}", e))?.to_vec();
-                    if res_val.len() < 64 { 
-                        println!("[{}] SKIPPED: ReserveBased call returned too short (got {})", case.case_id, res_val.len());
-                        continue; 
-                    }
-                    let res0 = u128::from_be_bytes(res_val[16..32].try_into().unwrap());
-                    let res1 = u128::from_be_bytes(res_val[48..64].try_into().unwrap());
-                    (res0, res1)
-                };
+                        println!("[{}] Fetching reserves for leg {}...", case.case_id, i);
+                        let req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("0902f1ac").unwrap())));
+                        let res_val = provider.call(&req).await.map_err(|e| format!("provider.call(reserves) failed: {}", e))?.to_vec();
+                        if res_val.len() < 64 { (0, 0) } else {
+                            let r0 = u128::from_be_bytes(res_val[16..32].try_into().unwrap());
+                            let r1 = u128::from_be_bytes(res_val[48..64].try_into().unwrap());
+                            (r0, r1)
+                        }
+                    };
 
-                if reserve0 == 0 && reserve1 == 0 {
-                    println!("[{}] SKIPPED: Invalid reserves", case.case_id);
-                    continue;
+                    PoolUpdate {
+                        pool_id: PoolId(target_pool_address.to_string().to_lowercase()),
+                        kind,
+                        token0: Some(TokenAddress(case.path_tokens[i].0.to_lowercase())),
+                        token1: Some(TokenAddress(case.path_tokens[i+1].0.to_lowercase())),
+                        fee_bps: Some(30),
+                        reserves: Some(ReserveSnapshot { reserve0, reserve1 }),
+                        cl_snapshot: None,
+                        cl_full_state: None,
+                        stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
+                    }
                 }
-
-                PoolUpdate {
-                    pool_id: PoolId(target_pool_address.to_string()),
-                    kind,
-                    token0: Some(case.path_tokens[0].clone()),
-                    token1: Some(case.path_tokens.get(1).cloned().unwrap_or(case.path_tokens[0].clone())),
-                    fee_bps: Some(30),
-                    reserves: Some(ReserveSnapshot { reserve0, reserve1 }),
-                    cl_snapshot: None,
-                    cl_full_state: None,
-                    stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
-                }
-            }
-            PoolKind::ConcentratedLiquidity => {
-                let (sqrt_price_x96, tick, liquidity) = if let Some(seed) = &case.seed_data {
-                    let parts: Vec<&str> = seed.split(':').collect();
-                    if parts.len() == 3 {
-                        let sp_raw = hex::decode(parts[0].trim_start_matches("0x")).unwrap_or_default();
-                        let l_raw = hex::decode(parts[1].trim_start_matches("0x")).unwrap_or_default();
-                        let t_raw = hex::decode(parts[2].trim_start_matches("0x")).unwrap_or_default();
-                        
-                        let sp = U256::from_be_slice(&sp_raw);
-                        let l = u128::from_be_bytes(l_raw[l_raw.len().saturating_sub(16)..].try_into().unwrap_or([0u8; 16]));
-                        let t = i32::from_be_bytes(t_raw[t_raw.len().saturating_sub(4)..].try_into().unwrap_or([0u8; 4]));
+                PoolKind::ConcentratedLiquidity => {
+                    let (sqrt_price_x96, tick, liquidity) = if let Some(j) = leg_seed {
+                        let sp = U256::from_str_radix(j["sqrt_price_x96"].as_str().unwrap_or("0").trim_start_matches("0x"), 16).unwrap_or(U256::ZERO);
+                        let t = j["tick"].as_i64().unwrap_or(0) as i32;
+                        let l = U256::from_str_radix(j["liquidity"].as_str().unwrap_or("0").trim_start_matches("0x"), 16).unwrap_or(U256::ZERO).to::<u128>();
                         (sp, t, l)
                     } else {
-                        println!("[{}] SKIPPED: seed data parts != 3 (got {})", case.case_id, parts.len());
-                        continue;
-                    }
-                } else {
-                    println!("[{}] Fetching slot0...", case.case_id);
-                    let slot0_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("3850c7bd").unwrap())));
-                    let slot0_res = provider.call(&slot0_req).await.map_err(|e| format!("provider.call(slot0) failed: {}", e))?;
-                    if slot0_res.len() < 32 { 
-                        println!("[{}] SKIPPED: slot0 call failure", case.case_id);
-                        continue; 
-                    }
-                    let sp = U256::from_be_slice(&slot0_res[0..32]);
-                    let t = i32::from_be_bytes(slot0_res[60..64].try_into().unwrap());
-                    
-                    println!("[{}] Fetching liquidity...", case.case_id);
-                    let liq_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("1a686597").unwrap())));
-                    let liq_res = provider.call(&liq_req).await.map_err(|e| format!("provider.call(liquidity) failed: {}", e))?;
-                    if liq_res.len() < 32 { 
-                        println!("[{}] SKIPPED: liquidity call failure", case.case_id);
-                        continue; 
-                    }
-                    let l = u128::from_be_bytes(liq_res[16..32].try_into().unwrap());
-                    (sp, t, l)
-                };
+                        println!("[{}] Fetching slot0 for leg {}...", case.case_id, i);
+                        let slot0_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("3850c7bd").unwrap())));
+                        let slot0_res = provider.call(&slot0_req).await.map_err(|e| format!("provider.call(slot0) failed: {}", e))?;
+                        let sp = if slot0_res.len() >= 32 { U256::from_be_slice(&slot0_res[0..32]) } else { U256::ZERO };
+                        let t = if slot0_res.len() >= 64 { i32::from_be_bytes(slot0_res[60..64].try_into().unwrap()) } else { 0 };
+                        
+                        let liq_req = alloy_rpc_types_eth::TransactionRequest::default().to(target_pool_address).input(alloy_rpc_types_eth::TransactionInput::new(alloy_primitives::Bytes::from(hex::decode("1a686597").unwrap())));
+                        let liq_res = provider.call(&liq_req).await.map_err(|e| format!("provider.call(liquidity) failed: {}", e))?;
+                        let l = if liq_res.len() >= 32 { u128::from_be_bytes(liq_res[16..32].try_into().unwrap()) } else { 0 };
+                        (sp, t, l)
+                    };
 
-                PoolUpdate {
-                    pool_id: PoolId(target_pool_address.to_string()),
-                    kind,
-                    token0: Some(case.path_tokens[0].clone()),
-                    token1: Some(case.path_tokens.get(1).cloned().unwrap_or(case.path_tokens[0].clone())),
-                    fee_bps: Some(5),
-                    reserves: None,
-                    cl_snapshot: Some(CLSnapshot { sqrt_price_x96, liquidity: alloy_primitives::U128::from(liquidity), tick }),
-                    cl_full_state: None,
-                    stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
+                    PoolUpdate {
+                        pool_id: PoolId(target_pool_address.to_string().to_lowercase()),
+                        kind,
+                        token0: Some(TokenAddress(case.path_tokens[i].0.to_lowercase())),
+                        token1: Some(TokenAddress(case.path_tokens[i+1].0.to_lowercase())),
+                        fee_bps: Some(5),
+                        reserves: None,
+                        cl_snapshot: Some(CLSnapshot { sqrt_price_x96, liquidity: alloy_primitives::U128::from(liquidity), tick }),
+                        cl_full_state: None,
+                        stamp: EventStamp { block_number: case.fork_block_number, log_index: 0 },
+                    }
                 }
-            }
-            _ => continue,
-        };
+                _ => continue,
+            };
+            state_engine.apply(update).await;
+        }
 
-        state_engine.apply(update).await;
         let simulator = LocalSimulator::new(state_engine);
         
         let mut path_legs = Vec::new();
@@ -202,10 +175,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let pool_kind = case.pool_kinds[i];
             path_legs.push(RouteLeg {
                 edge: GraphEdge {
-                    pool_id: PoolId(case.pool_ids[i].clone()),
+                    pool_id: PoolId(case.pool_ids[i].to_lowercase()),
                     kind: pool_kind,
-                    token_in: case.path_tokens[i].clone(),
-                    token_out: case.path_tokens[i+1].clone(),
+                    token_in: TokenAddress(case.path_tokens[i].0.to_lowercase()),
+                    token_out: TokenAddress(case.path_tokens[i+1].0.to_lowercase()),
                     fee_bps: if pool_kind == PoolKind::ReserveBased { 30 } else { 5 },
                     is_stale: false,
                 }
@@ -215,7 +188,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let candidate = CandidateOpportunity {
             path: RoutePath {
                 legs: path_legs,
-                root_asset: case.root_asset.clone(),
+                root_asset: TokenAddress(case.root_asset.0.to_lowercase()),
             },
             bucket: QuoteSizeBucket::Small,
             amount_in: case.amount_in,
@@ -226,6 +199,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let sim_result = simulator.validate_candidate(candidate.clone()).await;
+        println!("[{}] Simulation Outcome: {:?}", case.case_id, sim_result.sim_result.status);
+        
         let sim_out = sim_result.sim_result.expected_amount_out.unwrap_or(U256::ZERO);
         let sim_profit = sim_result.sim_result.expected_profit.unwrap_or(U256::ZERO);
 
@@ -336,16 +311,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let gas_price = 100_000_000_u128; // fallback
                         let gas_cost = U256::from(r.gas_used as u128 * gas_price);
                         
-                        let actual_amount_out = if bal_after + gas_cost + case.amount_in >= bal_before {
-                            bal_after + gas_cost + case.amount_in - bal_before
+                        let actual_amount_out = bal_after;
+                        let actual_profit = if bal_after >= bal_before {
+                            bal_after - bal_before
                         } else {
-                            U256::ZERO
-                        };
-                        
-                        let actual_profit = if actual_amount_out > case.amount_in {
-                            actual_amount_out - case.amount_in
-                        } else {
-                            U256::ZERO
+                            U256::ZERO // or should we show loss? User asked for like-for-like.
                         };
 
                         let abs_err = if actual_profit > sim_profit {
@@ -418,18 +388,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("========================================");
+    println!("================================================================================================");
     println!("HISTORICAL BATTERY REPORT");
-    println!("{:<25} | {:<7} | {:<12} | {:<12} | {:<20}", "Case ID", "Success", "Profit", "Error(%)", "Note/Revert");
-    println!("--------------------------------------------------------------------------------------------------");
+    println!("{:<28} | {:<7} | {:<12} | {:<12} | {:<8} | {:<12}", "Case ID", "Match", "Pred.Profit", "Act.Profit", "Gas", "Error(%)");
+    println!("------------------------------------------------------------------------------------------------");
     for attr in &attributions {
-        let success_str = if attr.success_or_revert { "TRUE" } else { "FALSE" };
-        let profit_str = attr.actual_profit.map(|p| p.to_string()).unwrap_or_else(|| "N/A".to_string());
+        let matched = if attr.success_or_revert { "TRUE" } else { "FALSE" };
+        let pred_str = attr.predicted_profit.to_string();
+        let act_str = attr.actual_profit.map(|p| p.to_string()).unwrap_or_else(|| "N/A".to_string());
+        let gas_str = if attr.gas_used > 0 { attr.gas_used.to_string() } else { "N/A".to_string() };
         let error_str = format!("{:.2}%", attr.relative_error * 100.0);
-        let note = attr.revert_reason.as_deref().unwrap_or("");
-        println!("{:<25} | {:<7} | {:<12} | {:<12} | {:<20}", attr.case_id, success_str, profit_str, error_str, note);
+        println!("{:<28} | {:<7} | {:<12} | {:<12} | {:<8} | {:<12}", attr.case_id, matched, pred_str, act_str, gas_str, error_str);
+        if let Some(reason) = &attr.revert_reason {
+            println!("  ↳ Revert: {}", reason);
+        }
     }
-    println!("========================================");
+    println!("================================================================================================");
     println!("Total Summary: {}/{} Successful Replays", attributions.iter().filter(|a| a.success_or_revert).count(), cases.len());
     
     Ok(())
