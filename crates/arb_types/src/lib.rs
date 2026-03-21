@@ -501,6 +501,7 @@ pub struct HistoricalCase {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttributionResult {
     pub case_id: String,
+    pub actual_status: String,
     pub predicted_amount_out: U256,
     pub predicted_profit: U256,
     pub actual_amount_out: Option<U256>,

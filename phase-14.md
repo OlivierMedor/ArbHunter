@@ -385,3 +385,125 @@ Provide:
    - what remains deferred to the next phase
 
 Do not go beyond this scope.
+
+
+---- update 2 ----
+
+Do a final Phase 14 correctness pass on the EXISTING branch `phase-14-v2-venue-execution`.
+
+Do NOT create a new branch.
+Do NOT add new features.
+Do NOT add live trading logic, aggregator logic, or new strategy logic.
+Do NOT expand scope beyond fixing the remaining battery-behavior blockers.
+
+Goal:
+Make Phase 14 merge-ready by getting the battery to demonstrate the intended four-case outcome set honestly.
+
+==================================================
+FIX 1 — MAKE CASE 4 ACTUALLY SUCCEED
+==================================================
+
+Current problem:
+The battery still shows:
+- case_4_mixed_v2_v3_success -> FALSE / On-chain Revert
+
+Required fix:
+- diagnose why the mixed V2/V3 path still reverts
+- fix the route execution path, fixture, or executor logic so that this case actually succeeds
+- do NOT relabel it as failure; this phase needs one real mixed/reserve-based success
+
+==================================================
+FIX 2 — MAKE THE NO-PROFIT CASE TRULY A NO-PROFIT CASE
+==================================================
+
+Current problem:
+case_3_no_profit_revert is currently showing:
+- Match FALSE
+and the runner log shows:
+- Simulation Outcome: Failed(SlippageExceeded)
+
+Required fix:
+- ensure the no-profit case fails because of the profit guard, not because of slippage
+- separate the no-profit and slippage failure modes cleanly
+- battery output must make this distinction obvious
+
+==================================================
+FIX 3 — ALIGN GENERATOR AND FIXTURE NAMING
+==================================================
+
+Current problem:
+The generator code and committed fixture file use inconsistent case ids/naming.
+
+Required fix:
+- make generator output and fixtures/historical_cases.json use the same case ids and outcome labels
+- keep naming stable and honest
+
+==================================================
+FIX 4 — KEEP ATTRIBUTION HONEST
+==================================================
+
+Do not regress:
+- actual_amount_out from real balance delta or equivalent honest execution outcome
+- actual_profit real
+- absolute_error real
+- relative_error real
+- revert_reason populated for failures
+
+==================================================
+VALIDATION REQUIRED
+==================================================
+
+Run and report:
+
+1. Source of truth:
+- git fetch origin
+- git branch --show-current
+- git rev-parse HEAD
+- git rev-parse origin/phase-14-v2-venue-execution
+- git status --short
+- git log --oneline --decorate -5
+
+2. Proof commands:
+- git grep -n -E 'case_1_v3_success|case_2_slippage_revert|case_3_no_profit_revert|case_4_mixed_v2_v3_success' -- bin/arb_battery_generator fixtures/historical_cases.json bin/arb_battery
+- git grep -n -E 'actual_amount_out|actual_profit|absolute_error|relative_error|revert_reason' -- bin/arb_battery crates/
+- git grep -n -E 'swap|ReserveBased|V3|Aerodrome|UniswapV2' -- contracts/ crates/
+
+3. Validation:
+- cargo check --workspace
+- cargo test --workspace
+- docker compose run --rm forge forge test
+- cargo run --bin arb_battery_generator
+- cargo run --bin arb_battery
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+The final battery output must show:
+- case_1_v3_success -> TRUE
+- case_2_slippage_revert -> TRUE
+- case_3_no_profit_revert -> TRUE
+- case_4_mixed_v2_v3_success -> TRUE
+
+And the battery summary should clearly reflect that all 4 cases behaved as expected.
+
+==================================================
+REQUIRED OUTPUTS
+==================================================
+
+Provide:
+1. Verdict
+2. Changed-files summary
+3. Checklist confirming:
+   - mixed V2/V3 case now succeeds
+   - no-profit case now fails for the correct reason
+   - case naming is aligned
+   - attribution remains honest
+   - no live trading logic added
+4. Exact outputs for all commands above
+5. A short walkthrough describing:
+   - what caused Case 4 to fail and how it was fixed
+   - how the no-profit case was separated from slippage
+   - what remains deferred to the next phase
+
+Do not go beyond this scope.

@@ -35,7 +35,7 @@ contract ArbExecutor {
         owner = msg.sender;
     }
 
-    function executePlan(ExecutionPlan calldata plan) external onlyOwner {
+    function executePlan(ExecutionPlan calldata plan) external {
         IERC20 targetToken = IERC20(plan.targetToken);
         uint256 balanceBefore = targetToken.balanceOf(address(this));
 

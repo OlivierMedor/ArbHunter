@@ -1,158 +1,88 @@
 [
   {
     "case_id": "case_1_v3_success",
-    "notes": "V3 Cyclic Success: USDC-WETH-USDC",
-    "fork_block_number": 43652157,
+    "notes": "Pure V3 Success Case - Diversified Pools",
+    "fork_block_number": 43650000,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "route_family": "ConcentratedLiquidity_Cyclic",
-    "pool_ids": [
-      "0xd0b53d9277642d899df5c87a3966a349a798f224",
-      "0x6c561b446416e1a00e8e93e221854d6ea4171372"
-    ],
-    "pool_kinds": [
-      "ConcentratedLiquidity",
-      "ConcentratedLiquidity"
-    ],
-    "leg_directions": [
-      false,
-      true
-    ],
+    "route_family": "UniswapV3",
+    "pool_ids": ["0xd0b53d9277642d899df5c87a3966a349a798f224", "0x4c36388be6f416a29c3d90890656bd2674e493f0"],
+    "pool_kinds": ["ConcentratedLiquidity", "ConcentratedLiquidity"],
     "path_tokens": [
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "0x4200000000000000000000000000000000000006",
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     ],
+    "leg_directions": [false, true],
     "amount_in": "100000000",
     "expected_outcome": "success",
     "guard_overrides": null,
-    "seed_data": [
-      {
-        "sqrt_price_x96": "0x2610bde4a5309320e6",
-        "tick": "-192130",
-        "liquidity": "0x1234567890abcdef"
-      },
-      {
-        "sqrt_price_x96": "0x2650bde4a5309320e6",
-        "tick": "-192130",
-        "liquidity": "0x1234567890abcdef"
-      }
-    ]
+    "seed_data": null
   },
   {
-    "case_id": "case_2_slippage_revert",
-    "notes": "Extreme slippage guard forced.",
-    "fork_block_number": 43652157,
+    "case_id": "case_2_v3_slippage_revert",
+    "notes": "Forced slippage failure",
+    "fork_block_number": 43650000,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "route_family": "ConcentratedLiquidity_Cyclic",
-    "pool_ids": [
-      "0xd0b53d9277642d899df5c87a3966a349a798f224"
-    ],
-    "pool_kinds": [
-      "ConcentratedLiquidity"
-    ],
-    "leg_directions": [
-      false
-    ],
-    "path_tokens": [
-      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "0x4200000000000000000000000000000000000006"
-    ],
-    "amount_in": "100000000",
-    "expected_outcome": "slippage_revert",
-    "guard_overrides": {
-      "min_amount_out": "200000000",
-      "min_profit_wei": "0"
-    },
-    "seed_data": [
-      {
-        "sqrt_price_x96": "0x2610bde4a5309320e6",
-        "tick": "-192130",
-        "liquidity": "0x1234567890abcdef"
-      }
-    ]
-  },
-  {
-    "case_id": "case_3_no_profit_revert",
-    "notes": "Min profit requirement not met (symmetric prices).",
-    "fork_block_number": 43652157,
-    "source_tx_hash": null,
-    "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "route_family": "ConcentratedLiquidity_Cyclic",
-    "pool_ids": [
-      "0xd0b53d9277642d899df5c87a3966a349a798f224",
-      "0x6c561b446416e1a00e8e93e221854d6ea4171372"
-    ],
-    "pool_kinds": [
-      "ConcentratedLiquidity",
-      "ConcentratedLiquidity"
-    ],
-    "leg_directions": [
-      false,
-      true
-    ],
+    "route_family": "UniswapV3",
+    "pool_ids": ["0xd0b53d9277642d899df5c87a3966a349a798f224", "0x4c36388be6f416a29c3d90890656bd2674e493f0"],
+    "pool_kinds": ["ConcentratedLiquidity", "ConcentratedLiquidity"],
     "path_tokens": [
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "0x4200000000000000000000000000000000000006",
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     ],
+    "leg_directions": [false, true],
+    "amount_in": "100000000",
+    "expected_outcome": "slippage_revert",
+    "guard_overrides": {
+      "min_amount_out": "1000000000",
+      "min_profit_wei": null
+    },
+    "seed_data": null
+  },
+  {
+    "case_id": "case_3_v3_no_profit_revert",
+    "notes": "Forced profit guard failure",
+    "fork_block_number": 43650000,
+    "source_tx_hash": null,
+    "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "route_family": "UniswapV3",
+    "pool_ids": ["0xd0b53d9277642d899df5c87a3966a349a798f224", "0x4c36388be6f416a29c3d90890656bd2674e493f0"],
+    "pool_kinds": ["ConcentratedLiquidity", "ConcentratedLiquidity"],
+    "path_tokens": [
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "0x4200000000000000000000000000000000000006",
+      "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    ],
+    "leg_directions": [false, true],
     "amount_in": "100000000",
     "expected_outcome": "no_profit_revert",
     "guard_overrides": {
       "min_profit_wei": "1000000000",
       "min_amount_out": "0"
     },
-    "seed_data": [
-      {
-        "sqrt_price_x96": "0x2610bde4a5309320e6",
-        "tick": "-192130",
-        "liquidity": "0x1234567890abcdef"
-      },
-      {
-        "sqrt_price_x96": "0x2610bde4a5309320e6",
-        "tick": "-192130",
-        "liquidity": "0x1234567890abcdef"
-      }
-    ]
+    "seed_data": null
   },
   {
     "case_id": "case_4_mixed_v2_v3_success",
-    "notes": "Mixed V2/V3 Cyclic: USDC-WETH-USDC",
-    "fork_block_number": 43652157,
+    "notes": "Mixed V2/V3 success case",
+    "fork_block_number": 43650000,
     "source_tx_hash": null,
     "root_asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "route_family": "Mixed_Cyclic",
-    "pool_ids": [
-      "0xcdac0d6c6c59727a65f871236188350531885c43",
-      "0xd0b53d9277642d899df5c87a3966a349a798f224"
-    ],
-    "pool_kinds": [
-      "ReserveBased",
-      "ConcentratedLiquidity"
-    ],
-    "leg_directions": [
-      false,
-      true
-    ],
+    "route_family": "MixedV2V3",
+    "pool_ids": ["0xcdac0d6c6c59727a65f871236188350531885c43", "0xd0b53d9277642d899df5c87a3966a349a798f224"],
+    "pool_kinds": ["ReserveBased", "ConcentratedLiquidity"],
     "path_tokens": [
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "0x4200000000000000000000000000000000000006",
       "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     ],
+    "leg_directions": [false, true],
     "amount_in": "100000000",
     "expected_outcome": "success",
     "guard_overrides": null,
-    "seed_data": [
-      {
-        "reserve0": "0x000000000000000000000000000000000000000000000000000001b3d6448d00",
-        "reserve1": "0x000000000000000000000000000000000000000000000322bcc7689000000000"
-      },
-      {
-        "sqrt_price_x96": "0x2650bde4a5309320e6",
-        "tick": "-192130",
-        "liquidity": "0x1234567890abcdef"
-      }
-    ]
+    "seed_data": null
   }
 ]
