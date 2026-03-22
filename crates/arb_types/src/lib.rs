@@ -512,3 +512,40 @@ pub struct AttributionResult {
     pub absolute_error: U256,
     pub relative_error: f64,
 }
+
+// ============================================================
+// Phase 15: Live Shadow Mode
+// ============================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DriftSummary {
+    pub profit_drift_wei: i128,
+    pub amount_out_drift_wei: i128,
+    pub is_still_profitable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShadowRecheckResult {
+    pub timestamp_ms: u64,
+    pub rechecked_amount_out: U256,
+    pub rechecked_profit: U256,
+    pub drift_summary: DriftSummary,
+    pub invalidated_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShadowJournalEntry {
+    pub timestamp_ms: u64,
+    pub candidate_id: String,
+    pub route_family: String,
+    pub root_asset: TokenAddress,
+    pub amount_in: U256,
+    pub predicted_amount_out: U256,
+    pub predicted_profit: U256,
+    pub predicted_gas: Option<u64>,
+    pub would_trade: bool,
+    pub reason: String,
+    // Populated during the delayed recheck block
+    pub recheck: Option<ShadowRecheckResult>,
+}
+

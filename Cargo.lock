@@ -582,6 +582,7 @@ dependencies = [
  "arb_state",
  "arb_types",
  "axum",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
