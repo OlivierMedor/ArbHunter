@@ -68,6 +68,16 @@ pub struct MetricsRegistry {
     pub preflight_failed_total: IntCounter,
     pub preflight_eth_call_failed_total: IntCounter,
     pub preflight_gas_estimate_failed_total: IntCounter,
+
+    // Phase 15: Shadow Mode Tracking
+    pub shadow_candidates_total: IntCounter,
+    pub shadow_promoted_total: IntCounter,
+    pub shadow_would_trade_total: IntCounter,
+    pub shadow_rechecks_total: IntCounter,
+    pub shadow_still_profitable_total: IntCounter,
+    pub shadow_invalidated_total: IntCounter,
+    pub shadow_latest_profit_drift: IntGauge,
+    pub shadow_latest_output_drift: IntGauge,
 }
 
 impl MetricsRegistry {
@@ -138,6 +148,16 @@ impl MetricsRegistry {
         let preflight_eth_call_failed_total = IntCounter::new("arb_preflight_eth_call_failed_total", "Total preflight eth_call failures").unwrap();
         let preflight_gas_estimate_failed_total = IntCounter::new("arb_preflight_gas_estimate_failed_total", "Total preflight gas estimate failures").unwrap();
 
+        // Phase 15
+        let shadow_candidates_total = IntCounter::new("arb_shadow_candidates_total", "Total candidates considered in shadow mode").unwrap();
+        let shadow_promoted_total = IntCounter::new("arb_shadow_promoted_total", "Total candidates promoted to shadow plans").unwrap();
+        let shadow_would_trade_total = IntCounter::new("arb_shadow_would_trade_total", "Total shadow combinations that would have traded").unwrap();
+        let shadow_rechecks_total = IntCounter::new("arb_shadow_rechecks_total", "Total shadow delayed rechecks performed").unwrap();
+        let shadow_still_profitable_total = IntCounter::new("arb_shadow_still_profitable_total", "Total rechecked items that were still profitable").unwrap();
+        let shadow_invalidated_total = IntCounter::new("arb_shadow_invalidated_total", "Total rechecked items that lost profitability").unwrap();
+        let shadow_latest_profit_drift = IntGauge::new("arb_shadow_latest_profit_drift", "Latest observed shadow profit drift in wei (can be negative)").unwrap();
+        let shadow_latest_output_drift = IntGauge::new("arb_shadow_latest_output_drift", "Latest observed shadow output drift in wei").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -190,6 +210,15 @@ impl MetricsRegistry {
         registry.register(Box::new(preflight_failed_total.clone())).unwrap();
         registry.register(Box::new(preflight_eth_call_failed_total.clone())).unwrap();
         registry.register(Box::new(preflight_gas_estimate_failed_total.clone())).unwrap();
+
+        registry.register(Box::new(shadow_candidates_total.clone())).unwrap();
+        registry.register(Box::new(shadow_promoted_total.clone())).unwrap();
+        registry.register(Box::new(shadow_would_trade_total.clone())).unwrap();
+        registry.register(Box::new(shadow_rechecks_total.clone())).unwrap();
+        registry.register(Box::new(shadow_still_profitable_total.clone())).unwrap();
+        registry.register(Box::new(shadow_invalidated_total.clone())).unwrap();
+        registry.register(Box::new(shadow_latest_profit_drift.clone())).unwrap();
+        registry.register(Box::new(shadow_latest_output_drift.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -247,6 +276,14 @@ impl MetricsRegistry {
             preflight_failed_total,
             preflight_eth_call_failed_total,
             preflight_gas_estimate_failed_total,
+            shadow_candidates_total,
+            shadow_promoted_total,
+            shadow_would_trade_total,
+            shadow_rechecks_total,
+            shadow_still_profitable_total,
+            shadow_invalidated_total,
+            shadow_latest_profit_drift,
+            shadow_latest_output_drift,
         }
     }
 
@@ -450,5 +487,36 @@ impl MetricsRegistry {
         let metric_families = self.registry.gather();
         encoder.encode(&metric_families, &mut buffer).unwrap();
         String::from_utf8(buffer).unwrap()
+    }
+
+    // Phase 15
+    pub fn inc_shadow_candidates(&self) {
+        self.shadow_candidates_total.inc();
+    }
+    
+    pub fn inc_shadow_promoted(&self) {
+        self.shadow_promoted_total.inc();
+    }
+    
+    pub fn inc_shadow_would_trade(&self) {
+        self.shadow_would_trade_total.inc();
+    }
+    
+    pub fn inc_shadow_rechecks(&self) {
+        self.shadow_rechecks_total.inc();
+    }
+    
+    pub fn inc_shadow_still_profitable(&self) {
+        self.shadow_still_profitable_total.inc();
+    }
+    
+    pub fn inc_shadow_invalidated(&self) {
+        self.shadow_invalidated_total.inc();
+    }
+    
+    pub fn update_shadow_drift(&self, profit_drift: i128, output_drift: i128) {
+        // Simple gauge mapping for the simplest metric exposure
+        self.shadow_latest_profit_drift.set(profit_drift as i64);
+        self.shadow_latest_output_drift.set(output_drift as i64);
     }
 }
