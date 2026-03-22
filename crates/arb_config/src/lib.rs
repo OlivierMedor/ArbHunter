@@ -3,6 +3,7 @@ use std::env;
 
 #[derive(Debug, Clone)]
 pub struct Config {
+    pub quicknode_http_url: String,
     pub quicknode_wss_url: String,
     pub alchemy_wss_url: Option<String>,
     pub chain_id: u64,
@@ -43,6 +44,16 @@ pub struct Config {
     pub shadow_max_candidates_per_window: u32,
     pub shadow_write_journal: bool,
     pub shadow_journal_path: String,
+    
+    // Phase 16: Historical Shadow Replay
+    pub enable_historical_shadow_replay: bool,
+    pub historical_replay_lookback_hours: u32,
+    pub historical_replay_start_block: Option<u64>,
+    pub historical_replay_end_block: Option<u64>,
+    pub historical_recheck_blocks: u64,
+    pub historical_replay_output_path: String,
+    pub historical_replay_metrics_port: u16,
+    pub historical_max_cases_to_verify: u32,
 }
 
 impl Config {
@@ -51,6 +62,8 @@ impl Config {
         let _ = dotenv();
 
         let parsed_config = Self {
+            quicknode_http_url: env::var("QUICKNODE_HTTP_URL")
+                .unwrap_or_else(|_| "http://localhost:8545".to_string()),
             quicknode_wss_url: env::var("QUICKNODE_WSS_URL")
                 .expect("FATAL: QUICKNODE_WSS_URL missing! A real endpoint is strictly required for Phase 2 live provider mode."),
             alchemy_wss_url: env::var("ALCHEMY_WSS_URL").ok(),
@@ -134,6 +147,31 @@ impl Config {
                 .unwrap_or(true),
             shadow_journal_path: env::var("SHADOW_JOURNAL_PATH")
                 .unwrap_or_else(|_| "shadow_journal.jsonl".to_string()),
+            
+            // Phase 16
+            enable_historical_shadow_replay: env::var("ENABLE_HISTORICAL_SHADOW_REPLAY")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
+            historical_replay_lookback_hours: env::var("HISTORICAL_REPLAY_LOOKBACK_HOURS")
+                .unwrap_or_else(|_| "24".to_string())
+                .parse()
+                .unwrap_or(24),
+            historical_replay_start_block: env::var("HISTORICAL_REPLAY_START_BLOCK").ok().and_then(|v| v.parse().ok()),
+            historical_replay_end_block: env::var("HISTORICAL_REPLAY_END_BLOCK").ok().and_then(|v| v.parse().ok()),
+            historical_recheck_blocks: env::var("HISTORICAL_RECHECK_BLOCKS")
+                .unwrap_or_else(|_| "1".to_string())
+                .parse()
+                .unwrap_or(1),
+            historical_replay_output_path: env::var("HISTORICAL_REPLAY_OUTPUT_PATH")
+                .unwrap_or_else(|_| "historical_replay_summary.json".to_string()),
+            historical_replay_metrics_port: env::var("HISTORICAL_REPLAY_METRICS_PORT")
+                .unwrap_or_else(|_| "9091".to_string())
+                .parse()
+                .unwrap_or(9091),
+            historical_max_cases_to_verify: env::var("HISTORICAL_MAX_CASES_TO_VERIFY")
+                .unwrap_or_else(|_| "5".to_string())
+                .parse()
+                .unwrap_or(5),
         };
 
         if parsed_config.enable_shadow_mode && parsed_config.enable_broadcast {

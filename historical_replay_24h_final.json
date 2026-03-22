@@ -1,0 +1,13 @@
+{
+  "start_block": 43639084,
+  "end_block": 43682284,
+  "total_blocks": 43201,
+  "total_logs": 0,
+  "candidates_considered": 0,
+  "promoted_candidates": 0,
+  "would_trade_candidates": 0,
+  "still_profitable_count": 0,
+  "invalidated_count": 0,
+  "avg_profit_drift_wei": 0,
+  "fork_verifications": []
+}

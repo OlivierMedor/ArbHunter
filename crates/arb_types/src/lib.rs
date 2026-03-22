@@ -549,3 +549,61 @@ pub struct ShadowJournalEntry {
     pub recheck: Option<ShadowRecheckResult>,
 }
 
+// ============================================================
+// Phase 16: Historical Shadow Calibration
+// ============================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricalDriftSummary {
+    pub profit_drift_wei: i128,
+    pub amount_out_drift_wei: i128,
+    pub is_still_profitable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricalRecheckResult {
+    pub block_number: u64,
+    pub rechecked_amount_out: U256,
+    pub rechecked_profit: U256,
+    pub drift_summary: HistoricalDriftSummary,
+    pub invalidated_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricalReplayResult {
+    pub case_id: String,
+    pub block_number: u64,
+    pub route_family: String,
+    pub root_asset: TokenAddress,
+    pub amount_in: U256,
+    pub predicted_amount_out: U256,
+    pub predicted_profit: U256,
+    pub would_trade: bool,
+    pub route: RoutePath,
+    pub recheck: Option<HistoricalRecheckResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoricalReplaySummary {
+    pub start_block: u64,
+    pub end_block: u64,
+    pub total_blocks: u64,
+    pub total_logs: u64,
+    pub candidates_considered: u64,
+    pub promoted_candidates: u64,
+    pub would_trade_candidates: u64,
+    pub still_profitable_count: u64,
+    pub invalidated_count: u64,
+    pub avg_profit_drift_wei: i128,
+    pub fork_verifications: Vec<ForkVerificationResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForkVerificationResult {
+    pub case_id: String,
+    pub success: bool,
+    pub realized_profit: Option<U256>,
+    pub gas_used: u64,
+    pub revert_reason: Option<String>,
+}
+

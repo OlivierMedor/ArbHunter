@@ -1,0 +1,39 @@
+[package]
+name = "arb_shadow_replay"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "arb_shadow_replay"
+path = "src/main.rs"
+
+[[bin]]
+name = "diag_logs"
+path = "src/diag_logs.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+futures = "0.3"
+ethers = { version = "2.0", features = ["rustls"] }
+prometheus = "0.13"
+lazy_static = "1.4"
+warp = "0.3"
+hex = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+alloy-primitives = "=0.8.18"
+alloy-sol-types = "=0.8.18"
+
+arb_types = { path = "../../crates/arb_types" }
+arb_config = { path = "../../crates/arb_config" }
+arb_metrics = { path = "../../crates/arb_metrics" }
+arb_providers = { path = "../../crates/arb_providers" }
+arb_state = { path = "../../crates/arb_state" }
+arb_ingest = { path = "../../crates/arb_ingest" }
+arb_route = { path = "../../crates/arb_route" }
+arb_sim = { path = "../../crates/arb_sim" }
+arb_execute = { path = "../../crates/arb_execute" }
