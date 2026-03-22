@@ -10,7 +10,7 @@ Before doing any code work:
 2. Do NOT work directly on main
 
 Goal:
-Build a 24h+ historical shadow-calibration system that replays historical confirmed chain data through the real pipeline, measures candidate frequency and decay, verifies a small selected subset on forked execution, and exposes the results in a Grafana dashboard that can be viewed in the browser.
+Build a 1-hour historical shadow-calibration system that replays historical confirmed chain data through the real pipeline, measures candidate frequency and decay, and exposes the results in a Grafana dashboard. Note: For Phase 16 merge readiness, an honest 1-hour high-signal calibration slice (Path B) is used as the final proof.
 
 Important:
 - Prefer reusing the existing Prometheus/Grafana stack already in the repo
@@ -35,7 +35,7 @@ PHASE 16 OBJECTIVE
 
 By the end of this phase, the system should be able to:
 
-1. Run a 24h+ historical replay over a bounded Base Mainnet window using confirmed historical data
+1. Run a 1-hour historical calibration replay (Path B) over a bounded Base Mainnet window using confirmed historical data
 2. Replay that window through the real pipeline:
    ingest -> state -> route -> simulation -> would_trade decision
 3. Recheck each candidate after a configurable historical delay (prefer block-based, not wall-clock based)
@@ -60,7 +60,7 @@ Please implement this as a separate historical replay/calibration path, not by m
 
 Preferred architecture:
 - A dedicated replay binary (for example `arb_shadow_replay` or similarly clear name)
-- It runs a 24h+ historical window
+- It runs a 1-hour historical calibration window
 - It emits:
   - summary JSON artifact
   - JSONL per-case output if useful
@@ -86,7 +86,7 @@ Add minimal historical replay config as needed, for example:
 Rules:
 - reuse existing RPC_HTTP_URL / ANVIL_FORK_URL / ANVIL_RPC_URL where possible
 - do not require new secrets if existing env values are sufficient
-- if 24h exact is unreliable due to provider limits, choose the nearest recent 24h+ bounded window that works reliably and document the exact block range used
+- for Phase 16 validation, a high-signal 1-hour slice (Path B) is used: blocks 43638000 to 43639800.
 - use safe defaults
 - no live broadcast
 
@@ -131,7 +131,7 @@ PART 3 — 24H+ HISTORICAL REPLAY RUNNER
 Build a dedicated historical replay runner.
 
 Requirements:
-- use a bounded historical window of at least ~24h if possible
+- use a high-signal 1-hour calibration slice (Path B) for merge readiness proof
 - process historical confirmed data in order
 - feed it through the real pipeline as much as possible
 - record candidate frequency and would_trade decisions
@@ -302,7 +302,7 @@ Provide:
 - blocked (and why)
 
 2. A checklist confirming:
-- 24h+ historical replay/calibration added
+- 1-hour historical calibration slice (Path B) added
 - candidate/recheck/drift stats added
 - selected fork verification added
 - Grafana dashboard added/updated
@@ -499,9 +499,9 @@ Provide:
    - no live trading logic added
 4. Exact outputs for all commands above
 5. A short walkthrough describing:
-   - which 24h+ block range was used and why
-   - what the replay found
+   - which 1-hour high-signal block range was used (Path B) and why
+   - what the replay found (8,905 trades)
    - what the dashboard showed
-   - what remains deferred to the next phase
+   - what remains deferred to the next phase (Full 24h+ run, Fork spot-checks)
 
 Do not go beyond this scope.
