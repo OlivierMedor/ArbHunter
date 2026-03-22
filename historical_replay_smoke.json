@@ -1,8 +1,8 @@
 {
-  "start_block": 43638000,
-  "end_block": 43658000,
-  "total_blocks": 20001,
-  "total_logs": 61224,
+  "start_block": 43679105,
+  "end_block": 43680905,
+  "total_blocks": 1801,
+  "total_logs": 0,
   "candidates_considered": 0,
   "promoted_candidates": 0,
   "would_trade_candidates": 0,

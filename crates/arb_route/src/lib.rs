@@ -15,6 +15,14 @@ impl RouteGraph {
         }
     }
 
+    pub fn node_count(&self) -> usize {
+        self.graph.node_count()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.graph.edge_count()
+    }
+
     /// Build or rebuild the graph from a collection of pool snapshots.
     pub fn build_from_snapshots(&mut self, snapshots: Vec<PoolStateSnapshot>) {
         self.graph.clear();
@@ -138,15 +146,8 @@ impl RouteGraph {
 
         routes
     }
-
-    pub fn node_count(&self) -> usize {
-        self.graph.node_count()
-    }
-
-    pub fn edge_count(&self) -> usize {
-        self.graph.edge_count()
-    }
 }
+
 
 
 use arb_types::{CandidateOpportunity, QuoteSizeBucket, PoolKind};
