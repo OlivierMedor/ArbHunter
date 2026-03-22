@@ -236,12 +236,20 @@ async fn main() -> anyhow::Result<()> {
                         metrics.inc_hist_invalidated();
                     }
                     
+                    let profit_drift = if res.predicted_profit > rechecked_profit {
+                        res.predicted_profit - rechecked_profit
+                    } else {
+                        rechecked_profit - res.predicted_profit
+                    };
+                    let drift_wei = profit_drift.to::<u128>();
+                    stats.total_profit_drift += drift_wei;
+                    
                     res.recheck = Some(HistoricalRecheckResult {
                         block_number: block_num,
                         rechecked_amount_out,
                         rechecked_profit,
                         drift_summary: HistoricalDriftSummary {
-                            profit_drift_wei: 0,
+                            profit_drift_wei: drift_wei as i128,
                             amount_out_drift_wei: 0,
                             is_still_profitable: still_profitable,
                         },
@@ -293,7 +301,74 @@ async fn main() -> anyhow::Result<()> {
         current_block = chunk_end + 1;
     }
 
+    // Flush any leftover pending rechecks from the final blocks
+    for (block_num, to_recheck) in pending_rechecks {
+        for mut res in to_recheck {
+            stats.rechecks_total += 1;
+            metrics.inc_hist_rechecks();
+
+            let mut current_amount = res.amount_in;
+            let mut possible = true;
+            for leg in &res.route.legs {
+                let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
+                let next_opt = match leg.edge.kind {
+                    PoolKind::ReserveBased => state_engine.quote_v2(&leg.edge.pool_id, current_amount, zero_for_one).await,
+                    PoolKind::ConcentratedLiquidity => state_engine.quote_v3(&leg.edge.pool_id, current_amount, zero_for_one).await,
+                    _ => None,
+                };
+                match next_opt {
+                    Some(nxt) if !nxt.is_zero() => current_amount = nxt,
+                    _ => { possible = false; break; }
+                }
+            }
+            
+            let rechecked_amount_out = if possible { current_amount } else { AlloyU256::ZERO };
+            let rechecked_profit = if rechecked_amount_out > res.amount_in {
+                rechecked_amount_out - res.amount_in
+            } else {
+                AlloyU256::ZERO
+            };
+
+            let still_profitable = rechecked_profit > AlloyU256::ZERO;
+            if still_profitable {
+                stats.still_profitable += 1;
+                metrics.inc_hist_still_profitable();
+            } else {
+                stats.invalidated += 1;
+                metrics.inc_hist_invalidated();
+            }
+            
+            let profit_drift = if res.predicted_profit > rechecked_profit {
+                res.predicted_profit - rechecked_profit
+            } else {
+                rechecked_profit - res.predicted_profit
+            };
+            let drift_wei = profit_drift.to::<u128>();
+            stats.total_profit_drift += drift_wei;
+            
+            res.recheck = Some(HistoricalRecheckResult {
+                block_number: block_num,
+                rechecked_amount_out,
+                rechecked_profit,
+                drift_summary: HistoricalDriftSummary {
+                    profit_drift_wei: drift_wei as i128,
+                    amount_out_drift_wei: 0,
+                    is_still_profitable: still_profitable,
+                },
+                invalidated_reason: if !possible { Some("LiquidityVanished".to_string()) } else { None },
+            });
+            results.push(res);
+        }
+    }
+
     info!("Replay Complete. Saving summary...");
+    
+    let avg_drift = if stats.rechecks_total > 0 {
+        (stats.total_profit_drift / (stats.rechecks_total as u128)) as i128
+    } else {
+        0
+    };
+
     let summary = HistoricalReplaySummary {
         start_block,
         end_block,
@@ -304,7 +379,7 @@ async fn main() -> anyhow::Result<()> {
         would_trade_candidates: stats.would_trade,
         still_profitable_count: stats.still_profitable,
         invalidated_count: stats.invalidated,
-        avg_profit_drift_wei: 0,
+        avg_profit_drift_wei: avg_drift,
         fork_verifications: Vec::new(),
     };
     
@@ -323,6 +398,7 @@ struct ReplayStats {
     rechecks_total: u64,
     still_profitable: u64,
     invalidated: u64,
+    total_profit_drift: u128,
 }
 
 impl ReplayStats {
@@ -334,6 +410,7 @@ impl ReplayStats {
             rechecks_total: 0,
             still_profitable: 0,
             invalidated: 0,
+            total_profit_drift: 0,
         }
     }
 }
