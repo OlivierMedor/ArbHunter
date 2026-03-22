@@ -10,8 +10,9 @@ async fn main() -> anyhow::Result<()> {
     
     println!("Diagnosing blocks {} to {} with manual filter", start_block, end_block);
 
-    let rpc_url = "https://ultra-weathered-panorama.base-mainnet.quiknode.pro/2201752fbbf22452c52ed752559b6ddf9f5d91ea/";
-    let provider = Provider::<Http>::try_from(rpc_url)?;
+    let rpc_url = std::env::var("QUICKNODE_HTTP_URL")
+        .expect("QUICKNODE_HTTP_URL env var must be set");
+    let provider = Provider::<Http>::try_from(rpc_url.as_str())?;
     
     let v2_sync_sig = H256::from_slice(&hex::decode("1c91f030eb7c0a042c0211d40a5440311dec3b1285bc035ede49007f502574e4").unwrap());
     
