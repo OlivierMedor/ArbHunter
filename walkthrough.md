@@ -29,11 +29,17 @@ The Grafana dashboard **"Historical Shadow Calibration"** was validated against 
 - **Would Trade Panel:** 8.91K
 - **Still Profitable Panel:** 8.91K
 - **Invalidated Panel:** 0
+- **Fork Verification Panel:** N/A (Deferred)
 
-The dashboard values perfectly match the canonical artifact and demonstrate that the Prometheus metrics endpoint correctly exposes the replay results.
+The dashboard values match the canonical artifact and demonstrate that the Prometheus metrics endpoint correctly exposes the replay results.
 
 ### Visual Proof
 ![Historical Shadow Calibration Dashboard](file:///C:/Users/olivi/.gemini/antigravity/brain/ee6b4179-ea2a-4454-bb93-25f9566bbfd3/phase_16_dashboard_validation_-62135596800000.webp)
+
+## 5. Deferred Items
+To ensure merge readiness with a truthful, high-signal baseline, the following were deferred:
+- **Full 24h+ Replay:** A 1-hour calibration slice (Path B) was used as the high-signal baseline.
+- **Fork Verification:** Replaying candidates on a local fork remain deferred for future rollout stages.
 
 ## 6. Full Proof Report
 For raw command outputs, git identity, and detailed safety/config audits, see the [Phase 16 Validation Proof](file:///C:/Users/olivi/.gemini/antigravity/brain/ee6b4179-ea2a-4454-bb93-25f9566bbfd3/proof_phase_16.md).

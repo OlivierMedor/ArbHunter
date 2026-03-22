@@ -10,7 +10,8 @@ Before doing any code work:
 2. Do NOT work directly on main
 
 Goal:
-Build a 1-hour historical shadow-calibration system that replays historical confirmed chain data through the real pipeline, measures candidate frequency and decay, and exposes the results in a Grafana dashboard. Note: For Phase 16 merge readiness, an honest 1-hour high-signal calibration slice (Path B) is used as the final proof.
+Build a 1-hour historical shadow-calibration system that replays historical confirmed chain data through the real pipeline, measures candidate frequency and decay, and exposes the results in a Grafana dashboard.
+Note: For this branch, a high-signal 1-hour calibration slice (Path B) is used as the final proof. Fork verification and a full 24h+ run remain deferred.
 
 Important:
 - Prefer reusing the existing Prometheus/Grafana stack already in the repo
@@ -50,7 +51,7 @@ By the end of this phase, the system should be able to:
    - route family / venue family breakdown
 5. Produce a machine-readable summary and a human-readable report
 6. Expose those replay statistics in Grafana so they can be viewed in the browser
-7. Also run a small selected fork-verification subset (for example 1 success + 1 revert) using the existing fork harness, so the dashboard/report can include “historical replay stats” plus “selected fork verification stats”
+7. Note: A high-signal 1-hour calibration slice (Path B) was run for the merge-ready proof. Full 24h+ replay and automatic fork selection/verification remain deferred.
 
 ==================================================
 HIGH-LEVEL DESIGN
@@ -65,7 +66,7 @@ Preferred architecture:
   - summary JSON artifact
   - JSONL per-case output if useful
   - Prometheus metrics endpoint that stays up after the run so Grafana can scrape and display the results
-- A separate small selected fork-verification step reusing the Phase 12/13/14 execution harness
+- Replaying every candidate on a fork remains deferred for full production rollout.
 
 ==================================================
 PART 1 — CONFIG
@@ -148,19 +149,7 @@ Important:
 PART 4 — SELECTED FORK VERIFICATION
 ==================================================
 
-From the replay results, automatically choose a very small representative subset for deeper verification, such as:
-- 1 likely success
-- 1 likely revert or invalidated case
-
-Then reuse the existing local/fork execution harness to verify those specific cases on a fork.
-
-Record:
-- actual tx success/revert
-- gas used
-- actual realized output/profit if applicable
-- revert reason if applicable
-
-This is a small “spot check” layer, not a full replay of every candidate on a fork.
+- Full fork verification for every candidate remains deferred.
 
 ==================================================
 PART 5 — METRICS
@@ -304,7 +293,7 @@ Provide:
 2. A checklist confirming:
 - 1-hour historical calibration slice (Path B) added
 - candidate/recheck/drift stats added
-- selected fork verification added
+- Fork verification deferred
 - Grafana dashboard added/updated
 - browser validation completed
 - no live trading logic added
