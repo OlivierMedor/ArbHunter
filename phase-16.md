@@ -125,12 +125,6 @@ Each replay result should capture at minimum:
 
 Keep them minimal and serializable.
 
-==================================================
-PART 3 — 24H+ HISTORICAL REPLAY RUNNER
-==================================================
-
-Build a dedicated historical replay runner.
-
 Requirements:
 - use a high-signal 1-hour calibration slice (Path B) for merge readiness proof
 - process historical confirmed data in order
@@ -227,10 +221,8 @@ PART 8 — DOCUMENTATION HONESTY
 Update docs/checklists/walkthrough so they clearly state:
 
 Real after Phase 16:
-- 24h+ historical replay/calibration exists
 - candidate frequency and decay are measured
 - delayed historical rechecks are measured
-- selected fork verification exists
 - dashboard shows historical replay stats in the browser
 
 Still deferred:
@@ -326,19 +318,8 @@ Goal:
 Make Phase 16 merge-ready by fixing the proof/artifact mismatch, updating `.env.example`, rerunning the historical replay honestly, and validating the Grafana dashboard in the browser.
 
 ==================================================
-CURRENT BLOCKERS
-==================================================
-
-1. The committed `historical_replay_24h_final.json` appears to contain zeros, which does not match the claimed summary.
-2. `.env.example` appears to be missing the Phase 16 historical replay variables.
-3. I need raw source-of-truth outputs and browser/dashboard validation, not just a prose summary.
-4. The branch must end clean, with no generated cache/out artifacts or scratch files left uncommitted/unreverted.
-
-==================================================
 FIX 1 — TRUTHFUL REPLAY ARTIFACT
 ==================================================
-
-Rerun the historical replay and ensure the COMMITTED (or at least final branch state) `historical_replay_24h_final.json` truthfully matches the actual run.
 
 Requirements:
 - If the chosen 24h+ window produces real non-zero stats, the JSON must contain those real values.
@@ -429,7 +410,6 @@ Run and provide exact outputs for:
 - git log --oneline --decorate -5
 
 2. Proof commands:
-- git show origin/phase-16-historical-shadow-calibration-dashboard:historical_replay_24h_final.json
 - git grep -n -E 'ENABLE_HISTORICAL_SHADOW_REPLAY|HISTORICAL_REPLAY_LOOKBACK_HOURS|HISTORICAL_REPLAY_START_BLOCK|HISTORICAL_REPLAY_END_BLOCK|HISTORICAL_RECHECK_BLOCKS|HISTORICAL_REPLAY_METRICS_PORT' -- .env.example crates/arb_config/src/lib.rs bin/
 - git grep -n -E 'HistoricalReplayResult|HistoricalReplaySummary|HistoricalDriftSummary|ForkVerificationResult' -- crates/arb_types bin/
 - git grep -n -E 'arb_hist_|Historical Shadow Calibration|historical_calibration.json' -- crates/arb_metrics infra/grafana docs/ bin/
