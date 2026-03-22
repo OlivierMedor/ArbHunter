@@ -163,7 +163,7 @@ impl Config {
                 .parse()
                 .unwrap_or(1),
             historical_replay_output_path: env::var("HISTORICAL_REPLAY_OUTPUT_PATH")
-                .unwrap_or_else(|_| "historical_replay_summary.json".to_string()),
+                .unwrap_or_else(|_| "historical_replay_calibration_final.json".to_string()),
             historical_replay_metrics_port: env::var("HISTORICAL_REPLAY_METRICS_PORT")
                 .unwrap_or_else(|_| "9091".to_string())
                 .parse()
