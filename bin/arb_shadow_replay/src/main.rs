@@ -43,7 +43,20 @@ async fn main() -> anyhow::Result<()> {
     let metrics = Arc::new(MetricsRegistry::new());
     let metrics_port = config.historical_replay_metrics_port;
     
-    /*
+    let rpc_url = &config.quicknode_http_url;
+    // Mask token for log compliance
+    let masked_url = if let Some(pos) = rpc_url.rfind('/') {
+        if pos < rpc_url.len() - 1 {
+            format!("{}/***/", &rpc_url[..pos])
+        } else {
+            rpc_url.clone()
+        }
+    } else {
+        rpc_url.clone()
+    };
+    info!("Initializing provider with masked URL: {}", masked_url);
+    let provider = Arc::new(Provider::<Http>::try_from(rpc_url)?);
+
     let metrics_state = metrics.clone();
     tokio::spawn(async move {
         let metrics_route = warp::path("metrics")
@@ -52,11 +65,7 @@ async fn main() -> anyhow::Result<()> {
         info!("Serving metrics at http://0.0.0.0:{}", metrics_port);
         warp::serve(metrics_route).run(([0, 0, 0, 0], metrics_port)).await;
     });
-    */
 
-    let rpc_url = "https://ultra-weathered-panorama.base-mainnet.quiknode.pro/2201752fbbf22452c52ed752559b6ddf9f5d91ea/";
-    let provider = Arc::new(Provider::<Http>::try_from(rpc_url)?);
-    
     let latest_block = provider.get_block_number().await?.as_u64();
     let (start_block, end_block) = if let (Some(s), Some(e)) = (config.historical_replay_start_block, config.historical_replay_end_block) {
         (s, e)
@@ -71,8 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let state_engine = Arc::new(StateEngine::new(metrics.clone()));
     let generator = CandidateGenerator::new(state_engine.clone());
     let root_asset = TokenAddress(config.root_asset.clone());
-    let buckets = vec![QuoteSizeBucket::Custom(100_000_000_000_000_000)];
-
+    
     let mut stats = ReplayStats::new(start_block, end_block);
     let mut pending_rechecks: BTreeMap<u64, Vec<HistoricalReplayResult>> = BTreeMap::new();
     let mut results: Vec<HistoricalReplayResult> = Vec::new();
@@ -129,7 +137,6 @@ async fn main() -> anyhow::Result<()> {
                                 match (contract.token_0().call().await, contract.token_1().call().await) {
                                     (Ok(t0_addr), Ok(t1_addr)) if !t0_addr.is_zero() && !t1_addr.is_zero() => {
                                         pool_tokens.insert(pool_addr, (TokenAddress(format!("{:?}", t0_addr)), TokenAddress(format!("{:?}", t1_addr))));
-                                        info!("Metadata found for {:?}: t0={:?}, t1={:?}", pool_addr, t0_addr, t1_addr);
                                         
                                         // Initial reserve fetch
                                         if let Ok((r0, r1, _)) = contract.get_reserves().call().await {
@@ -144,14 +151,13 @@ async fn main() -> anyhow::Result<()> {
                                                 cl_full_state: None,
                                                 stamp: EventStamp { block_number: block_num - 1, log_index: 0 },
                                             }).await;
-                                            info!("  Initial reserves for {:?}: {} / {}", pool_addr, r0, r1);
                                         }
                                     }
                                     _ => {
                                         continue;
                                     }
                                 }
-                                tokio::time::sleep(Duration::from_millis(50)).await;
+                                tokio::time::sleep(Duration::from_millis(10)).await;
                             }
 
                             if let Some((t0_addr, t1_addr)) = pool_tokens.get(&pool_addr) {
@@ -196,6 +202,9 @@ async fn main() -> anyhow::Result<()> {
             // Rechecks
             if let Some(to_recheck) = pending_rechecks.remove(&block_num) {
                 for mut res in to_recheck {
+                    stats.rechecks_total += 1;
+                    metrics.inc_hist_rechecks();
+
                     let mut current_amount = res.amount_in;
                     let mut possible = true;
                     for leg in &res.route.legs {
@@ -217,6 +226,15 @@ async fn main() -> anyhow::Result<()> {
                     } else {
                         AlloyU256::ZERO
                     };
+
+                    let still_profitable = rechecked_profit > AlloyU256::ZERO;
+                    if still_profitable {
+                        stats.still_profitable += 1;
+                        metrics.inc_hist_still_profitable();
+                    } else {
+                        stats.invalidated += 1;
+                        metrics.inc_hist_invalidated();
+                    }
                     
                     res.recheck = Some(HistoricalRecheckResult {
                         block_number: block_num,
@@ -225,7 +243,7 @@ async fn main() -> anyhow::Result<()> {
                         drift_summary: HistoricalDriftSummary {
                             profit_drift_wei: 0,
                             amount_out_drift_wei: 0,
-                            is_still_profitable: rechecked_profit > AlloyU256::ZERO,
+                            is_still_profitable: still_profitable,
                         },
                         invalidated_reason: if !possible { Some("LiquidityVanished".to_string()) } else { None },
                     });
@@ -243,13 +261,14 @@ async fn main() -> anyhow::Result<()> {
                     QuoteSizeBucket::Custom(100_000_000_000_000_000), // 0.1 ETH
                 ]).await;
                 
-                if block_num % 100 == 0 {
-                    info!("  Block {}: pools={}, candidates={}", block_num, snapshots.len(), candidates.len());
-                }
+                stats.candidates_considered += candidates.len() as u64;
+                for _ in 0..candidates.len() { metrics.inc_hist_candidates(); }
 
                 for cand in candidates {
                     if cand.estimated_gross_profit > AlloyU256::ZERO {
                         stats.would_trade += 1;
+                        metrics.inc_hist_would_trade(if cand.path.legs.len() > 2 { "multi" } else { "direct" });
+
                         let result = HistoricalReplayResult {
                             case_id: format!("{}-{}", block_num, stats.would_trade),
                             block_number: block_num,
@@ -268,7 +287,7 @@ async fn main() -> anyhow::Result<()> {
             }
             
             if block_num % 100 == 0 {
-                info!("  Block {}: trades={}", block_num, stats.would_trade);
+                info!("  Block {}: pools={}, trades={}", block_num, snapshots.len(), stats.would_trade);
             }
         }
         current_block = chunk_end + 1;
@@ -280,11 +299,11 @@ async fn main() -> anyhow::Result<()> {
         end_block,
         total_blocks: end_block - start_block + 1,
         total_logs: stats.total_logs,
-        candidates_considered: 0,
-        promoted_candidates: 0,
+        candidates_considered: stats.candidates_considered,
+        promoted_candidates: stats.would_trade, // In this replayer, would_trade is the promotion criteria
         would_trade_candidates: stats.would_trade,
-        still_profitable_count: 0,
-        invalidated_count: 0,
+        still_profitable_count: stats.still_profitable,
+        invalidated_count: stats.invalidated,
         avg_profit_drift_wei: 0,
         fork_verifications: Vec::new(),
     };
@@ -293,14 +312,28 @@ async fn main() -> anyhow::Result<()> {
     tokio::fs::write(&config.historical_replay_output_path, summary_json).await?;
     
     info!("Phase 16 Calibration Finished. Metrics available at http://0.0.0.0:{}/metrics", metrics_port);
+    info!("Keeping process alive for Grafana scraping (Ctrl+C to stop)...");
     loop { sleep(Duration::from_secs(60)).await; }
 }
 
 struct ReplayStats {
     total_logs: u64,
+    candidates_considered: u64,
     would_trade: u64,
+    rechecks_total: u64,
+    still_profitable: u64,
+    invalidated: u64,
 }
 
 impl ReplayStats {
-    fn new(_: u64, _: u64) -> Self { Self { total_logs: 0, would_trade: 0 } }
+    fn new(_: u64, _: u64) -> Self {
+        Self {
+            total_logs: 0,
+            candidates_considered: 0,
+            would_trade: 0,
+            rechecks_total: 0,
+            still_profitable: 0,
+            invalidated: 0,
+        }
+    }
 }
