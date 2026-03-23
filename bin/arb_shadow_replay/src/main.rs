@@ -10,11 +10,11 @@ use arb_metrics::MetricsRegistry;
 use arb_ingest::DexDecoder;
 use arb_state::StateEngine;
 use arb_route::{RouteGraph, CandidateGenerator};
-use alloy_primitives::{U256 as AlloyU256};
+use alloy_primitives::{U256 as AlloyU256, U128 as AlloyU128};
 use arb_types::{
     EventStamp, IngestEvent, PoolId, PoolKind, PoolUpdate, TokenAddress, QuoteSizeBucket,
     HistoricalReplayResult, HistoricalReplaySummary, HistoricalRecheckResult, HistoricalDriftSummary,
-    ForkVerificationResult, PendingLogEvent, RoutePath, ShadowRecheckResult
+    ForkVerificationResult, PendingLogEvent, RoutePath, ShadowRecheckResult, CLSnapshot, ReserveSnapshot, RouteLeg
 };
 use ethers::prelude::*;
 use warp::Filter;
@@ -60,6 +60,20 @@ impl ReplayStats {
     }
 }
 
+fn eth_u256_to_alloy(eth: ethers::types::U256) -> AlloyU256 {
+    let mut bytes = [0u8; 32];
+    eth.to_big_endian(&mut bytes);
+    AlloyU256::from_be_bytes(bytes)
+}
+
+fn eth_u128_to_alloy(eth_u128: u128) -> AlloyU128 {
+    AlloyU128::from(eth_u128)
+}
+
+fn normalize_addr(addr: ethers::types::Address) -> String {
+    format!("{:?}", addr).to_lowercase()
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -88,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
         (s, e)
     } else {
         let latest = provider.get_block_number().await?.as_u64();
-        (latest - 1000, latest)
+        (latest.saturating_sub(1000), latest)
     };
 
     info!("Replaying {}..{} ({} blocks)", start_block, end_block, end_block - start_block + 1);
@@ -96,7 +110,11 @@ async fn main() -> anyhow::Result<()> {
     let decoder = DexDecoder::new(metrics.clone());
     let state_engine = Arc::new(StateEngine::new(metrics.clone()));
     let generator = CandidateGenerator::new(state_engine.clone());
-    let root_asset = TokenAddress(config.root_asset.clone());
+    
+    // Normalize root asset
+    let root_addr = ethers::types::Address::from_str(&config.root_asset)?;
+    let root_asset = TokenAddress(normalize_addr(root_addr));
+    info!("Root asset (normalized): {}", root_asset.0);
     
     let mut stats = ReplayStats::new();
     let mut pending_rechecks: BTreeMap<u64, Vec<HistoricalReplayResult>> = BTreeMap::new();
@@ -112,19 +130,20 @@ async fn main() -> anyhow::Result<()> {
 
     while current_block_ptr <= end_block {
         let chunk_end = (current_block_ptr + chunk_size - 1).min(end_block);
-        let mut chunk_logs = Vec::new();
+        
+        let mut logs = Vec::new();
         for sig in [v2_sync_sig, aero_swap_sig, v3_swap_sig] {
             let filter = ethers::types::Filter::new()
                 .from_block(current_block_ptr)
                 .to_block(chunk_end)
                 .topic0(ValueOrArray::Value(sig));
             if let Ok(l) = provider.get_logs(&filter).await {
-                chunk_logs.extend(l);
+                logs.extend(l);
             }
         }
         
         let mut logs_by_block: BTreeMap<u64, Vec<ethers::types::Log>> = BTreeMap::new();
-        for log in chunk_logs {
+        for log in logs {
             if let Some(bn) = log.block_number {
                 logs_by_block.entry(bn.as_u64()).or_default().push(log);
             }
@@ -140,58 +159,72 @@ async fn main() -> anyhow::Result<()> {
                     if let Some(t0) = topic0 {
                         let is_sync = t0 == v2_sync_sig;
                         let is_v3_swap = t0 == v3_swap_sig;
+                        let is_aero_swap = t0 == aero_swap_sig;
 
-                        if is_sync || is_v3_swap {
+                        if is_sync || is_v3_swap || is_aero_swap {
                             if !pool_tokens.contains_key(&pool_addr) {
                                 let v2_pool = IERC20Pool::new(pool_addr, provider.clone());
-                                if let (Ok(t0_addr), Ok(t1_addr)) = (v2_pool.token_0().call().await, v2_pool.token_1().call().await) {
-                                    if !t0_addr.is_zero() && !t1_addr.is_zero() {
-                                        let t0_ta = TokenAddress(format!("{:?}", t0_addr));
-                                        let t1_ta = TokenAddress(format!("{:?}", t1_addr));
+                                let call_t0 = v2_pool.token_0();
+                                let call_t1 = v2_pool.token_1();
+                                match tokio::join!(call_t0.call(), call_t1.call()) {
+                                    (Ok(t0_raw), Ok(t1_raw)) => {
+                                        let t0_ta = TokenAddress(normalize_addr(t0_raw));
+                                        let t1_ta = TokenAddress(normalize_addr(t1_raw));
                                         pool_tokens.insert(pool_addr, (t0_ta.clone(), t1_ta.clone()));
-                                        if is_sync {
-                                            if let Ok((r0, r1, _)) = v2_pool.get_reserves().call().await {
+                                        
+                                        if is_sync || is_aero_swap {
+                                            let call_r = v2_pool.get_reserves();
+                                            if let Ok((r0, r1, _)) = call_r.call().await {
                                                 state_engine.apply(PoolUpdate {
-                                                    pool_id: PoolId(format!("{:?}", pool_addr)),
+                                                    pool_id: PoolId(normalize_addr(pool_addr)),
                                                     kind: PoolKind::ReserveBased,
                                                     token0: Some(t0_ta),
                                                     token1: Some(t1_ta),
                                                     fee_bps: Some(30),
-                                                    reserves: Some(arb_types::ReserveSnapshot { reserve0: r0, reserve1: r1 }),
+                                                    reserves: Some(ReserveSnapshot { reserve0: r0, reserve1: r1 }),
                                                     cl_snapshot: None,
                                                     cl_full_state: None,
                                                     stamp: EventStamp { block_number: block_num - 1, log_index: 0 },
                                                 }).await;
                                             }
-                                        } else {
+                                        } else if is_v3_swap {
                                             let v3_pool = IUniswapV3Pool::new(pool_addr, provider.clone());
-                                            if let (Ok(slot0), Ok(liq), Ok(fee)) = (v3_pool.slot_0().call().await, v3_pool.liquidity().call().await, v3_pool.fee().call().await) {
-                                                state_engine.apply(PoolUpdate {
-                                                    pool_id: PoolId(format!("{:?}", pool_addr)),
-                                                    kind: PoolKind::ConcentratedLiquidity,
-                                                    token0: Some(t0_ta),
-                                                    token1: Some(t1_ta),
-                                                    fee_bps: Some(fee as u32),
-                                                    reserves: None,
-                                                    cl_snapshot: Some(arb_types::CLSnapshot {
-                                                        sqrt_price_x96: AlloyU256::from_str(&U256::from(slot0.0).to_string()).unwrap(),
-                                                        liquidity: alloy_primitives::U128::from_str(&liq.to_string()).unwrap(),
-                                                        tick: slot0.1,
-                                                    }),
-                                                    cl_full_state: None,
-                                                    stamp: EventStamp { block_number: block_num - 1, log_index: 0 },
-                                                }).await;
+                                            let call_s = v3_pool.slot_0();
+                                            let call_l = v3_pool.liquidity();
+                                            let call_f = v3_pool.fee();
+                                            match tokio::join!(call_s.call(), call_l.call(), call_f.call()) {
+                                                (Ok(slot0), Ok(liq), Ok(fee)) => {
+                                                    state_engine.apply(PoolUpdate {
+                                                        pool_id: PoolId(normalize_addr(pool_addr)),
+                                                        kind: PoolKind::ConcentratedLiquidity,
+                                                        token0: Some(t0_ta),
+                                                        token1: Some(t1_ta),
+                                                        fee_bps: Some(fee as u32),
+                                                        reserves: None,
+                                                        cl_snapshot: Some(CLSnapshot {
+                                                            sqrt_price_x96: eth_u256_to_alloy(slot0.0),
+                                                            liquidity: eth_u128_to_alloy(liq),
+                                                            tick: slot0.1,
+                                                        }),
+                                                        cl_full_state: None,
+                                                        stamp: EventStamp { block_number: block_num - 1, log_index: 0 },
+                                                    }).await;
+                                                }
+                                                _ => {},
                                             }
                                         }
                                     }
+                                    _ => {}
                                 }
                             }
 
                             if let Some((t0_a, t1_a)) = pool_tokens.get(&pool_addr) {
                                 let pl = PendingLogEvent {
-                                    address: format!("{:?}", pool_addr),
-                                    topics: log.topics.iter().map(|t| format!("{:?}", t)).collect(),
+                                    address: normalize_addr(pool_addr),
+                                    topics: log.topics.iter().map(|t| format!("{:?}", t).to_lowercase()).collect(),
                                     data: format!("0x{}", hex::encode(&log.data)),
+                                    transaction_hash: format!("{:?}", log.transaction_hash.unwrap_or_default()).to_lowercase(),
+                                    block_number: log.block_number.unwrap_or_default().as_u64(),
                                     log_index: log.log_index.unwrap_or_default().as_u32(),
                                 };
                                 if let Some(mut update) = decoder.decode_log(&pl) {
@@ -253,41 +286,46 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
-            let snapshots = state_engine.get_all_pools().await;
-            if !snapshots.is_empty() {
+            if block_num % 100 == 0 || block_num == start_block {
+                let snapshots = state_engine.get_all_pools().await;
                 let mut graph = RouteGraph::new();
-                graph.build_from_snapshots(snapshots.clone());
-                let candidates = generator.generate_candidates(&graph, &root_asset, &vec![
-                    QuoteSizeBucket::Custom(1_000_000_000_000_000), 
-                ]).await;
-                
-                stats.candidates_considered += candidates.len() as u64;
-                for _ in 0..candidates.len() { metrics.inc_hist_candidates(); }
+                if !snapshots.is_empty() {
+                    graph.build_from_snapshots(snapshots.clone());
+                    
+                    if graph.has_token(&root_asset) {
+                        let buckets = vec![
+                            QuoteSizeBucket::Custom(1_000_000_000_000_000), // 0.001 ETH
+                            QuoteSizeBucket::Custom(10_000_000_000_000_000), // 0.01 ETH
+                            QuoteSizeBucket::Custom(50_000_000_000_000_000), // 0.05 ETH
+                        ];
+                        let candidates = generator.generate_candidates(&graph, &root_asset, &buckets).await;
+                        
+                        stats.candidates_considered += candidates.len() as u64;
+                        for _ in 0..candidates.len() { metrics.inc_hist_candidates(); }
 
-                for cand in candidates {
-                    if cand.estimated_gross_profit > AlloyU256::ZERO {
-                        stats.would_trade += 1;
-                        metrics.inc_hist_would_trade(if cand.path.legs.len() > 2 { "multi" } else { "direct" });
+                        for cand in candidates {
+                            if cand.estimated_gross_profit > AlloyU256::ZERO {
+                                stats.would_trade += 1;
+                                metrics.inc_hist_would_trade(if cand.path.legs.len() > 2 { "multi" } else { "direct" });
 
-                        let result = HistoricalReplayResult {
-                            case_id: format!("{}-{}", block_num, stats.would_trade),
-                            block_number: block_num,
-                            route_family: if cand.path.legs.len() > 2 { "multi".to_string() } else { "direct".to_string() },
-                            root_asset: root_asset.clone(),
-                            amount_in: cand.amount_in,
-                            predicted_amount_out: cand.estimated_amount_out,
-                            predicted_profit: cand.estimated_gross_profit,
-                            would_trade: true,
-                            route: cand.path,
-                            recheck: None,
-                        };
-                        pending_rechecks.entry(block_num + (config.historical_recheck_blocks)).or_default().push(result);
+                                let result = HistoricalReplayResult {
+                                    case_id: format!("{}-{}", block_num, stats.would_trade),
+                                    block_number: block_num,
+                                    route_family: if cand.path.legs.len() > 2 { "multi".to_string() } else { "direct".to_string() },
+                                    root_asset: root_asset.clone(),
+                                    amount_in: cand.amount_in,
+                                    predicted_amount_out: cand.estimated_amount_out,
+                                    predicted_profit: cand.estimated_gross_profit,
+                                    would_trade: true,
+                                    route: cand.path,
+                                    recheck: None,
+                                };
+                                pending_rechecks.entry(block_num + (config.historical_recheck_blocks)).or_default().push(result);
+                            }
+                        }
                     }
                 }
-                
-                if block_num % 100 == 0 {
-                    info!("  Block {}: pools={}, nodes={}, edges={}, trades={}", block_num, snapshots.len(), graph.node_count(), graph.edge_count(), stats.would_trade);
-                }
+                info!("  Block {}: pools={}, nodes={}, edges={}, trades={}", block_num, snapshots.len(), graph.node_count(), graph.edge_count(), stats.would_trade);
             }
         }
         current_block_ptr = chunk_end + 1;
@@ -353,8 +391,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if !selected_results.is_empty() {
-        let json = serde_json::to_string_pretty(&cases_to_export)?;
-        std::fs::write("fixtures/historical_cases_phase_17.json", json)?;
+        let json_data = serde_json::to_string_pretty(&cases_to_export)?;
+        std::fs::write("fixtures/historical_cases_phase_17.json", json_data)?;
         info!("Exported {} cases. Invoking arb_battery...", selected_results.len());
         
         let status = std::process::Command::new("cargo")
@@ -367,7 +405,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let summary = HistoricalReplaySummary {
+    let report_summary = HistoricalReplaySummary {
         start_block,
         end_block,
         total_blocks: end_block.saturating_sub(start_block) + 1,
@@ -381,7 +419,7 @@ async fn main() -> anyhow::Result<()> {
         fork_verifications: Vec::new(),
     };
 
-    let summary_json = serde_json::to_string_pretty(&summary)?;
+    let summary_json = serde_json::to_string_pretty(&report_summary)?;
     std::fs::write("historical_replay_full_day_final.json", summary_json)?;
     info!("Phase 17 Summary saved.");
 
