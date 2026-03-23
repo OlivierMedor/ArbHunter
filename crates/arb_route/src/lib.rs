@@ -64,6 +64,10 @@ impl RouteGraph {
         }
     }
 
+    pub fn has_token(&self, token: &TokenAddress) -> bool {
+        self.token_to_node.contains_key(token)
+    }
+
     fn get_or_create_node(&mut self, token: TokenAddress) -> NodeIndex {
         if let Some(&idx) = self.token_to_node.get(&token) {
             idx
@@ -250,7 +254,7 @@ impl CandidateGenerator {
             QuoteSizeBucket::Small => U256::from(100_000_000_000_000_000u64), // 0.1 ETH/Tokens
             QuoteSizeBucket::Medium => U256::from(1_000_000_000_000_000_000u64), // 1 ETH
             QuoteSizeBucket::Large => U256::from(10_000_000_000_000_000_000u64), // 10 ETH
-            QuoteSizeBucket::Custom(a) => U256::from(a),
+            QuoteSizeBucket::Custom(a) => U256::from(a as u128),
         }
     }
 }
