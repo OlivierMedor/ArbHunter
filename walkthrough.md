@@ -30,7 +30,6 @@ The replay revealed a significant volume of "dusting" arbitrage opportunities (0
 ## 4. Verification Artifacts
 - **Phase 17 Final Summary**: `historical_replay_full_day_final.json`
 - **Historical Cases**: `fixtures/historical_cases_phase_17.json`
-- **Fork Verification Logs**: `phase_17_battery_run_v2.log`
 - **Detailed Fork Results**: `fixtures/fork_verification_results.json`
 
 ## 5. Branch Status
