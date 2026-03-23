@@ -20,7 +20,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.45.0
     ports:
-      - "9091:9090"
+      - "9095:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     extra_hosts:

@@ -78,6 +78,20 @@ pub struct MetricsRegistry {
     pub shadow_invalidated_total: IntCounter,
     pub shadow_latest_profit_drift: IntGauge,
     pub shadow_latest_output_drift: IntGauge,
+
+    // Phase 16: Historical Replay Stats
+    pub hist_candidates_total: IntCounter,
+    pub hist_promoted_total: IntCounter,
+    pub hist_would_trade_total: IntCounter,
+    pub hist_rechecks_total: IntCounter,
+    pub hist_still_profitable_total: IntCounter,
+    pub hist_invalidated_total: IntCounter,
+    pub hist_profit_drift_total: IntCounter,
+    pub hist_amount_out_drift_total: IntCounter,
+    pub hist_route_family_total: IntCounterVec,
+    pub hist_fork_verifications_total: IntCounter,
+    pub hist_fork_verifications_success_total: IntCounter,
+    pub hist_fork_verifications_failed_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -158,6 +172,20 @@ impl MetricsRegistry {
         let shadow_latest_profit_drift = IntGauge::new("arb_shadow_latest_profit_drift", "Latest observed shadow profit drift in wei (can be negative)").unwrap();
         let shadow_latest_output_drift = IntGauge::new("arb_shadow_latest_output_drift", "Latest observed shadow output drift in wei").unwrap();
 
+        // Phase 16
+        let hist_candidates_total = IntCounter::new("arb_hist_candidates_total", "Total candidates considered in historical replay").unwrap();
+        let hist_promoted_total = IntCounter::new("arb_hist_promoted_total", "Total candidates promoted in historical replay").unwrap();
+        let hist_would_trade_total = IntCounter::new("arb_hist_would_trade_total", "Total candidates that would have traded in historical replay").unwrap();
+        let hist_rechecks_total = IntCounter::new("arb_hist_rechecks_total", "Total historical rechecks performed").unwrap();
+        let hist_still_profitable_total = IntCounter::new("arb_hist_still_profitable_total", "Total historical rechecks still profitable").unwrap();
+        let hist_invalidated_total = IntCounter::new("arb_hist_invalidated_total", "Total historical rechecks invalidated").unwrap();
+        let hist_profit_drift_total = IntCounter::new("arb_hist_profit_drift_total", "Cumulative profit drift in wei (absolute sum of drift)").unwrap();
+        let hist_amount_out_drift_total = IntCounter::new("arb_hist_amount_out_drift_total", "Cumulative amount_out drift in wei").unwrap();
+        let hist_route_family_total = IntCounterVec::new(Opts::new("arb_hist_route_family_total", "Historical candidates by route family"), &["family"]).unwrap();
+        let hist_fork_verifications_total = IntCounter::new("arb_hist_fork_verifications_total", "Total fork verifications").unwrap();
+        let hist_fork_verifications_success_total = IntCounter::new("arb_hist_fork_verifications_success_total", "Total successful fork verifications").unwrap();
+        let hist_fork_verifications_failed_total = IntCounter::new("arb_hist_fork_verifications_failed_total", "Total failed fork verifications").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -219,6 +247,19 @@ impl MetricsRegistry {
         registry.register(Box::new(shadow_invalidated_total.clone())).unwrap();
         registry.register(Box::new(shadow_latest_profit_drift.clone())).unwrap();
         registry.register(Box::new(shadow_latest_output_drift.clone())).unwrap();
+
+        registry.register(Box::new(hist_candidates_total.clone())).unwrap();
+        registry.register(Box::new(hist_promoted_total.clone())).unwrap();
+        registry.register(Box::new(hist_would_trade_total.clone())).unwrap();
+        registry.register(Box::new(hist_rechecks_total.clone())).unwrap();
+        registry.register(Box::new(hist_still_profitable_total.clone())).unwrap();
+        registry.register(Box::new(hist_invalidated_total.clone())).unwrap();
+        registry.register(Box::new(hist_profit_drift_total.clone())).unwrap();
+        registry.register(Box::new(hist_amount_out_drift_total.clone())).unwrap();
+        registry.register(Box::new(hist_route_family_total.clone())).unwrap();
+        registry.register(Box::new(hist_fork_verifications_total.clone())).unwrap();
+        registry.register(Box::new(hist_fork_verifications_success_total.clone())).unwrap();
+        registry.register(Box::new(hist_fork_verifications_failed_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -284,6 +325,18 @@ impl MetricsRegistry {
             shadow_invalidated_total,
             shadow_latest_profit_drift,
             shadow_latest_output_drift,
+            hist_candidates_total,
+            hist_promoted_total,
+            hist_would_trade_total,
+            hist_rechecks_total,
+            hist_still_profitable_total,
+            hist_invalidated_total,
+            hist_profit_drift_total,
+            hist_amount_out_drift_total,
+            hist_route_family_total,
+            hist_fork_verifications_total,
+            hist_fork_verifications_success_total,
+            hist_fork_verifications_failed_total,
         }
     }
 
@@ -518,5 +571,28 @@ impl MetricsRegistry {
         // Simple gauge mapping for the simplest metric exposure
         self.shadow_latest_profit_drift.set(profit_drift as i64);
         self.shadow_latest_output_drift.set(output_drift as i64);
+    }
+
+    // Phase 16
+    pub fn inc_hist_candidates(&self) { self.hist_candidates_total.inc(); }
+    pub fn inc_hist_promoted(&self) { self.hist_promoted_total.inc(); }
+    pub fn inc_hist_would_trade(&self, family: &str) { 
+        self.hist_would_trade_total.inc(); 
+        self.hist_route_family_total.with_label_values(&[family]).inc();
+    }
+    pub fn inc_hist_rechecks(&self) { self.hist_rechecks_total.inc(); }
+    pub fn inc_hist_still_profitable(&self) { self.hist_still_profitable_total.inc(); }
+    pub fn inc_hist_invalidated(&self) { self.hist_invalidated_total.inc(); }
+    pub fn add_hist_drift(&self, profit_drift: u64, amount_out_drift: u64) {
+        self.hist_profit_drift_total.inc_by(profit_drift);
+        self.hist_amount_out_drift_total.inc_by(amount_out_drift);
+    }
+    pub fn inc_hist_fork_verification(&self, success: bool) {
+        self.hist_fork_verifications_total.inc();
+        if success {
+            self.hist_fork_verifications_success_total.inc();
+        } else {
+            self.hist_fork_verifications_failed_total.inc();
+        }
     }
 }
