@@ -1,0 +1,54 @@
+[
+  {
+    "case_id": "43684000-56",
+    "actual_status": "revert",
+    "predicted_amount_out": "0x354a7c8c19022d",
+    "predicted_profit": "0x11c38a1c58022d",
+    "actual_amount_out": null,
+    "actual_profit": null,
+    "gas_used": 84862,
+    "success_or_revert": false,
+    "revert_reason": "On-chain Revert",
+    "absolute_error": "0x11c38a1c58022d",
+    "relative_error": 1.0
+  },
+  {
+    "case_id": "43684100-58",
+    "actual_status": "revert",
+    "predicted_amount_out": "0x354a7c8c19022d",
+    "predicted_profit": "0x11c38a1c58022d",
+    "actual_amount_out": null,
+    "actual_profit": null,
+    "gas_used": 84862,
+    "success_or_revert": false,
+    "revert_reason": "On-chain Revert",
+    "absolute_error": "0x11c38a1c58022d",
+    "relative_error": 1.0
+  },
+  {
+    "case_id": "43681200-1",
+    "actual_status": "revert",
+    "predicted_amount_out": "0x388f6c29c288d",
+    "predicted_profit": "0x0",
+    "actual_amount_out": null,
+    "actual_profit": null,
+    "gas_used": 223157,
+    "success_or_revert": false,
+    "revert_reason": "On-chain Revert",
+    "absolute_error": "0x0",
+    "relative_error": 1.0
+  },
+  {
+    "case_id": "43681300-2",
+    "actual_status": "revert",
+    "predicted_amount_out": "0x388f6c29c288d",
+    "predicted_profit": "0x0",
+    "actual_amount_out": null,
+    "actual_profit": null,
+    "gas_used": 223157,
+    "success_or_revert": false,
+    "revert_reason": "On-chain Revert",
+    "absolute_error": "0x0",
+    "relative_error": 1.0
+  }
+]

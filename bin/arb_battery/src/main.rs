@@ -23,8 +23,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rpc_url = config.local_rpc_url.clone().expect("ANVIL_RPC_URL must be specified in .env");
     let test_pk = config.test_private_key.clone().expect("TEST_PRIVATE_KEY must be specified in .env");
 
-    let cases_json = fs::read_to_string("fixtures/historical_cases.json").map_err(|e| e.to_string())?;
-    let cases: Vec<HistoricalCase> = serde_json::from_str(&cases_json).map_err(|e| e.to_string())?;
+    let cases_path = std::env::var("HISTORICAL_CASES_PATH").unwrap_or_else(|_| "fixtures/historical_cases.json".to_string());
+    let cases_json = fs::read_to_string(&cases_path).map_err(|e| format!("Failed to read {}: {}", cases_path, e))?;
+    let cases: Vec<HistoricalCase> = serde_json::from_str(&cases_json).map_err(|e| format!("Failed to parse {}: {}", cases_path, e))?;
 
     let url = rpc_url.parse::<Url>().map_err(|e| e.to_string())?;
     let provider = ProviderBuilder::new().on_http(url);
@@ -263,5 +264,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("==========================================================================================================");
     println!("Total Summary: {}/{} Successful Replays", attributions.iter().zip(cases.iter()).filter(|(a, c)| a.actual_status == c.expected_outcome).count(), cases.len());
+
+    let results_json = serde_json::to_string_pretty(&attributions)?;
+    fs::write("fixtures/fork_verification_results.json", results_json)?;
+    println!("Results saved to fixtures/fork_verification_results.json");
+    
     Ok(())
 }
