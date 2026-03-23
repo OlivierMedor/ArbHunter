@@ -92,6 +92,7 @@ pub struct MetricsRegistry {
     pub hist_fork_verifications_total: IntCounter,
     pub hist_fork_verifications_success_total: IntCounter,
     pub hist_fork_verifications_failed_total: IntCounter,
+    pub hist_fork_realized_profit_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -185,6 +186,7 @@ impl MetricsRegistry {
         let hist_fork_verifications_total = IntCounter::new("arb_hist_fork_verifications_total", "Total fork verifications").unwrap();
         let hist_fork_verifications_success_total = IntCounter::new("arb_hist_fork_verifications_success_total", "Total successful fork verifications").unwrap();
         let hist_fork_verifications_failed_total = IntCounter::new("arb_hist_fork_verifications_failed_total", "Total failed fork verifications").unwrap();
+        let hist_fork_realized_profit_total = IntCounter::new("arb_hist_fork_realized_profit_total", "Total realized profit in wei across all fork verifications").unwrap();
 
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
@@ -260,6 +262,7 @@ impl MetricsRegistry {
         registry.register(Box::new(hist_fork_verifications_total.clone())).unwrap();
         registry.register(Box::new(hist_fork_verifications_success_total.clone())).unwrap();
         registry.register(Box::new(hist_fork_verifications_failed_total.clone())).unwrap();
+        registry.register(Box::new(hist_fork_realized_profit_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -337,6 +340,7 @@ impl MetricsRegistry {
             hist_fork_verifications_total,
             hist_fork_verifications_success_total,
             hist_fork_verifications_failed_total,
+            hist_fork_realized_profit_total,
         }
     }
 
@@ -587,10 +591,11 @@ impl MetricsRegistry {
         self.hist_profit_drift_total.inc_by(profit_drift);
         self.hist_amount_out_drift_total.inc_by(amount_out_drift);
     }
-    pub fn inc_hist_fork_verification(&self, success: bool) {
+    pub fn inc_hist_fork_verification(&self, success: bool, profit_wei: u64) {
         self.hist_fork_verifications_total.inc();
         if success {
             self.hist_fork_verifications_success_total.inc();
+            self.hist_fork_realized_profit_total.inc_by(profit_wei);
         } else {
             self.hist_fork_verifications_failed_total.inc();
         }
