@@ -9,5 +9,12 @@
   "still_profitable_count": 196697,
   "invalidated_count": 0,
   "avg_profit_drift_wei": 0,
-  "fork_verifications": []
+  "fork_verifications": [],
+  "fork_verification_summary": {
+    "total_cases_run": 4,
+    "total_passed": 0,
+    "total_reverted": 4,
+    "status": "Calibration Finding: Historical drift or quoter optimism detected on-chain.",
+    "detailed_results_path": "fixtures/fork_verification_results.json"
+  }
 }
