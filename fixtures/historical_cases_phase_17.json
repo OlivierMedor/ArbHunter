@@ -1,0 +1,134 @@
+[
+  {
+    "case_id": "43683909-3361",
+    "notes": "Phase 17 Spotlight: multi",
+    "fork_block_number": 43683909,
+    "source_tx_hash": null,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "multi",
+    "pool_ids": [
+      "0x68d7baada2fbcf4fa9d1d1dbd4baa7a5ebb53edc",
+      "0xd1531578511a47976b8bec4ce033c519e2625491",
+      "0x1980d99ba8e1bde9c9dc8955d9622b33560dad49"
+    ],
+    "pool_kinds": [
+      "ReserveBased",
+      "ReserveBased",
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0xfed271c9e5316604497b490849500d0ef5247961",
+      "0x223749721a2f4d5bc53cec04e1a27aa69aa08b4f",
+      "0x4200000000000000000000000000000000000006"
+    ],
+    "leg_directions": [
+      true,
+      false,
+      true
+    ],
+    "amount_in": "0x11c37937e08000",
+    "expected_outcome": "success",
+    "guard_overrides": null,
+    "seed_data": null
+  },
+  {
+    "case_id": "43683910-3365",
+    "notes": "Phase 17 Spotlight: multi",
+    "fork_block_number": 43683910,
+    "source_tx_hash": null,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "multi",
+    "pool_ids": [
+      "0x68d7baada2fbcf4fa9d1d1dbd4baa7a5ebb53edc",
+      "0xd1531578511a47976b8bec4ce033c519e2625491",
+      "0x1980d99ba8e1bde9c9dc8955d9622b33560dad49"
+    ],
+    "pool_kinds": [
+      "ReserveBased",
+      "ReserveBased",
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0xfed271c9e5316604497b490849500d0ef5247961",
+      "0x223749721a2f4d5bc53cec04e1a27aa69aa08b4f",
+      "0x4200000000000000000000000000000000000006"
+    ],
+    "leg_directions": [
+      true,
+      false,
+      true
+    ],
+    "amount_in": "0x11c37937e08000",
+    "expected_outcome": "success",
+    "guard_overrides": null,
+    "seed_data": null
+  },
+  {
+    "case_id": "43680550-1",
+    "notes": "Phase 17 Spotlight: multi",
+    "fork_block_number": 43680550,
+    "source_tx_hash": null,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "multi",
+    "pool_ids": [
+      "0x6a77cdec82eff6a6a5d273f18c1c27cd3d71a588",
+      "0xc50045d27b417a5774d12937e8a390cb969941e0",
+      "0xa5d7b70717116ddd6d612219e90952ce1b3bc41a"
+    ],
+    "pool_kinds": [
+      "ReserveBased",
+      "ReserveBased",
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x85e90a5430af45776548adb82ee4cd9e33b08077",
+      "0x6db171bc785386973994072729d8fc707c2948e4",
+      "0x4200000000000000000000000000000000000006"
+    ],
+    "leg_directions": [
+      true,
+      false,
+      false
+    ],
+    "amount_in": "0x38d7ea4c68000",
+    "expected_outcome": "revert",
+    "guard_overrides": null,
+    "seed_data": null
+  },
+  {
+    "case_id": "43680551-2",
+    "notes": "Phase 17 Spotlight: multi",
+    "fork_block_number": 43680551,
+    "source_tx_hash": null,
+    "root_asset": "0x4200000000000000000000000000000000000006",
+    "route_family": "multi",
+    "pool_ids": [
+      "0x6a77cdec82eff6a6a5d273f18c1c27cd3d71a588",
+      "0xc50045d27b417a5774d12937e8a390cb969941e0",
+      "0xa5d7b70717116ddd6d612219e90952ce1b3bc41a"
+    ],
+    "pool_kinds": [
+      "ReserveBased",
+      "ReserveBased",
+      "ReserveBased"
+    ],
+    "path_tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x85e90a5430af45776548adb82ee4cd9e33b08077",
+      "0x6db171bc785386973994072729d8fc707c2948e4",
+      "0x4200000000000000000000000000000000000006"
+    ],
+    "leg_directions": [
+      true,
+      false,
+      false
+    ],
+    "amount_in": "0x38d7ea4c68000",
+    "expected_outcome": "revert",
+    "guard_overrides": null,
+    "seed_data": null
+  }
+]
