@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-24T19:47:44.988253400+00:00",
+  "timestamp": "2026-03-24T20:43:25.825285900+00:00",
   "start_block": 43680550,
   "end_block": 43723750,
   "total_candidates": 159986717,
@@ -7,10 +7,19 @@
   "total_excluded": 0,
   "bucket_counts": {
     "0.005 - 0.01 ETH": 503000,
-    "0.001 - 0.005 ETH": 50343065,
-    "< 0.001 ETH": 109140652
+    "< 0.001 ETH": 109140652,
+    "0.001 - 0.005 ETH": 50343065
+  },
+  "weth_003_005_count": 0,
+  "weth_005_plus_count": 0,
+  "fork_verification_summary": {
+    "total_cases": 40,
+    "pass_count": 39,
+    "revert_count": 1,
+    "pass_rate": 0.975
   },
   "results_05_plus_common_sense": "Nonexistent: No opportunities >= 0.05 ETH were found in this 24h window.",
+  "results_03_05_common_sense": "Nonexistent: No opportunities in the 0.03 - 0.05 ETH range were found.",
   "batching_potential_common_sense": "Analytical estimate based on block density.",
   "batchability": {
     "avg_density_per_block": 3703.310502071711,
@@ -22,12 +31,12 @@
   "stratified_summary": {
     "by_bucket": {
       "0.005 - 0.01 ETH": 503000,
-      "0.001 - 0.005 ETH": 50343065,
-      "< 0.001 ETH": 109140652
+      "< 0.001 ETH": 109140652,
+      "0.001 - 0.005 ETH": 50343065
     },
     "by_family": {
-      "direct": 16447699,
-      "multi": 143539018
+      "multi": 143539018,
+      "direct": 16447699
     },
     "by_strength": {
       "high": 159986717

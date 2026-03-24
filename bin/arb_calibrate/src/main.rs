@@ -24,7 +24,13 @@ async fn main() -> anyhow::Result<()> {
     println!("Calibration Report generated at {}", output_path);
     println!("Stratified Verification Cases (40) exported to {}", cases_path);
     println!("Total candidates analyzed: {}", report.total_candidates);
-    println!("0.05 ETH+ Count: {}", report.bucket_counts.get("0.05 ETH+").unwrap_or(&0));
+    println!("0.03 - 0.05 ETH Count: {}", report.weth_003_005_count);
+    println!("0.05 ETH+ Count: {}", report.weth_005_plus_count);
+    println!("Fork Verification Pass Rate: {:.2}% ({}/{})", 
+        report.fork_verification_summary.pass_rate * 100.0,
+        report.fork_verification_summary.pass_count,
+        report.fork_verification_summary.total_cases
+    );
     println!("Batchability Potential: {}", report.batching_potential_common_sense);
 
     Ok(())
