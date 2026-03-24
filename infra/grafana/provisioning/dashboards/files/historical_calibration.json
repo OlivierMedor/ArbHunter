@@ -118,6 +118,77 @@
       ],
       "title": "Candidates by Route Family",
       "type": "barchart"
+    },
+    {
+      "datasource": "prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "green", "value": 2000 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
+      "id": 5,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        { "expr": "arb_hist_opportunity_density / 1000", "refId": "A" }
+      ],
+      "title": "Opportunity Density (trades/block)",
+      "type": "gauge"
+    },
+    {
+      "datasource": "prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 200 },
+              { "color": "green", "value": 500 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 4 },
+      "id": 6,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        { "expr": "arb_hist_clustering_freq / 1000", "refId": "A" }
+      ],
+      "title": "Batching Potential (Clustering %)",
+      "type": "gauge"
+    },
+    {
+      "datasource": "prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "pieType": "pie"
+      },
+      "targets": [
+        { "expr": "arb_hist_bucket_total", "legendFormat": "{{bucket}}", "refId": "A" }
+      ],
+      "title": "Size Bucket Distribution",
+      "type": "piechart"
     }
   ],
   "refresh": "5s",

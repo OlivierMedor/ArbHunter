@@ -92,6 +92,11 @@ pub struct MetricsRegistry {
     pub hist_fork_verifications_total: IntCounter,
     pub hist_fork_verifications_success_total: IntCounter,
     pub hist_fork_verifications_failed_total: IntCounter,
+    
+    // Phase 18: Calibration Metrics
+    pub hist_opportunity_density: IntGauge,
+    pub hist_bucket_total: IntCounterVec,
+    pub hist_clustering_freq: IntGauge,
 }
 
 impl MetricsRegistry {
@@ -185,6 +190,11 @@ impl MetricsRegistry {
         let hist_fork_verifications_total = IntCounter::new("arb_hist_fork_verifications_total", "Total fork verifications").unwrap();
         let hist_fork_verifications_success_total = IntCounter::new("arb_hist_fork_verifications_success_total", "Total successful fork verifications").unwrap();
         let hist_fork_verifications_failed_total = IntCounter::new("arb_hist_fork_verifications_failed_total", "Total failed fork verifications").unwrap();
+        
+        // Phase 18
+        let hist_opportunity_density = IntGauge::new("arb_hist_opportunity_density", "Average trade opportunities per block (x1000)").unwrap();
+        let hist_bucket_total = IntCounterVec::new(Opts::new("arb_hist_bucket_total", "Historical candidates by size bucket"), &["bucket"]).unwrap();
+        let hist_clustering_freq = IntGauge::new("arb_hist_clustering_freq", "Frequency of multiple candidates per block (x1000)").unwrap();
 
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
@@ -260,6 +270,9 @@ impl MetricsRegistry {
         registry.register(Box::new(hist_fork_verifications_total.clone())).unwrap();
         registry.register(Box::new(hist_fork_verifications_success_total.clone())).unwrap();
         registry.register(Box::new(hist_fork_verifications_failed_total.clone())).unwrap();
+        registry.register(Box::new(hist_opportunity_density.clone())).unwrap();
+        registry.register(Box::new(hist_bucket_total.clone())).unwrap();
+        registry.register(Box::new(hist_clustering_freq.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -337,6 +350,9 @@ impl MetricsRegistry {
             hist_fork_verifications_total,
             hist_fork_verifications_success_total,
             hist_fork_verifications_failed_total,
+            hist_opportunity_density,
+            hist_bucket_total,
+            hist_clustering_freq,
         }
     }
 
@@ -594,5 +610,16 @@ impl MetricsRegistry {
         } else {
             self.hist_fork_verifications_failed_total.inc();
         }
+    }
+
+    // Phase 18
+    pub fn set_hist_density(&self, density_x1000: i64) {
+        self.hist_opportunity_density.set(density_x1000);
+    }
+    pub fn inc_hist_bucket(&self, bucket: &str) {
+        self.hist_bucket_total.with_label_values(&[bucket]).inc();
+    }
+    pub fn set_hist_clustering(&self, freq_x1000: i64) {
+        self.hist_clustering_freq.set(freq_x1000);
     }
 }

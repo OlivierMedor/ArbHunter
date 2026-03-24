@@ -604,6 +604,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "arb_calibrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arb_calibration",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "arb_calibration"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "anyhow",
+ "arb_config",
+ "arb_types",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "arb_config"
 version = "0.1.0"
 dependencies = [

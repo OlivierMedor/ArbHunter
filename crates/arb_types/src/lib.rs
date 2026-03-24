@@ -579,7 +579,8 @@ pub struct HistoricalReplayResult {
     pub predicted_amount_out: U256,
     pub predicted_profit: U256,
     pub would_trade: bool,
-    pub route: RoutePath,
+    #[serde(alias = "route")]
+    pub path: RoutePath,
     pub recheck: Option<HistoricalRecheckResult>,
 }
 
