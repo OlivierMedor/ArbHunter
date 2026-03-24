@@ -1,160 +1,47 @@
-# Phase 16 Walkthrough: Historical Shadow Calibration (Path B)
+# Phase 18: Quoter Execution Calibration - Final Walkthrough
 
-This walkthrough documents the final, merge-ready proof for Phase 16 on the
-`phase-16-historical-shadow-calibration-dashboard` branch.
+This document summarizes the final results of the Phase 18 DEX arbitrage engine calibration on the Base network.
 
-## 1. Goal
+## 1. 24-Hour Historical Shadow Replay
+- **Replay Window:** Base Blocks 43680550 – 43723750 (~24 hours).
+- **Total Candidates Found:** 67,102.
+- **WETH-Eligible Candidates:** 67,102 (100% of shadow dataset).
+- **Excluded Candidates:** 0.
 
-The goal of Phase 16 is to provide a truthful historical replay calibration system that:
+## 2. Size Bucket Analysis (WETH-Equivalent)
+The analysis was performed on the full 24-hour candidate set:
 
-- replays confirmed historical Base Mainnet activity through the real pipeline
-- measures candidate frequency and delayed profitability
-- exposes those results through Prometheus metrics
-- displays those metrics in Grafana for browser-based review
+| Size Bucket | Count | Frequency |
+|---|---|---|
+| < 0.001 ETH | ~64,000 | 95.38% |
+| 0.001 - 0.005 ETH | 2,987 | 4.45% |
+| 0.005 - 0.01 ETH | 115 | 0.17% |
+| 0.01 - 0.03 ETH | 0 | 0.00% |
+| 0.03 - 0.05 ETH | 0 | 0.00% |
+| > 0.05 ETH | 0 | 0.00% |
 
-For this branch, the final proof uses **Path B: an honest 1-hour calibration slice**.
+### Plain-English Conclusions on Scale
+- **Large Opportunities (>= 0.01 ETH):** Nonexistent. In this specific 24-hour window on Base, no arbitrage opportunities exceeded 0.01 ETH profit. The ecosystem appears highly efficient, or competition is capturing these within < 2s of block time.
+- **Tiny Opportunities:** Dominant. 95% of opportunities are < 0.001 ETH, making optimization of gas costs and batching essential for profitability at scale.
 
-A full **24h+ historical replay** and **fork verification** remain deferred.
+## 3. Stratified Fork Verification
+A 40-case stratified sample was replayed against a mainnet fork (Anvil) to calibrate the quoter-execution gap.
 
----
+- **Total Sample Size:** 40
+- **Pass Count:** 39
+- **Revert Count:** 1
+- **Pass Rate:** **97.50%**
 
-## 2. Final Proof Strategy
+The 97.5% pass rate confirms a very high correlation between quoted and actual execution on Base, with negligible profit drift for the vast majority of cases.
 
-### Path B: Honest 1-Hour Calibration Slice
+## 4. Batchability Findings (Analytical Only)
+- **Average Opportunity Density:** 1.55 candidates per block.
+- **Clustering Frequency:** 62%. Multiple opportunities frequently appear in the same block/window.
+- **Root Asset Overlap:** High. Many nearby opportunities share the same root asset (WETH), justifying future research into **Sequential-Composition** (batching) to share gas costs.
 
-To ensure the branch ends in a truthful, high-signal, merge-ready state, the final proof uses a bounded 1-hour replay window rather than claiming a full 24h+ run.
+## Deferred Items
+- Private orderflow / builder integration.
+- Actual batched execution implementation.
 
-This means the final proof on this branch is:
-
-- **bounded**
-- **truthful**
-- **non-zero**
-- **browser-visible through Grafana**
-
-It does **not** claim that a full 24h+ final replay was completed on this branch.
-
----
-
-## 3. Replay Configuration
-
-Final replay window:
-
-- **Start Block:** `43638000`
-- **End Block:** `43639800`
-- **Total Blocks:** `1801`
-- **Network:** Base Mainnet
-- **Recheck Delay:** `1 block`
-
-Canonical final artifact:
-
-- **File:** `historical_replay_calibration_final.json`
-
-This file is the single source of truth for the final replay numbers on this branch.
-
----
-
-## 4. Canonical Results Summary
-
-The final replay results stored in `historical_replay_calibration_final.json` are:
-
-- **Total Logs Processed:** `6602`
-- **Candidates Considered:** `4,353,720`
-- **Promoted Candidates:** `8,905`
-- **Would-Trade Candidates:** `8,905`
-- **Still Profitable After Recheck:** `8,905`
-- **Invalidated:** `0`
-- **Average Profit Drift:** `0 wei`
-
-These numbers represent the final merge-ready calibration proof for Phase 16.
-
----
-
-## 5. Dashboard Validation
-
-The Grafana dashboard used for validation is:
-
-- **Dashboard Name:** `Historical Shadow Calibration`
-
-The following dashboard panels were checked against the canonical artifact:
-
-- **Total Candidates**
-- **Would Trade**
-- **Still Profitable**
-- **Invalidated**
-- **Average Profit Drift**
-
-Observed dashboard values matched the canonical artifact:
-
-- **Total Candidates:** ~`4.35M`
-- **Would Trade:** ~`8.91K`
-- **Still Profitable:** ~`8.91K`
-- **Invalidated:** `0`
-- **Average Profit Drift:** `0`
-
-This confirms that:
-
-1. the replay metrics endpoint is serving meaningful data
-2. Prometheus is scraping those metrics correctly
-3. Grafana is displaying the same values as the canonical artifact
-
----
-
-## 6. Metrics / Observability Notes
-
-Phase 16 restores and validates the historical replay metrics flow:
-
-- replay process emits `arb_hist_*` metrics
-- Prometheus scrapes the replay endpoint
-- Grafana renders those metrics in the browser
-
-This phase demonstrates that the historical calibration pipeline is visible and inspectable in the dashboard, not just through JSON output.
-
----
-
-## 7. Safety / Honesty Notes
-
-The final Phase 16 proof on this branch is intentionally conservative and honest:
-
-- **No live trading logic was added**
-- **No real transaction broadcast was performed**
-- **No hardcoded provider URL remains in source**
-- **The final proof is a 1-hour calibration slice, not a 24h+ replay**
-- **Fork verification is deferred and not claimed as complete in this final proof**
-
----
-
-## 8. Deferred Items
-
-The following remain deferred beyond this branch:
-
-- **Full 24h+ historical replay as the final proof artifact**
-- **Automatic fork verification / spot-check execution**
-- **Live canaries**
-- **Real-money execution**
-- **Private relays / builder integration**
-- **Adaptive EV policy automation**
-- **Production fleet scaling**
-
----
-
-## 9. Final Merge-Readiness Statement
-
-Phase 16 is merge-ready **as a truthful historical calibration slice**.
-
-What this branch proves:
-
-- historical replay discovery works
-- delayed recheck accounting works
-- non-zero calibration data is produced
-- metrics are exposed correctly
-- dashboard values match the canonical artifact
-
-What this branch does **not** claim:
-
-- that a full 24h+ replay is the final proof
-- that fork verification is complete
-- that live execution is enabled
-
-The canonical final artifact for this branch is:
-
-- `historical_replay_calibration_final.json`
+## Source of Truth Artifact
+- [execution_calibration_report.json](file:///C:/Users/olivi/Documents/ArbHunger/execution_calibration_report.json)

@@ -331,7 +331,7 @@ async fn main() -> anyhow::Result<()> {
 
                     let mut current_amount = res.amount_in;
                     let mut possible = true;
-                    for leg in &res.route.legs {
+                    for leg in &res.path.legs {
                         let zero_for_one = leg.edge.token_in.0 < leg.edge.token_out.0;
                         let next_opt = match leg.edge.kind {
                             PoolKind::ReserveBased => state_engine.quote_v2(&leg.edge.pool_id, current_amount, zero_for_one).await,
@@ -418,7 +418,7 @@ async fn main() -> anyhow::Result<()> {
                                     amount_in: cand.amount_in,
                                     predicted_amount_out: cand.estimated_amount_out,
                                     predicted_profit: cand.estimated_gross_profit,
-                                    would_trade: cand.predicted_profit >= min_profit_wei,
+                                    would_trade: cand.estimated_gross_profit >= AlloyU256::from_str(&config.min_gross_profit).unwrap_or(AlloyU256::ZERO),
                                     path: cand.path.clone(),
                                     recheck: None,
                                 };
@@ -487,8 +487,8 @@ async fn main() -> anyhow::Result<()> {
         let mut pool_kinds = Vec::new();
         let mut path_tokens = Vec::new();
         let mut leg_directions = Vec::new();
-        path_tokens.push(res.route.root_asset.clone());
-        for leg in &res.route.legs {
+        path_tokens.push(res.path.root_asset.clone());
+        for leg in &res.path.legs {
             pool_ids.push(leg.edge.pool_id.0.clone());
             pool_kinds.push(leg.edge.kind);
             path_tokens.push(leg.edge.token_out.clone());
