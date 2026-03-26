@@ -103,8 +103,8 @@ impl DexDecoder {
                     token1: None,
                     fee_bps: Some(30),
                     reserves: Some(ReserveSnapshot {
-                        reserve0: r0.to::<u128>(),
-                        reserve1: r1.to::<u128>(),
+                        reserve0: r0.saturating_to::<u128>(),
+                        reserve1: r1.saturating_to::<u128>(),
                     }),
                     cl_snapshot: None,
                     cl_full_state: None,
