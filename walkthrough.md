@@ -1,47 +1,83 @@
-# Phase 18: Quoter Execution Calibration - Final Walkthrough
+# Phase 18 Walkthrough: Arbitrage Engine Calibration
 
-This document summarizes the final results of the Phase 18 DEX arbitrage engine calibration on the Base network.
+> **Canonical branch**: `phase-18-final-calibration`
+> **Canonical artifact**: `execution_calibration_report.json`
+> All numbers in this document come directly from `execution_calibration_report.json`.
 
-## 1. 24-Hour Historical Shadow Replay
-- **Replay Window:** Base Blocks 43680550 – 43723750 (~24 hours).
-- **Total Candidates Found:** 67,102.
-- **WETH-Eligible Candidates:** 67,102 (100% of shadow dataset).
-- **Excluded Candidates:** 0.
+---
 
-## 2. Size Bucket Analysis (WETH-Equivalent)
-The analysis was performed on the full 24-hour candidate set:
+## 1. Replay Window
 
-| Size Bucket | Count | Frequency |
-|---|---|---|
-| < 0.001 ETH | ~64,000 | 95.38% |
-| 0.001 - 0.005 ETH | 2,987 | 4.45% |
-| 0.005 - 0.01 ETH | 115 | 0.17% |
-| 0.01 - 0.03 ETH | 0 | 0.00% |
-| 0.03 - 0.05 ETH | 0 | 0.00% |
-| > 0.05 ETH | 0 | 0.00% |
+- **Blocks**: 43,680,550 → 43,723,750
+- **Total blocks in window**: 43,201
+- **Blocks with at least one candidate**: 40,717 (94.3%)
 
-### Plain-English Conclusions on Scale
-- **Large Opportunities (>= 0.01 ETH):** Nonexistent. In this specific 24-hour window on Base, no arbitrage opportunities exceeded 0.01 ETH profit. The ecosystem appears highly efficient, or competition is capturing these within < 2s of block time.
-- **Tiny Opportunities:** Dominant. 95% of opportunities are < 0.001 ETH, making optimization of gas costs and batching essential for profitability at scale.
+The "Structural Turbo" architecture was used:
+- `RouteGraph` cached and rebuilt only when the pool registry grows.
+- 2-hop and 3-hop cycles persisted between blocks.
+- `rayon` parallel evaluation of all candidate paths.
 
-## 3. Stratified Fork Verification
-A 40-case stratified sample was replayed against a mainnet fork (Anvil) to calibrate the quoter-execution gap.
+---
 
-- **Total Sample Size:** 40
-- **Pass Count:** 39
-- **Revert Count:** 1
-- **Pass Rate:** **97.50%**
+## 2. Canonical Results
 
-The 97.5% pass rate confirms a very high correlation between quoted and actual execution on Base, with negligible profit drift for the vast majority of cases.
+### Candidate Volume
 
-## 4. Batchability Findings (Analytical Only)
-- **Average Opportunity Density:** 1.55 candidates per block.
-- **Clustering Frequency:** 62%. Multiple opportunities frequently appear in the same block/window.
-- **Root Asset Overlap:** High. Many nearby opportunities share the same root asset (WETH), justifying future research into **Sequential-Composition** (batching) to share gas costs.
+| Metric | Value |
+| :--- | :--- |
+| Total unique candidates | 10,708,460 |
+| Block density | 247.88 candidates / block |
+| Blocks with candidates | 40,717 (94.3%) |
 
-## Deferred Items
-- Private orderflow / builder integration.
-- Actual batched execution implementation.
+### Size-Bucket Breakdown (Input Size, Not Profit)
 
-## Source of Truth Artifact
-- [execution_calibration_report.json](file:///C:/Users/olivi/Documents/ArbHunger/execution_calibration_report.json)
+| Bucket | Count | % |
+| :--- | :--- | :--- |
+| 0.01 ETH input | 8,102,605 | 75.7% |
+| 0.03 ETH input | 1,710,091 | 16.0% |
+| 0.05 ETH input | 895,764 | 8.4% |
+
+### Route Family
+
+| Family | Count |
+| :--- | :--- |
+| Multi-hop (3-leg) | 10,016,271 (93.5%) |
+| Direct (2-leg) | 692,189 (6.5%) |
+
+### Profitability (Gross, Pre-Gas)
+
+| Metric | ETH |
+| :--- | :--- |
+| Total simulated gross profit | 11,512.62 ETH |
+| Average profit per trade | ~0.00108 ETH |
+| Peak profit per trade | ~0.00500 ETH |
+
+---
+
+## 3. Size Questions
+
+- **Were there 0.03 ETH opportunities?** Yes — 1,710,091 candidates with 0.03 ETH input size.
+- **Were there 0.04 ETH opportunities?** Not a discrete bucket tested; thresholds were 0.01, 0.03, and 0.05.
+- **Were there 0.05 ETH+ opportunities?** Yes — 895,764 candidates with 0.05 ETH input size.
+
+---
+
+## 4. Batchability Findings
+
+With 247.88 candidates/block and 94.3% block coverage, multiple opportunities co-occurring in the same block is the norm. The 10M+ multi-hop count vs. 692k direct-hop indicates compound paths frequently surface alongside simpler ones per block.
+
+**Conclusion**: Batched execution research (Phase 20) is analytically justified by this density data. Not implemented here.
+
+---
+
+## 5. What Is NOT Here
+
+- Gas cost subtraction (Phase 19 scope).
+- Live execution logic (not added).
+- The 11.3 GB `historical_replay_full_day_candidates.jsonl` is local-only (exceeds GitHub 100 MB limit).
+
+---
+
+## Source of Truth
+
+`execution_calibration_report.json`
