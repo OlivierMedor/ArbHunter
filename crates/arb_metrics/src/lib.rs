@@ -92,6 +92,7 @@ pub struct MetricsRegistry {
     pub hist_fork_verifications_total: IntCounter,
     pub hist_fork_verifications_success_total: IntCounter,
     pub hist_fork_verifications_failed_total: IntCounter,
+    pub hist_fork_realized_profit_total: IntCounter,
     
     // Phase 18: Calibration Metrics
     pub hist_opportunity_density: IntGauge,
@@ -190,6 +191,7 @@ impl MetricsRegistry {
         let hist_fork_verifications_total = IntCounter::new("arb_hist_fork_verifications_total", "Total fork verifications").unwrap();
         let hist_fork_verifications_success_total = IntCounter::new("arb_hist_fork_verifications_success_total", "Total successful fork verifications").unwrap();
         let hist_fork_verifications_failed_total = IntCounter::new("arb_hist_fork_verifications_failed_total", "Total failed fork verifications").unwrap();
+        let hist_fork_realized_profit_total = IntCounter::new("arb_hist_fork_realized_profit_total", "Total realized profit from successful fork verifications").unwrap();
         
         // Phase 18
         let hist_opportunity_density = IntGauge::new("arb_hist_opportunity_density", "Average trade opportunities per block (x1000)").unwrap();
@@ -248,6 +250,7 @@ impl MetricsRegistry {
         registry.register(Box::new(preflight_failed_total.clone())).unwrap();
         registry.register(Box::new(preflight_eth_call_failed_total.clone())).unwrap();
         registry.register(Box::new(preflight_gas_estimate_failed_total.clone())).unwrap();
+        registry.register(Box::new(hist_fork_realized_profit_total.clone())).unwrap();
 
         registry.register(Box::new(shadow_candidates_total.clone())).unwrap();
         registry.register(Box::new(shadow_promoted_total.clone())).unwrap();
@@ -350,6 +353,7 @@ impl MetricsRegistry {
             hist_fork_verifications_total,
             hist_fork_verifications_success_total,
             hist_fork_verifications_failed_total,
+            hist_fork_realized_profit_total,
             hist_opportunity_density,
             hist_bucket_total,
             hist_clustering_freq,
