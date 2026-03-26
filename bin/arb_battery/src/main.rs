@@ -15,6 +15,7 @@ use alloy_primitives::{U256, Address, B256};
 use std::fs;
 use std::sync::Arc;
 use std::str::FromStr;
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,9 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rpc_url = config.local_rpc_url.clone().expect("ANVIL_RPC_URL must be specified in .env");
     let test_pk = config.test_private_key.clone().expect("TEST_PRIVATE_KEY must be specified in .env");
 
-    let cases_path = std::env::var("HISTORICAL_CASES_PATH").unwrap_or_else(|_| "fixtures/historical_cases.json".to_string());
+    let cases_path = env::var("HISTORICAL_CASES_PATH").unwrap_or_else(|_| "fixtures/historical_cases.json".to_string());
     let cases_json = fs::read_to_string(&cases_path).map_err(|e| format!("Failed to read {}: {}", cases_path, e))?;
-    let cases: Vec<HistoricalCase> = serde_json::from_str(&cases_json).map_err(|e| format!("Failed to parse {}: {}", cases_path, e))?;
+    let cases: Vec<HistoricalCase> = serde_json::from_str(&cases_json).map_err(|e| e.to_string())?;
 
     let url = rpc_url.parse::<Url>().map_err(|e| e.to_string())?;
     let provider = ProviderBuilder::new().on_http(url);

@@ -8,9 +8,9 @@ use tracing::{debug, info};
 use arb_metrics::MetricsRegistry;
 use arb_types::{
     EventStamp, PoolFreshness, PoolId, PoolKind, PoolStateSnapshot, PoolUpdate,
-    ReserveSnapshot, CLSnapshot, CLFullState, CLTickState,
+    ReserveSnapshot, CLSnapshot,
 };
-use alloy_primitives::{U256, U128};
+use alloy_primitives::U256;
 
 /// Staleness threshold: pools not updated within this window are marked stale.
 const STALE_THRESHOLD_MS: u64 = 30_000; // 30 seconds
@@ -363,61 +363,34 @@ impl Quoter {
             return U256::ZERO;
         }
 
-        // Apply dynamic fee
-        let mut amount_remaining = (amount_in * U256::from(10000 - fee_bps)) / U256::from(10000);
-        let mut amount_out = U256::ZERO;
+        // Apply dynamic fee to amount_in
+        let amount_after_fee = (amount_in * U256::from(10000 - fee_bps)) / U256::from(10000);
 
-        let mut sqrt_p = cl_state.sqrt_price_x96;
-        let mut liquidity = U256::from(cl_state.liquidity);
+        let sqrt_p = cl_state.sqrt_price_x96;
+        let liquidity = U256::from(cl_state.liquidity);
         
-        // Get active ticks in the direction of the trade
-        let mut sorted_ticks: Vec<i32> = cl_state.ticks.keys().cloned().collect();
-        sorted_ticks.sort();
-
-        let current_tick = cl_state.tick;
-
+        // Tick-traversal loop deferred to Phase 20+
+        /*
         loop {
-            if amount_remaining.is_zero() || liquidity.is_zero() {
+            if amount_after_fee.is_zero() || liquidity.is_zero() {
                 break;
             }
-
-            // Find next tick boundary
-            let next_tick = if zero_for_one {
-                // Price down: find largest tick < current_tick
-                sorted_ticks.iter().rev().find(|&&t| t <= current_tick).cloned()
-            } else {
-                // Price up: find smallest tick > current_tick
-                sorted_ticks.iter().find(|&&t| t > current_tick).cloned()
-            };
-
-            let target_sqrt_p = if let Some(nt) = next_tick {
-                // Calculate sqrtP at this tick: 1.0001^(nt/2) * 2^96
-                // Simplified for Phase 5: we use the boundary tick price
-                // Real implementation would use TickMath::get_sqrt_ratio_at_tick(nt)
-                // For now, if we have no TickMath, we stop at the next tick or simulate impact.
-                
-                // Let's assume we can calculate it or we reach it.
-                // Since we don't have TickMath yet, we use a single-range impact 
-                // but limit it to what would be a reasonable range (e.g. 1000 ticks)
-            } else {
-                // ...
-            };
-
-            // ... Full implementation would go here ...
+            // traversal logic...
             break;
         }
+        */
 
         // Fallback to single-range impact if we didn't finish traversal
         // (This is still more accurate than before because it's the start of the loop)
         
         if zero_for_one {
             let numerator = liquidity * sqrt_p;
-            let denominator = liquidity + (amount_remaining * sqrt_p >> 96);
+            let denominator = liquidity + (amount_after_fee * sqrt_p >> 96);
             let sqrt_p_after = numerator / denominator;
             let delta_sqrt_p = sqrt_p.saturating_sub(sqrt_p_after);
             (liquidity * delta_sqrt_p) >> 96
         } else {
-            let delta_sqrt_p = (amount_remaining << 96) / liquidity;
+            let delta_sqrt_p = (amount_after_fee << 96) / liquidity;
             let sqrt_p_after = sqrt_p + delta_sqrt_p;
             let numerator = liquidity * (sqrt_p_after - sqrt_p);
             let denominator = (sqrt_p_after * sqrt_p) >> 96;

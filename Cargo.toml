@@ -13,6 +13,7 @@ members = [
   "crates/arb_sim",
   "crates/arb_execute",
   "crates/arb_storage", "bin/arb_e2e", "bin/arb_battery_generator", "bin/arb_battery", "bin/arb_shadow_replay",
+  "crates/arb_calibration", "bin/arb_calibrate",
 ]
 
 [workspace.package]
