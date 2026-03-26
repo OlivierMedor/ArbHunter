@@ -1,8 +1,8 @@
 [
   {
-    "case_id": "43684000-56",
+    "case_id": "43683909-3361",
     "notes": "Phase 17 Spotlight: multi",
-    "fork_block_number": 43684000,
+    "fork_block_number": 43683909,
     "source_tx_hash": null,
     "root_asset": "0x4200000000000000000000000000000000000006",
     "route_family": "multi",
@@ -27,15 +27,15 @@
       false,
       true
     ],
-    "amount_in": "0x2386f26fc10000",
+    "amount_in": "0x11c37937e08000",
     "expected_outcome": "success",
     "guard_overrides": null,
     "seed_data": null
   },
   {
-    "case_id": "43684100-58",
+    "case_id": "43683910-3365",
     "notes": "Phase 17 Spotlight: multi",
-    "fork_block_number": 43684100,
+    "fork_block_number": 43683910,
     "source_tx_hash": null,
     "root_asset": "0x4200000000000000000000000000000000000006",
     "route_family": "multi",
@@ -60,22 +60,22 @@
       false,
       true
     ],
-    "amount_in": "0x2386f26fc10000",
+    "amount_in": "0x11c37937e08000",
     "expected_outcome": "success",
     "guard_overrides": null,
     "seed_data": null
   },
   {
-    "case_id": "43681200-1",
+    "case_id": "43680550-1",
     "notes": "Phase 17 Spotlight: multi",
-    "fork_block_number": 43681200,
+    "fork_block_number": 43680550,
     "source_tx_hash": null,
     "root_asset": "0x4200000000000000000000000000000000000006",
     "route_family": "multi",
     "pool_ids": [
-      "0x4cbec19b67a37e99b49d6346d31013c2a036c76b",
-      "0x231fd286f78364dc3f6a0f7e0b9a88540a6ed729",
-      "0xe31c372a7af875b3b5e0f3713b17ef51556da667"
+      "0x6a77cdec82eff6a6a5d273f18c1c27cd3d71a588",
+      "0xc50045d27b417a5774d12937e8a390cb969941e0",
+      "0xa5d7b70717116ddd6d612219e90952ce1b3bc41a"
     ],
     "pool_kinds": [
       "ReserveBased",
@@ -84,31 +84,31 @@
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
-      "0x56ca7ea740f54501cc6ffb2b6fb9ba46eaf8b51c",
-      "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
+      "0x85e90a5430af45776548adb82ee4cd9e33b08077",
+      "0x6db171bc785386973994072729d8fc707c2948e4",
       "0x4200000000000000000000000000000000000006"
     ],
     "leg_directions": [
       true,
       false,
-      true
+      false
     ],
     "amount_in": "0x38d7ea4c68000",
-    "expected_outcome": "success",
+    "expected_outcome": "revert",
     "guard_overrides": null,
     "seed_data": null
   },
   {
-    "case_id": "43681300-2",
+    "case_id": "43680551-2",
     "notes": "Phase 17 Spotlight: multi",
-    "fork_block_number": 43681300,
+    "fork_block_number": 43680551,
     "source_tx_hash": null,
     "root_asset": "0x4200000000000000000000000000000000000006",
     "route_family": "multi",
     "pool_ids": [
-      "0x4cbec19b67a37e99b49d6346d31013c2a036c76b",
-      "0x231fd286f78364dc3f6a0f7e0b9a88540a6ed729",
-      "0xe31c372a7af875b3b5e0f3713b17ef51556da667"
+      "0x6a77cdec82eff6a6a5d273f18c1c27cd3d71a588",
+      "0xc50045d27b417a5774d12937e8a390cb969941e0",
+      "0xa5d7b70717116ddd6d612219e90952ce1b3bc41a"
     ],
     "pool_kinds": [
       "ReserveBased",
@@ -117,17 +117,17 @@
     ],
     "path_tokens": [
       "0x4200000000000000000000000000000000000006",
-      "0x56ca7ea740f54501cc6ffb2b6fb9ba46eaf8b51c",
-      "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b",
+      "0x85e90a5430af45776548adb82ee4cd9e33b08077",
+      "0x6db171bc785386973994072729d8fc707c2948e4",
       "0x4200000000000000000000000000000000000006"
     ],
     "leg_directions": [
       true,
       false,
-      true
+      false
     ],
     "amount_in": "0x38d7ea4c68000",
-    "expected_outcome": "success",
+    "expected_outcome": "revert",
     "guard_overrides": null,
     "seed_data": null
   }
