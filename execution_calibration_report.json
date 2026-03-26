@@ -1,23 +1,31 @@
 {
-  "total_blocks": 43240,
-  "total_candidates": 9564538,
-  "total_profit_wei": 10282779922263671880354,
+  "replay_window": {
+    "start_block": 43680550,
+    "end_block": 43723750,
+    "total_blocks_in_window": 43201,
+    "blocks_with_candidates": 40717
+  },
+  "total_candidates": 10708460,
+  "block_density_candidates_per_block": 247.8753,
   "buckets": {
-    "Custom(10000000000000000)": 7237050,
-    "Custom(30000000000000000)": 1527414,
-    "Custom(50000000000000000)": 800074
+    "0.01 ETH": 8102605,
+    "0.03 ETH": 1710091,
+    "0.05 ETH": 895764
   },
   "families": {
-    "direct": 618256,
-    "multi": 8946282
+    "direct": 692189,
+    "multi": 10016271
   },
-  "max_profit_wei": 5000072552514093,
-  "avg_profit_wei": 1075094261977282,
-  "root_asset_distribution": {
-    "0x4200000000000000000000000000000000000006": 9564538
+  "profit": {
+    "total_wei": 11512619578721224175061,
+    "total_eth": 11512.619579,
+    "avg_wei": 1075095726063432,
+    "avg_eth": 0.0010751,
+    "max_wei": 5000072552514093,
+    "max_eth": 0.00500007
   },
-  "block_density": 221.19653098982423,
-  "total_profit_eth": 10282.779922263671,
-  "max_profit_eth": 0.005000072552514093,
-  "avg_profit_eth": 0.001075094261977282
+  "meta": {
+    "source_file": "historical_replay_full_day_candidates.jsonl",
+    "parse_errors": 1
+  }
 }
