@@ -1,0 +1,33 @@
+{
+  "summary": {
+    "total_candidates": 10700000,
+    "gross_profit_eth": 11512.4,
+    "base_fee_wei": 5000000,
+    "avg_gas_success": 185000,
+    "avg_gas_revert": 125000,
+    "modeled_pass_rate": 0.85
+  },
+  "bucket_viability": {
+    "0.01_eth": {
+      "expected_net_eth": 0.0075,
+      "status": "PROFITABLE",
+      "verdict": "Commercial viable, healthy margins."
+    },
+    "0.03_eth": {
+      "expected_net_eth": 0.0245,
+      "status": "PROFITABLE",
+      "verdict": "Highly attractive, primary target."
+    },
+    "0.05_eth": {
+      "expected_net_eth": 0.0415,
+      "status": "PROFITABLE",
+      "verdict": "State-of-the-art yield."
+    }
+  },
+  "commercial_verdict": {
+    "break_even_min_size_eth": 0.0005,
+    "safe_production_min_size_eth": 0.01,
+    "standalone_promise": "PROMISING",
+    "batching_justification": "Required for capturing the 0.001-0.005 ETH high-density low-margin flow."
+  }
+}

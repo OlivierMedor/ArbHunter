@@ -1,0 +1,1624 @@
+{
+  "samples": [
+    {
+      "id": "43682933-626766",
+      "block": 43682933,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x86cd030822547105bd7952af4ba48534640a3824",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xaaf3d39cc583c2aa21ebb598634762da836c1716",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43695597-3957507",
+      "block": 43695597,
+      "family": "multi",
+      "bucket": "Custom(50000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x9ccc7afe654b9c842a792e9567a30031c1943a1d",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x88a43bbdf9d098eec7bceda4e2494615dfd9bb9c",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43712760-8471270",
+      "block": 43712760,
+      "family": "multi",
+      "bucket": "Custom(50000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x86cd030822547105bd7952af4ba48534640a3824",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xe5ca910f564e7a3ee1ca7a4d9e0d83e0e5dbdd02",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43715417-9170087",
+      "block": 43715417,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x46764627640d109b21d200652d3595b5a884db21",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x3c28a6edc11746bf45c7fe0a2bcf95e27abc7bba",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x4037e0f9541fcfc47edbcb9c3aa26d76398da6ef",
+              "kind": "ReserveBased",
+              "token_in": "0x3c28a6edc11746bf45c7fe0a2bcf95e27abc7bba",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43683588-799135",
+      "block": 43683588,
+      "family": "multi",
+      "bucket": "Custom(30000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x9ccc7afe654b9c842a792e9567a30031c1943a1d",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xab067c01c7f5734da168c699ae9d23a4512c9fdb",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43710866-7973123",
+      "block": 43710866,
+      "family": "direct",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x3fe49194d3cf9a7005203468073a32d764fb86b6",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43683859-870528",
+      "block": 43683859,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x21d1c4527c6b20e2b33503fb04f6a55f3aa0c922",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x3099a7c284610897baaa43cbdc06469e44a06ce1",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43696482-4190263",
+      "block": 43696482,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x9ccc7afe654b9c842a792e9567a30031c1943a1d",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xaaf3d39cc583c2aa21ebb598634762da836c1716",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43689978-2479716",
+      "block": 43689978,
+      "family": "multi",
+      "bucket": "Custom(30000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x9ccc7afe654b9c842a792e9567a30031c1943a1d",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x3099a7c284610897baaa43cbdc06469e44a06ce1",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43700731-5307775",
+      "block": 43700731,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xf3f1f5760a614b8146eec5d1c94658720c2425b9",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x2f8818d1b0f3e3e295440c1c0cddf40aaa21fa87",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43682192-432018",
+      "block": 43682192,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xf3f1f5760a614b8146eec5d1c94658720c2425b9",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x2f8818d1b0f3e3e295440c1c0cddf40aaa21fa87",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43719961-10365207",
+      "block": 43719961,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x3458ffdc3b2cc274a9d8aa8d9b0b934558b7a498",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xe5ca910f564e7a3ee1ca7a4d9e0d83e0e5dbdd02",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43722508-11035058",
+      "block": 43722508,
+      "family": "multi",
+      "bucket": "Custom(30000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x3458ffdc3b2cc274a9d8aa8d9b0b934558b7a498",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xc868fcf8af03a2306c6b37db23b5a25b38b27eb9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43717469-9709722",
+      "block": 43717469,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x86cd030822547105bd7952af4ba48534640a3824",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x2f8818d1b0f3e3e295440c1c0cddf40aaa21fa87",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43703677-6082566",
+      "block": 43703677,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xedc8f86740daafed0a38f1b73f9964aa5c80901c",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xaaf3d39cc583c2aa21ebb598634762da836c1716",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43692347-3102738",
+      "block": 43692347,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x2adc726148b26e7d6a0de7c0276afe7a25e97228",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xe5ca910f564e7a3ee1ca7a4d9e0d83e0e5dbdd02",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43688996-2221509",
+      "block": 43688996,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x845cc7430714e572dfc514acaf30a0e3ecc7c897",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x79474223aedd0339780bacce75abda0be84dcbf9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43701127-5411865",
+      "block": 43701127,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x3458ffdc3b2cc274a9d8aa8d9b0b934558b7a498",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xe5ca910f564e7a3ee1ca7a4d9e0d83e0e5dbdd02",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43684921-1149770",
+      "block": 43684921,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xe5ca910f564e7a3ee1ca7a4d9e0d83e0e5dbdd02",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43710797-7955112",
+      "block": 43710797,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x9ccc7afe654b9c842a792e9567a30031c1943a1d",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x3099a7c284610897baaa43cbdc06469e44a06ce1",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43710573-7896154",
+      "block": 43710573,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x3458ffdc3b2cc274a9d8aa8d9b0b934558b7a498",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x83240b049fa89b65be714aed68e5b074df6aac84",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43716135-9359073",
+      "block": 43716135,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x845cc7430714e572dfc514acaf30a0e3ecc7c897",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xe5ca910f564e7a3ee1ca7a4d9e0d83e0e5dbdd02",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43694849-3760825",
+      "block": 43694849,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xb16d2257643fdbb32d12b9d73fab784eb4f1bee4",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43707589-7111495",
+      "block": 43707589,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x41d160033c222e6f3722ec97379867324567d883",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x88a43bbdf9d098eec7bceda4e2494615dfd9bb9c",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43705489-6559190",
+      "block": 43705489,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x41d160033c222e6f3722ec97379867324567d883",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x79474223aedd0339780bacce75abda0be84dcbf9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43701436-5493204",
+      "block": 43701436,
+      "family": "multi",
+      "bucket": "Custom(30000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x2f8818d1b0f3e3e295440c1c0cddf40aaa21fa87",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43685087-1193323",
+      "block": 43685087,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x41d160033c222e6f3722ec97379867324567d883",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43681680-297207",
+      "block": 43681680,
+      "family": "direct",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x3b190783a47db6acb11c0899ecf31f47896f3a17",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43710243-7809442",
+      "block": 43710243,
+      "family": "multi",
+      "bucket": "Custom(50000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xc868fcf8af03a2306c6b37db23b5a25b38b27eb9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43709078-7502992",
+      "block": 43709078,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x2adc726148b26e7d6a0de7c0276afe7a25e97228",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x3099a7c284610897baaa43cbdc06469e44a06ce1",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43717984-9845196",
+      "block": 43717984,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x9be7bbd1f55320159e595ed1214783425e495c3c",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x6db171bc785386973994072729d8fc707c2948e4",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xa5d7b70717116ddd6d612219e90952ce1b3bc41a",
+              "kind": "ReserveBased",
+              "token_in": "0x6db171bc785386973994072729d8fc707c2948e4",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43710935-7991418",
+      "block": 43710935,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xedc8f86740daafed0a38f1b73f9964aa5c80901c",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x519dd69c98152ef21aa06fe025e313c57c1d0afd",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43684674-1084777",
+      "block": 43684674,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xedc8f86740daafed0a38f1b73f9964aa5c80901c",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xaaf3d39cc583c2aa21ebb598634762da836c1716",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43685324-1255615",
+      "block": 43685324,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xd467b1bb20e9c5569ad8bc91d2236a8ceb574075",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x54016a4848a38f257b6e96331f7404073fd9c32c",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xc825c67ca3a80d487c339a6c16bb84f7dca16012",
+              "kind": "ReserveBased",
+              "token_in": "0x54016a4848a38f257b6e96331f7404073fd9c32c",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43697858-4552187",
+      "block": 43697858,
+      "family": "multi",
+      "bucket": "Custom(50000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xc868fcf8af03a2306c6b37db23b5a25b38b27eb9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43685050-1183592",
+      "block": 43685050,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x701d4e0aa795e1e24ee300e39447f57a9605c6b2",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x41d160033c222e6f3722ec97379867324567d883",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43696194-4114548",
+      "block": 43696194,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xf3f1f5760a614b8146eec5d1c94658720c2425b9",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xaaf3d39cc583c2aa21ebb598634762da836c1716",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43681671-295018",
+      "block": 43681671,
+      "family": "multi",
+      "bucket": "Custom(50000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x88a43bbdf9d098eec7bceda4e2494615dfd9bb9c",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43689761-2422699",
+      "block": 43689761,
+      "family": "multi",
+      "bucket": "Custom(30000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0x845cc7430714e572dfc514acaf30a0e3ecc7c897",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0xc868fcf8af03a2306c6b37db23b5a25b38b27eb9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    },
+    {
+      "id": "43722689-11082746",
+      "block": 43722689,
+      "family": "multi",
+      "bucket": "Custom(10000000000000000)",
+      "path": {
+        "legs": [
+          {
+            "edge": {
+              "pool_id": "0xef24722d5dae32dc155d961561cffbc5f347eee7",
+              "kind": "ReserveBased",
+              "token_in": "0x4200000000000000000000000000000000000006",
+              "token_out": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x0484ae96984bcadf6476811974eeb6c7975b483f",
+              "kind": "ReserveBased",
+              "token_in": "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+              "token_out": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          },
+          {
+            "edge": {
+              "pool_id": "0x79474223aedd0339780bacce75abda0be84dcbf9",
+              "kind": "ReserveBased",
+              "token_in": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+              "token_out": "0x4200000000000000000000000000000000000006",
+              "fee_bps": 30,
+              "is_stale": false
+            }
+          }
+        ],
+        "root_asset": "0x4200000000000000000000000000000000000006"
+      }
+    }
+  ]
+}
