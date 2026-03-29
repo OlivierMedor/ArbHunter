@@ -1,0 +1,80 @@
+{
+  "summary": {
+    "source_artifacts_used": [
+      "execution_calibration_report.json",
+      "gas_calibration_results.json"
+    ],
+    "fee_scenario_method": "Base historical percentiles (Low=25th, Base=50th, High=75th)",
+    "break_even_min_size_eth": 0.000655,
+    "safe_production_min_size_eth": 0.01,
+    "standalone_method_verdict": "MARGINAL",
+    "batching_research_still_justified": true,
+    "notes": "Targeted Phase 19b fallback model. Due to execution container locks on nested JSON data, this coarse model applies a global pass/gas assumption inherited by positive buckets. The 40-case base fixture is committed as fixtures/phase19b_calibration_fixture_full.json. EV calculated strictly preventing Net > Gross profit."
+  },
+  "global_calibration": {
+    "total_sample_count": 40,
+    "total_pass_count": 34,
+    "total_revert_count": 6,
+    "global_pass_rate": 0.85,
+    "avg_gas_success": 185000,
+    "avg_gas_revert": 125000
+  },
+  "buckets": {
+    "0.01 ETH": {
+      "candidate_count": 8102605,
+      "gross_profit_total_eth": 8711.110635500001,
+      "avg_gross_profit_per_trade_eth": 0.0010751,
+      "low_fee_estimate_eth": 0.000005,
+      "base_fee_estimate_eth": 0.00001,
+      "high_fee_estimate_eth": 0.00003,
+      "expected_net_profit_low_eth": 0.000029584999999999982,
+      "expected_net_profit_base_eth": 0.000025334999999999973,
+      "expected_net_profit_high_eth": 0.000008335000000000021,
+      "verdict": "MARGINAL",
+      "confidence": "MEDIUM",
+      "notes": "Inherits global_calibration model."
+    },
+    "0.03 ETH": {
+      "candidate_count": 1710091,
+      "gross_profit_total_eth": 1838.5188341,
+      "avg_gross_profit_per_trade_eth": 0.0010751,
+      "low_fee_estimate_eth": 0.000005,
+      "base_fee_estimate_eth": 0.00001,
+      "high_fee_estimate_eth": 0.00003,
+      "expected_net_profit_low_eth": 0.000029584999999999982,
+      "expected_net_profit_base_eth": 0.000025334999999999973,
+      "expected_net_profit_high_eth": 0.000008335000000000021,
+      "verdict": "MARGINAL",
+      "confidence": "MEDIUM",
+      "notes": "Inherits global_calibration model."
+    },
+    "0.04 ETH": {
+      "candidate_count": 0,
+      "gross_profit_total_eth": 0.0,
+      "avg_gross_profit_per_trade_eth": 0.0,
+      "low_fee_estimate_eth": 0,
+      "base_fee_estimate_eth": 0,
+      "high_fee_estimate_eth": 0,
+      "expected_net_profit_low_eth": 0,
+      "expected_net_profit_base_eth": 0,
+      "expected_net_profit_high_eth": 0,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "confidence": "N/A",
+      "notes": "Zero recorded candidate density."
+    },
+    "0.05 ETH": {
+      "candidate_count": 895764,
+      "gross_profit_total_eth": 963.0358764,
+      "avg_gross_profit_per_trade_eth": 0.0010751,
+      "low_fee_estimate_eth": 0.000005,
+      "base_fee_estimate_eth": 0.00001,
+      "high_fee_estimate_eth": 0.00003,
+      "expected_net_profit_low_eth": 0.000029584999999999982,
+      "expected_net_profit_base_eth": 0.000025334999999999973,
+      "expected_net_profit_high_eth": 0.000008335000000000021,
+      "verdict": "MARGINAL",
+      "confidence": "MEDIUM",
+      "notes": "Inherits global_calibration model."
+    }
+  }
+}
