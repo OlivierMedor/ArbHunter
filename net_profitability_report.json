@@ -10,7 +10,7 @@
     "safe_production_min_size_eth": 0.01,
     "standalone_method_verdict": "MARGINAL",
     "batching_research_still_justified": true,
-    "notes": "EV calculated strictly preventing Net > Gross profit."
+    "notes": "Targeted Phase 19b fallback model. Bucket-specific gas/pass-rate calibration is approximated globally from the 40-case sample (85% pass rate, 185k success gas, 125k revert gas). Conclusions should be interpreted as decision-grade but still conservative/approximate. EV calculated strictly preventing Net > Gross profit."
   },
   "buckets": {
     "0.01 ETH": {
@@ -51,18 +51,18 @@
       "candidate_count": 0,
       "gross_profit_total_eth": 0.0,
       "avg_gross_profit_per_trade_eth": 0.0010751,
-      "fork_sample_count": 10,
-      "fork_pass_rate": 0.85,
+      "fork_sample_count": 0,
+      "fork_pass_rate": 0,
       "avg_gas_success": 185000,
       "avg_gas_revert": 125000,
       "low_fee_estimate_eth": 5e-06,
       "base_fee_estimate_eth": 1e-05,
       "high_fee_estimate_eth": 3e-05,
-      "expected_net_profit_low_eth": 2.9584999999999982e-05,
-      "expected_net_profit_base_eth": 2.5334999999999973e-05,
-      "expected_net_profit_high_eth": 8.335000000000021e-06,
-      "verdict": "MARGINAL",
-      "confidence": "MEDIUM"
+      "expected_net_profit_low_eth": 0,
+      "expected_net_profit_base_eth": 0,
+      "expected_net_profit_high_eth": 0,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "confidence": "N/A"
     },
     "0.05 ETH": {
       "candidate_count": 895764,

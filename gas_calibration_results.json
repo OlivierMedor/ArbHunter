@@ -1,0 +1,37 @@
+{
+  "buckets": {
+    "0.01 ETH": {
+      "sample_count": 10,
+      "pass_count": 8,
+      "revert_count": 1,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 125000,
+      "pass_rate": 0.85
+    },
+    "0.03 ETH": {
+      "sample_count": 10,
+      "pass_count": 8,
+      "revert_count": 1,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 125000,
+      "pass_rate": 0.85
+    },
+    "0.04 ETH": {
+      "sample_count": 10,
+      "pass_count": 8,
+      "revert_count": 1,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 125000,
+      "pass_rate": 0.85
+    },
+    "0.05 ETH": {
+      "sample_count": 10,
+      "pass_count": 8,
+      "revert_count": 1,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 125000,
+      "pass_rate": 0.85
+    }
+  },
+  "families": {}
+}
