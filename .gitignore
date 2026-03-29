@@ -17,3 +17,4 @@ foundry.zip
 foundry_bin/
 check_err.json
 verify_hash.rs
+historical_replay_full_day_candidates.jsonl

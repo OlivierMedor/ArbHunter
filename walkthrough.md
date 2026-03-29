@@ -1,83 +1,27 @@
-# Phase 18 Walkthrough: Arbitrage Engine Calibration
+# Phase 18 & 19b Walkthrough: Arbitrage Engine Calibration
 
-> **Canonical branch**: `phase-18-final-calibration`
-> **Canonical artifact**: `execution_calibration_report.json`
-> All numbers in this document come directly from `execution_calibration_report.json`.
-
----
-
-## 1. Replay Window
-
-- **Blocks**: 43,680,550 → 43,723,750
-- **Total blocks in window**: 43,201
-- **Blocks with at least one candidate**: 40,717 (94.3%)
-
-The "Structural Turbo" architecture was used:
-- `RouteGraph` cached and rebuilt only when the pool registry grows.
-- 2-hop and 3-hop cycles persisted between blocks.
-- `rayon` parallel evaluation of all candidate paths.
+> **Canonical branch**: `phase-19b-targeted-gas-calibration`
+> **Canonical artifact**: `net_profitability_report.json`
 
 ---
 
-## 2. Canonical Results
+## 1. Targeted Gas Calibration (Phase 19b)
+Phase 19b was designed to provide a stronger, decision-grade calibration using a bounded 40-case targeted extraction, explicitly skipping the full 11.3 GB file rescan. 
 
-### Candidate Volume
+> **Context**: This is a bounded targeted fallback model. Bucket-specific gas/pass-rate calibration is approximated globally from the 40-case sample base fixture (`fixtures/phase19b_calibration_fixture_full.json`) applying 85% simulated success, 185k success gas, and 125k revert gas natively. Conclusions should be interpreted as decision-grade but still conservative/approximate. Private orderflow / builder integration remains deferred. EV calculated strictly preventing Net > Gross profit.
 
-| Metric | Value |
-| :--- | :--- |
-| Total unique candidates | 10,708,460 |
-| Block density | 247.88 candidates / block |
-| Blocks with candidates | 40,717 (94.3%) |
+### Net EV Formula
+`Expected Net = pass_rate × (avg_gross − success_fee) − (1 − pass_rate) × revert_cost`
 
-### Size-Bucket Breakdown (Input Size, Not Profit)
+### Viability Summary
+1. **0.01 ETH**: MARGINAL - Thin expected net margins (~ 0.000025 ETH)
+2. **0.03 ETH**: MARGINAL - Thin expected net margins (~ 0.000025 ETH)
+3. **0.05 ETH**: MARGINAL - Thin expected net margins (~ 0.000025 ETH)
 
-| Bucket | Count | % |
-| :--- | :--- | :--- |
-| 0.01 ETH input | 8,102,605 | 75.7% |
-| 0.03 ETH input | 1,710,091 | 16.0% |
-| 0.05 ETH input | 895,764 | 8.4% |
+*(0.04 ETH bucket evaluated as INSUFFICIENT_EVIDENCE due to 0 candidate count).*
 
-### Route Family
-
-| Family | Count |
-| :--- | :--- |
-| Multi-hop (3-leg) | 10,016,271 (93.5%) |
-| Direct (2-leg) | 692,189 (6.5%) |
-
-### Profitability (Gross, Pre-Gas)
-
-| Metric | ETH |
-| :--- | :--- |
-| Total simulated gross profit | 11,512.62 ETH |
-| Average profit per trade | ~0.00108 ETH |
-| Peak profit per trade | ~0.00500 ETH |
-
----
-
-## 3. Size Questions
-
-- **Were there 0.03 ETH opportunities?** Yes — 1,710,091 candidates with 0.03 ETH input size.
-- **Were there 0.04 ETH opportunities?** Not a discrete bucket tested; thresholds were 0.01, 0.03, and 0.05.
-- **Were there 0.05 ETH+ opportunities?** Yes — 895,764 candidates with 0.05 ETH input size.
-
----
-
-## 4. Batchability Findings
-
-With 247.88 candidates/block and 94.3% block coverage, multiple opportunities co-occurring in the same block is the norm. The 10M+ multi-hop count vs. 692k direct-hop indicates compound paths frequently surface alongside simpler ones per block.
-
-**Conclusion**: Batched execution research (Phase 20) is analytically justified by this density data. Not implemented here.
-
----
-
-## 5. What Is NOT Here
-
-- Gas cost subtraction (Phase 19 scope).
-- Live execution logic (not added).
-- The 11.3 GB `historical_replay_full_day_candidates.jsonl` is local-only (exceeds GitHub 100 MB limit).
-
----
-
-## Source of Truth
-
-`execution_calibration_report.json`
+### Thresholds
+- **Break-even minimum size**: ~ 0.000655 ETH
+- **Safe production minimum size**: ~ 0.010000 ETH
+- **Standalone Method Verdict**: MARGINAL
+- **Batching Research**: STILL JUSTIFIED. Required to amortize the L1 baseline offset fees across multiple dense low-margin route setups.
