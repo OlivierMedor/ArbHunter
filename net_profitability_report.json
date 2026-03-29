@@ -1,33 +1,48 @@
 {
-  "summary": {
-    "total_candidates": 10700000,
-    "gross_profit_eth": 11512.4,
-    "base_fee_wei": 5000000,
-    "avg_gas_success": 185000,
-    "avg_gas_revert": 125000,
-    "modeled_pass_rate": 0.85
-  },
-  "bucket_viability": {
-    "0.01_eth": {
-      "expected_net_eth": 0.0075,
-      "status": "PROFITABLE",
-      "verdict": "Commercial viable, healthy margins."
+  "candidate_count": 10708460,
+  "gross_profit_total_eth": 11512.619579,
+  "avg_gross_profit_per_trade_eth": 0.0010751,
+  "fork_sample_count": 4,
+  "fork_pass_rate": 0.0,
+  "avg_gas_used_success": 185000,
+  "avg_gas_used_revert": 154009.5,
+  "low_fee_estimate_eth": 5e-06,
+  "base_fee_estimate_eth": 1e-05,
+  "high_fee_estimate_eth": 3e-05,
+  "source_artifacts_used": [
+    "execution_calibration_report.json",
+    "fixtures/fork_verification_results.json"
+  ],
+  "fee_percentile_method": "Base network historical percentiles (Low=25th, Base=50th, High=75th)",
+  "break_even_min_size_eth": 0.0008000475,
+  "safe_production_min_size_eth": 0.01,
+  "standalone_method_verdict": "INCONCLUSIVE / WEAK. Fork sample shows 100% revert rate.",
+  "batching_research_still_justified": true,
+  "notes": "Fallback model triggered due to previous mathematically invalid reporting. Expected net cannot be computed positively due to 0% pass rate in the available sample. Thus, all buckets fall under INSUFFICIENT_EVIDENCE.",
+  "buckets": {
+    "0.01 ETH": {
+      "candidate_count": 8102605,
+      "expected_net_profit_low_eth": -0.0007700475,
+      "expected_net_profit_base_eth": -0.0007700475,
+      "expected_net_profit_high_eth": -0.0007700475,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "confidence": "LOW"
     },
-    "0.03_eth": {
-      "expected_net_eth": 0.0245,
-      "status": "PROFITABLE",
-      "verdict": "Highly attractive, primary target."
+    "0.03 ETH": {
+      "candidate_count": 1710091,
+      "expected_net_profit_low_eth": -0.0007700475,
+      "expected_net_profit_base_eth": -0.0007700475,
+      "expected_net_profit_high_eth": -0.0007700475,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "confidence": "LOW"
     },
-    "0.05_eth": {
-      "expected_net_eth": 0.0415,
-      "status": "PROFITABLE",
-      "verdict": "State-of-the-art yield."
+    "0.05 ETH": {
+      "candidate_count": 895764,
+      "expected_net_profit_low_eth": -0.0007700475,
+      "expected_net_profit_base_eth": -0.0007700475,
+      "expected_net_profit_high_eth": -0.0007700475,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "confidence": "LOW"
     }
-  },
-  "commercial_verdict": {
-    "break_even_min_size_eth": 0.0005,
-    "safe_production_min_size_eth": 0.01,
-    "standalone_promise": "PROMISING",
-    "batching_justification": "Required for capturing the 0.001-0.005 ETH high-density low-margin flow."
   }
 }
