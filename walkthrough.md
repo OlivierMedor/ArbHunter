@@ -1,27 +1,40 @@
-# Phase 18 & 19b Walkthrough: Arbitrage Engine Calibration
+# ArbHunger Walkthrough
 
-> **Canonical branch**: `phase-19b-targeted-gas-calibration`
-> **Canonical artifact**: `net_profitability_report.json`
+## Phase 20: Package Feasibility & Batch Simulation
 
----
+### Objective
+Determine whether multiple compatible arbitrage opportunities
+within the same block can be grouped into atomic packages to
+improve net profitability.
 
-## 1. Targeted Gas Calibration (Phase 19b)
-Phase 19b was designed to provide a stronger, decision-grade calibration using a bounded 40-case targeted extraction, explicitly skipping the full 11.3 GB file rescan. 
+### Methodology
+- **Stratified Sampling**: 4 windows of 250k lines each across the full 24h candidate dataset
+- **Conflict Rule**: Strict — any pool address overlap is a destructive conflict
+- **Window**: Same-block only (window = 0)
 
-> **Context**: This is a bounded targeted fallback model. Bucket-specific gas/pass-rate calibration is approximated globally from the 40-case sample base fixture (`fixtures/phase19b_calibration_fixture_full.json`) applying 85% simulated success, 185k success gas, and 125k revert gas natively. Conclusions should be interpreted as decision-grade but still conservative/approximate. Private orderflow / builder integration remains deferred. EV calculated strictly preventing Net > Gross profit.
+### Results
 
-### Net EV Formula
-`Expected Net = pass_rate × (avg_gross − success_fee) − (1 − pass_rate) × revert_cost`
+| Metric | Value |
+|-------|-------|
+| Total lines sampled | 1,000,000 |
+| Block clusters with >1 opportunity | 3,805 |
+| Clusters rejected (pool overlap) | 3,805 (100%) |
+| Same-direction overlaps | 159,731 |
+| Opposite-direction overlaps | 0 |
+| Viable packages | 0 |
+| Total uplift | 0.0 ETH |
 
-### Viability Summary
-1. **0.01 ETH**: MARGINAL - Thin expected net margins (~ 0.000025 ETH)
-2. **0.03 ETH**: MARGINAL - Thin expected net margins (~ 0.000025 ETH)
-3. **0.05 ETH**: MARGINAL - Thin expected net margins (~ 0.000025 ETH)
+### Verdict
+Packaging is **not feasible** under strict conflict rules at window=0.
+All 3,805 block clusters were rejected due to pool overlap.
+All overlaps were same-direction, indicating highly correlated opportunities.
 
-*(0.04 ETH bucket evaluated as INSUFFICIENT_EVIDENCE due to 0 candidate count).*
+### Canonical Artifacts
+- `package_batchability_report.json` — Full analytical results
+- `scripts/analyzer.py` — Stratified sampling analyzer
+- `phase-20.md` — Phase 20 report
 
-### Thresholds
-- **Break-even minimum size**: ~ 0.000655 ETH
-- **Safe production minimum size**: ~ 0.010000 ETH
-- **Standalone Method Verdict**: MARGINAL
-- **Batching Research**: STILL JUSTIFIED. Required to amortize the L1 baseline offset fees across multiple dense low-margin route setups.
+### Next Steps
+1. Consider relaxing the conflict rule to allow same-direction overlap
+2. Explore multi-block windowing for cross-block packages
+3. Analyze slippage impact of same-pool batching
