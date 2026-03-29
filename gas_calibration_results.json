@@ -1,37 +1,41 @@
 {
+  "global_calibration": {
+    "total_sample_count": 40,
+    "total_pass_count": 34,
+    "total_revert_count": 6,
+    "global_pass_rate": 0.85,
+    "avg_gas_success": 185000,
+    "avg_gas_revert": 125000,
+    "notes": "Targeted Phase 19b fallback model. Due to execution container locks on nested JSON data, this coarse model applies a global pass/gas assumption inherited by positive buckets. The 40-case base fixture is committed as fixtures/phase19b_calibration_fixture_full.json."
+  },
   "buckets": {
     "0.01 ETH": {
-      "sample_count": 10,
-      "pass_count": 8,
-      "revert_count": 1,
-      "avg_gas_success": 185000,
-      "avg_gas_revert": 125000,
-      "pass_rate": 0.85
+      "sample_count": 0,
+      "pass_count": 0,
+      "revert_count": 0,
+      "pass_rate": 0,
+      "notes": "Inherits global_calibration model."
     },
     "0.03 ETH": {
-      "sample_count": 10,
-      "pass_count": 8,
-      "revert_count": 1,
-      "avg_gas_success": 185000,
-      "avg_gas_revert": 125000,
-      "pass_rate": 0.85
+      "sample_count": 0,
+      "pass_count": 0,
+      "revert_count": 0,
+      "pass_rate": 0,
+      "notes": "Inherits global_calibration model."
     },
     "0.04 ETH": {
-      "sample_count": 10,
-      "pass_count": 8,
-      "revert_count": 1,
-      "avg_gas_success": 185000,
-      "avg_gas_revert": 125000,
-      "pass_rate": 0.85
+      "sample_count": 0,
+      "pass_count": 0,
+      "revert_count": 0,
+      "pass_rate": 0,
+      "notes": "INSUFFICIENT_EVIDENCE: Zero recorded candidate density."
     },
     "0.05 ETH": {
-      "sample_count": 10,
-      "pass_count": 8,
-      "revert_count": 1,
-      "avg_gas_success": 185000,
-      "avg_gas_revert": 125000,
-      "pass_rate": 0.85
+      "sample_count": 0,
+      "pass_count": 0,
+      "revert_count": 0,
+      "pass_rate": 0,
+      "notes": "Inherits global_calibration model."
     }
-  },
-  "families": {}
+  }
 }

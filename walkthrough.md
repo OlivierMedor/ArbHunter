@@ -8,7 +8,7 @@
 ## 1. Targeted Gas Calibration (Phase 19b)
 Phase 19b was designed to provide a stronger, decision-grade calibration using a bounded 40-case targeted extraction, explicitly skipping the full 11.3 GB file rescan. 
 
-> **Context**: This is a bounded targeted fallback model. Bucket-specific gas/pass-rate calibration is approximated globally from the 40-case sample (85% pass rate, 185k success gas, 125k revert gas). Conclusions should be interpreted as decision-grade but still conservative/approximate. Private orderflow / builder integration remains deferred. EV calculated strictly preventing Net > Gross profit.
+> **Context**: This is a bounded targeted fallback model. Bucket-specific gas/pass-rate calibration is approximated globally from the 40-case sample base fixture (`fixtures/phase19b_calibration_fixture_full.json`) applying 85% simulated success, 185k success gas, and 125k revert gas natively. Conclusions should be interpreted as decision-grade but still conservative/approximate. Private orderflow / builder integration remains deferred. EV calculated strictly preventing Net > Gross profit.
 
 ### Net EV Formula
 `Expected Net = pass_rate × (avg_gross − success_fee) − (1 − pass_rate) × revert_cost`
