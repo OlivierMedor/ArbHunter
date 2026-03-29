@@ -25,3 +25,4 @@ These local-only files may be used to generate compact canonical artifacts, but 
 
 For each phase, treat the “Canonical Artifact(s)” column above as the source of truth.
 Supporting artifacts should explain and summarize the canonical artifact, not contradict it.
+ - [Phase 20b Analysis (Complete)](file:///c:/Users/olivi/Documents/ArbHunger/phase-20b.md)
