@@ -1,0 +1,22 @@
+{
+  "summary": {
+    "total_lines_sampled": 1000000,
+    "groups_considered": 3805,
+    "groups_rejected_pool_overlap": 3805,
+    "same_direction_overlap": 159731,
+    "opposite_direction_overlap": 0,
+    "package_size_distribution": {
+      "263": 3798,
+      "150": 1,
+      "151": 1,
+      "262": 1,
+      "28": 1,
+      "122": 1,
+      "165": 1,
+      "248": 1
+    },
+    "total_uplift_eth": 0.0,
+    "avg_uplift_per_package_eth": 0.0
+  },
+  "top_packages": []
+}
