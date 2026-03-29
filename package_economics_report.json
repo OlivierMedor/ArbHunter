@@ -1,0 +1,24 @@
+{
+  "summary": {
+    "Low": {
+      "pkg_pos": 0,
+      "uplift_pos": 753555,
+      "total_net": 0
+    },
+    "Base": {
+      "pkg_pos": 0,
+      "uplift_pos": 753555,
+      "total_net": 0
+    },
+    "High": {
+      "pkg_pos": 0,
+      "uplift_pos": 753555,
+      "total_net": 0
+    }
+  },
+  "metadata": {
+    "duration": 28.12349510192871,
+    "clusters": 4567,
+    "perms": 3699270
+  }
+}
