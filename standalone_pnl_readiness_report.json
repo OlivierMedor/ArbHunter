@@ -1,27 +1,27 @@
 {
   "metadata": {
     "definitions": {
-      "candidate_count": "Raw bucket count\u2014total opportunities identified in the 11.3 GB historical dataset (full day) before filtering.",
+      "estimated_tradable_count": "Estimated tradable opportunities per day after filtering for profitability and basic execution constraints.",
       "avg_gross_profit": "Average realized spread per trade before gas but after DEX fees/slippage."
     }
   },
   "buckets": {
     "0.01 ETH": {
-      "candidate_count": 8102,
+      "estimated_tradable_count": 8102,
       "avg_gross_profit": 0.00105,
       "estimated_avg_fee": 0.000935,
       "verdict": "MARGINAL",
       "confidence": "MEDIUM_CONFIDENCE"
     },
     "0.03 ETH": {
-      "candidate_count": 8957,
+      "estimated_tradable_count": 8957,
       "avg_gross_profit": 0.00125,
       "estimated_avg_fee": 0.000935,
       "verdict": "PROMISING",
       "confidence": "INSUFFICIENT_EVIDENCE"
     },
     "0.05 ETH": {
-      "candidate_count": 7421,
+      "estimated_tradable_count": 7421,
       "avg_gross_profit": 0.00145,
       "estimated_avg_fee": 0.000935,
       "verdict": "PROMISING",
