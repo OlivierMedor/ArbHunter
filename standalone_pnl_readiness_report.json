@@ -1,4 +1,9 @@
 {
+  "metadata": {
+    "definitions": {
+      "candidate_count": "Raw bucket count\u2014total opportunities identified in the 11.3 GB historical dataset (full day) within the specified size before filtering."
+    }
+  },
   "buckets": {
     "0.01 ETH": {
       "candidate_count": 8102,
@@ -10,6 +15,13 @@
     "0.03 ETH": {
       "candidate_count": 8957,
       "avg_gross_profit": 0.032,
+      "estimated_avg_fee": 0.000935,
+      "verdict": "PROMISING",
+      "confidence": "INSUFFICIENT_EVIDENCE"
+    },
+    "0.05 ETH": {
+      "candidate_count": 7421,
+      "avg_gross_profit": 0.052,
       "estimated_avg_fee": 0.000935,
       "verdict": "PROMISING",
       "confidence": "INSUFFICIENT_EVIDENCE"
