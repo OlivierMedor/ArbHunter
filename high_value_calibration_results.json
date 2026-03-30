@@ -1,0 +1,74 @@
+{
+  "methodology": "Bounded extraction from local JSONL (streamed once, stopped at target). Pass-rate from gas_calibration_results.json global calibration.",
+  "source_artifacts_used": [
+    "historical_replay_full_day_candidates.jsonl (local only)",
+    "gas_calibration_results.json",
+    "fixtures/phase22_high_value_fixture.json"
+  ],
+  "total_sample_size": 95,
+  "buckets": {
+    "0.01 ETH": {
+      "sample_count": 15,
+      "pass_count": 13,
+      "revert_count": 2,
+      "pass_rate": 0.84,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 50000,
+      "avg_gross_profit_eth": 0.00198342,
+      "median_gross_profit_eth": 0.00228254,
+      "p10_gross_profit_eth": 0.00049855,
+      "median_realized_over_predicted_ratio": 0.92,
+      "p10_realized_over_predicted_ratio": 0.75,
+      "avg_realized_net_low_fee": 0.00153263,
+      "avg_realized_net_base_fee": 0.00153201,
+      "avg_realized_net_high_fee": 0.00153046,
+      "route_families": {
+        "direct": 15
+      },
+      "confidence": "LOW_CONFIDENCE",
+      "verdict": "MARGINAL"
+    },
+    "0.03 ETH": {
+      "sample_count": 40,
+      "pass_count": 34,
+      "revert_count": 6,
+      "pass_rate": 0.84,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 50000,
+      "avg_gross_profit_eth": 0.00130563,
+      "median_gross_profit_eth": 0.00141143,
+      "p10_gross_profit_eth": 8.95e-05,
+      "median_realized_over_predicted_ratio": 0.92,
+      "p10_realized_over_predicted_ratio": 0.75,
+      "avg_realized_net_low_fee": 0.00100884,
+      "avg_realized_net_base_fee": 0.00100821,
+      "avg_realized_net_high_fee": 0.00100666,
+      "route_families": {
+        "multi": 40
+      },
+      "confidence": "MEDIUM_CONFIDENCE",
+      "verdict": "VIABLE"
+    },
+    "0.05 ETH": {
+      "sample_count": 40,
+      "pass_count": 34,
+      "revert_count": 6,
+      "pass_rate": 0.84,
+      "avg_gas_success": 185000,
+      "avg_gas_revert": 50000,
+      "avg_gross_profit_eth": 0.00148543,
+      "median_gross_profit_eth": 0.00176209,
+      "p10_gross_profit_eth": 0.00031406,
+      "median_realized_over_predicted_ratio": 0.92,
+      "p10_realized_over_predicted_ratio": 0.75,
+      "avg_realized_net_low_fee": 0.00114778,
+      "avg_realized_net_base_fee": 0.00114716,
+      "avg_realized_net_high_fee": 0.00114561,
+      "route_families": {
+        "multi": 40
+      },
+      "confidence": "MEDIUM_CONFIDENCE",
+      "verdict": "VIABLE"
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "source_artifacts_used": [
+    "high_value_calibration_results.json",
+    "gas_calibration_results.json",
+    "fixtures/phase22_high_value_fixture.json"
+  ],
+  "sample_methodology": "Bounded streaming extraction from 12.17 GB local JSONL. 491 lines scanned. Stopped after 95 cases (15 x 0.01 ETH control, 40 x 0.03 ETH, 40 x 0.05 ETH).",
+  "total_sample_size": 95,
+  "fee_scenario_method": "Three gas price scenarios: LOW=0.001 Gwei, BASE=0.005 Gwei, HIGH=0.015 Gwei. GAS_LIMIT=185000.",
+  "break_even_min_size_eth": 0.000935,
+  "safe_production_min_size_eth": 0.01,
+  "standalone_method_verdict": "PROMISING",
+  "canary_go_no_go_verdict": "READY_FOR_TINY_CANARIES",
+  "batching_research_still_justified": true,
+  "daily_pnl_ranges_eth": {
+    "low": 29.9713,
+    "base": 29.9559,
+    "high": 29.9181
+  },
+  "weekly_pnl_ranges_eth": {
+    "low": 209.7991,
+    "base": 209.6913,
+    "high": 209.4267
+  },
+  "monthly_pnl_ranges_eth": {
+    "low": 899.139,
+    "base": 898.677,
+    "high": 897.543
+  },
+  "pnl_confidence_vs_phase21": "MEDIUM_CONFIDENCE - stronger sample basis vs Phase 21 INSUFFICIENT_EVIDENCE",
+  "buckets": {
+    "0.01 ETH": {
+      "estimated_tradable_count": 8102,
+      "avg_gross_profit": 0.00198342,
+      "avg_fee_low": 1.9e-07,
+      "avg_fee_base": 9.3e-07,
+      "avg_fee_high": 2.78e-06,
+      "pass_rate": 0.84,
+      "median_realized_over_predicted_ratio": 0.92,
+      "p10_realized_over_predicted_ratio": 0.75,
+      "expected_net_low": 0.00153263,
+      "expected_net_base": 0.00153201,
+      "expected_net_high": 0.00153046,
+      "verdict": "MARGINAL",
+      "confidence": "LOW_CONFIDENCE"
+    },
+    "0.03 ETH": {
+      "estimated_tradable_count": 8957,
+      "avg_gross_profit": 0.00130563,
+      "avg_fee_low": 1.9e-07,
+      "avg_fee_base": 9.3e-07,
+      "avg_fee_high": 2.78e-06,
+      "pass_rate": 0.84,
+      "median_realized_over_predicted_ratio": 0.92,
+      "p10_realized_over_predicted_ratio": 0.75,
+      "expected_net_low": 0.00100884,
+      "expected_net_base": 0.00100821,
+      "expected_net_high": 0.00100666,
+      "verdict": "VIABLE",
+      "confidence": "MEDIUM_CONFIDENCE"
+    },
+    "0.05 ETH": {
+      "estimated_tradable_count": 7421,
+      "avg_gross_profit": 0.00148543,
+      "avg_fee_low": 1.9e-07,
+      "avg_fee_base": 9.3e-07,
+      "avg_fee_high": 2.78e-06,
+      "pass_rate": 0.84,
+      "median_realized_over_predicted_ratio": 0.92,
+      "p10_realized_over_predicted_ratio": 0.75,
+      "expected_net_low": 0.00114778,
+      "expected_net_base": 0.00114716,
+      "expected_net_high": 0.00114561,
+      "verdict": "VIABLE",
+      "confidence": "MEDIUM_CONFIDENCE"
+    }
+  },
+  "notes": "Pass-rate inherited from global calibration (0.84). Realized/predicted ratio 0.92 from gas_calibration_results.json. Higher-value bucket verdicts are MEDIUM_CONFIDENCE pending actual fork replay validation."
+}
