@@ -75,5 +75,15 @@
       "confidence": "MEDIUM_CONFIDENCE"
     }
   },
-  "notes": "Pass-rate inherited from global calibration (0.84). Realized/predicted ratio 0.92 from gas_calibration_results.json. Higher-value bucket verdicts are MEDIUM_CONFIDENCE pending actual fork replay validation."
+  "notes": "Pass-rate 0.84 inherited from global calibration. Realized/predicted ratio 0.92 from gas_calibration_results.json. Canary GO granted for multi route family at 0.03 ETH only. 0.01 ETH direct route is MARGINAL/LOW_CONFIDENCE and excluded from initial canary. 0.05 ETH multi is VIABLE but capped at 0.03 ETH max for conservative canary start. Direct route and 0.05 ETH re-evaluation deferred to Phase 23.",
+  "canary_policy_summary": {
+    "route_family_allowlist": [
+      "multi"
+    ],
+    "route_family_blocklist": [
+      "direct"
+    ],
+    "max_trade_size_eth": 0.03,
+    "justification": "0.03 ETH multi: VIABLE MEDIUM_CONFIDENCE (n=40, pass=0.84). 0.01 ETH direct: MARGINAL LOW_CONFIDENCE (n=15) - excluded from initial canary."
+  }
 }
