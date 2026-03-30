@@ -1,6 +1,6 @@
 # Phase 21 Walkthrough: Standalone PnL & Canary Readiness
 
-**Analytical Verdict:** NOT_READY_FOR_CANARIES (Higher buckets)
+**Analytical Verdict:** PROMISING (Standalone strategy); NOT_READY_FOR_CANARIES (Higher buckets)
 
 ## Net PnL Model (Daily ETH)
 - **Low:** 0.05
@@ -11,6 +11,6 @@
 - **Break-even Minimum Size:** 0.000935 ETH
 - **Safe Production Minimum Size:** 0.010 ETH
 
-## Artifact Index Update
-- [Phase 21: Standalone PnL & Canary Readiness](standalone_pnl_readiness_report.json)
+## Definition
+- **candidate_count:** Raw bucket count—total opportunities identified in the 11.3rd order GB historical dataset (full day) within the specified size before filtering.
 
