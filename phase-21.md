@@ -10,8 +10,11 @@
 | Weekly | 0.35 | 0.84 | 1.75 |
 | Monthly | 1.50 | 3.60 | 7.50 |
 
-## Confidence Labels
-- **0.01 ETH:** MEDIUM_CONFIDENCE (Marginal Verdict)
-- **0.03 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary)
-- **0.05 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary)
+## Confidence & Size Buckets
+- **0.01 ETH:** MEDIUM_CONFIDENCE (Marginal Verdict; Gross: 0.00105)
+- **0.03 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary; Gross: 0.00125)
+- **0.05 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary; Gross: 0.00145)
+
+## Definition
+- **candidate_count:** Raw bucket count—total opportunities identified in the 11.3rd order GB dataset before filtering.
 
