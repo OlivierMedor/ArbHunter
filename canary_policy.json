@@ -1,12 +1,15 @@
 {
   "phase": "Phase 22",
   "verdict": "READY_FOR_TINY_CANARIES",
+  "path_chosen": "PATH A - Evidence-aligned GO",
+  "policy_justification": "High-value calibration shows: 0.01 ETH (direct, n=15) is MARGINAL/LOW_CONFIDENCE. 0.03 ETH (multi, n=40) and 0.05 ETH (multi, n=40) are VIABLE/MEDIUM_CONFIDENCE. Canary policy aligns to the strongest evidence: multi route family at 0.03 ETH. The 0.01 ETH direct bucket is excluded from canary start because it is only MARGINAL.",
   "go_criteria_met": {
-    "sample_count_above_threshold": true,
+    "sample_count_above_threshold_30": true,
     "pass_rate_above_0.80": true,
     "median_realized_ratio_above_0.90": true,
     "p10_expected_net_positive_base": true,
-    "revert_rate_below_0.20": true
+    "revert_rate_below_0.20": true,
+    "route_family_evidence_aligned": true
   },
   "go_criteria_thresholds": {
     "min_sample_count": 30,
@@ -16,12 +19,15 @@
     "min_expected_net_base": 0.0
   },
   "route_family_allowlist": [
+    "multi"
+  ],
+  "route_family_blocklist": [
     "direct"
   ],
-  "route_family_blocklist": [],
+  "route_family_blocklist_reason": "direct bucket (0.01 ETH, n=15) is MARGINAL/LOW_CONFIDENCE only. Excluded from initial canary to maintain conservative posture.",
   "canary_parameters": {
-    "max_trade_size_eth": 0.01,
-    "max_daily_volume_eth": 0.1,
+    "max_trade_size_eth": 0.03,
+    "max_daily_volume_eth": 0.12,
     "max_concurrent_trades": 1,
     "min_predicted_profit_eth": 0.001,
     "stop_on_consecutive_reverts": 3
@@ -32,5 +38,5 @@
     "No real broadcasts",
     "Canary deployment requires separate Phase 23 live-gate sign-off"
   ],
-  "notes": "GO criteria met based on 95-case bounded extraction and global calibration pass-rate. Actual fork replay per-case data limited - confidence is MEDIUM. Recommend Phase 23 live canary with strict stop-loss before full deployment."
+  "notes": "GO is granted for multi route family at 0.03 ETH. direct route family at 0.01 ETH remains excluded (MARGINAL/LOW_CONFIDENCE). max_trade_size_eth=0.03 is the smallest VIABLE bucket. Direct route re-evaluation deferred to Phase 23 if more cases become available."
 }
