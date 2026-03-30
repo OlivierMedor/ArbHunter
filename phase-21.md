@@ -11,10 +11,10 @@
 | Monthly | 1.50 | 3.60 | 7.50 |
 
 ## Confidence & Size Buckets
-- **0.01 ETH:** MEDIUM_CONFIDENCE (Marginal Verdict; Gross: 0.00105)
-- **0.03 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary; Gross: 0.00125)
-- **0.05 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary; Gross: 0.00145)
+- **0.01 ETH:** MEDIUM_CONFIDENCE (Marginal Verdict; Tradable: 8102/day)
+- **0.03 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary; Tradable: 8957/day)
+- **0.05 ETH:** INSUFFICIENT_EVIDENCE (NOT_READY for Canary; Tradable: 7421/day)
 
 ## Definition
-- **candidate_count:** Raw bucket count—total opportunities identified in the 11.3rd order GB dataset before filtering.
+- **estimated_tradable_count:** Estimated tradable opportunities per day after filtering for profitability and basic execution constraints.
 
