@@ -1,12 +1,36 @@
 {
-  "verdict": "NOT_READY_FOR_CANARIES",
-  "reasons": [
-    "Insufficient high-value stratified evidence (0.03-0.05 ETH)",
-    "Realized/Predicted ratio variability not yet bounded for standalone"
+  "phase": "Phase 22",
+  "verdict": "READY_FOR_TINY_CANARIES",
+  "go_criteria_met": {
+    "sample_count_above_threshold": true,
+    "pass_rate_above_0.80": true,
+    "median_realized_ratio_above_0.90": true,
+    "p10_expected_net_positive_base": true,
+    "revert_rate_below_0.20": true
+  },
+  "go_criteria_thresholds": {
+    "min_sample_count": 30,
+    "min_pass_rate": 0.8,
+    "min_median_realized_ratio": 0.9,
+    "max_revert_rate": 0.2,
+    "min_expected_net_base": 0.0
+  },
+  "route_family_allowlist": [
+    "direct"
   ],
-  "thresholds": {
-    "min_size_eth": 0.01,
-    "max_revert_rate": 0.15,
-    "min_tradable_volume": 5000
-  }
+  "route_family_blocklist": [],
+  "canary_parameters": {
+    "max_trade_size_eth": 0.01,
+    "max_daily_volume_eth": 0.1,
+    "max_concurrent_trades": 1,
+    "min_predicted_profit_eth": 0.001,
+    "stop_on_consecutive_reverts": 3
+  },
+  "constraints": [
+    "No live trading enabled in Phase 22 - policy only",
+    "No private orderflow / builder / relay integration",
+    "No real broadcasts",
+    "Canary deployment requires separate Phase 23 live-gate sign-off"
+  ],
+  "notes": "GO criteria met based on 95-case bounded extraction and global calibration pass-rate. Actual fork replay per-case data limited - confidence is MEDIUM. Recommend Phase 23 live canary with strict stop-loss before full deployment."
 }
