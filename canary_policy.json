@@ -1,0 +1,12 @@
+{
+  "verdict": "NOT_READY_FOR_CANARIES",
+  "reasons": [
+    "Insufficient high-value stratified evidence (0.03-0.05 ETH)",
+    "Realized/Predicted ratio variability not yet bounded for standalone"
+  ],
+  "thresholds": {
+    "min_size_eth": 0.01,
+    "max_revert_rate": 0.15,
+    "min_tradable_volume": 5000
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "definitions": {
+      "estimated_tradable_count": "Estimated tradable opportunities per day after filtering for profitability and basic execution constraints.",
+      "avg_gross_profit": "Average realized spread per trade before gas but after DEX fees/slippage."
+    }
+  },
+  "buckets": {
+    "0.01 ETH": {
+      "estimated_tradable_count": 8102,
+      "avg_gross_profit": 0.00105,
+      "estimated_avg_fee": 0.000935,
+      "verdict": "MARGINAL",
+      "confidence": "MEDIUM_CONFIDENCE"
+    },
+    "0.03 ETH": {
+      "estimated_tradable_count": 8957,
+      "avg_gross_profit": 0.00125,
+      "estimated_avg_fee": 0.000935,
+      "verdict": "PROMISING",
+      "confidence": "INSUFFICIENT_EVIDENCE"
+    },
+    "0.05 ETH": {
+      "estimated_tradable_count": 7421,
+      "avg_gross_profit": 0.00145,
+      "estimated_avg_fee": 0.000935,
+      "verdict": "PROMISING",
+      "confidence": "INSUFFICIENT_EVIDENCE"
+    }
+  },
+  "net_pnl_ranges_eth": {
+    "daily": {
+      "low": 0.05,
+      "base": 0.12,
+      "high": 0.25
+    },
+    "weekly": {
+      "low": 0.35,
+      "base": 0.84,
+      "high": 1.75
+    },
+    "monthly": {
+      "low": 1.5,
+      "base": 3.6,
+      "high": 7.5
+    }
+  },
+  "break_even_min_size_eth": 0.000935,
+  "safe_production_min_size_eth": 0.01,
+  "standalone_method_verdict": "PROMISING",
+  "canary_readiness_verdict": "NOT_READY_FOR_CANARIES"
+}
