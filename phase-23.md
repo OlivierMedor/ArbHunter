@@ -15,7 +15,7 @@ Phase 23 has successfully implemented the runtime safety layer (`arb_canary`) an
   - `cumulative_loss_cap_wei`: 0.05 ETH safety stop.
   - `route_family_allowlist`: Restricted to `multi` routes only.
   - `route_family_blocklist`: Explicitly blocks `direct` and `unknown` routes.
-- **Persistence**: Tracks cumulative realized loss across restart boundaries.
+- **Runtime Tracking**: Tracks cumulative realized loss at runtime (not persistent across restarts in Phase 23).
 
 ### B. Tenderly Simulation Integration
 - **Preflight Validation**: Added a new validation stage using Tenderly's Simulation API.
@@ -46,7 +46,7 @@ Phase 23 has successfully implemented the runtime safety layer (`arb_canary`) an
 - **Simulation Pipeline**: `cargo test -p arb_execute` PASSED.
 
 ## 5. Posture & Constraints
-- **Simulation Only**: `canary_live_mode_enabled` is hardcoded to `false` in `arb_daemon` for this phase.
+- **Disabled by Default**: `canary_live_mode_enabled` is loaded from config with a default of `false` for this phase.
 - **Shadow Journaling**: All "trades" are recorded to `shadow_journal.jsonl` with full safety-gate metadata.
 - **No Private Orderflow**: The system remains on public mempool / Flashblock ingestion.
 
