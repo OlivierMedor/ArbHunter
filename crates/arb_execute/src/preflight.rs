@@ -1,19 +1,25 @@
-use alloy_provider::{Provider, ProviderBuilder};
+use crate::tenderly::{TenderlySimulator, TenderlySimConfig};
 use alloy_rpc_types_eth::TransactionRequest;
+use alloy_provider::{Provider, ProviderBuilder};
 use arb_types::{PreflightResult, PreflightStatus};
 
 pub struct PreflightChecker {
     rpc_url: String,
+    tenderly_sim: Option<TenderlySimulator>,
 }
 
 impl PreflightChecker {
-    pub fn new(rpc_url: String) -> Self {
-        Self { rpc_url }
+    pub fn new(rpc_url: String, tenderly_config: Option<TenderlySimConfig>) -> Self {
+        Self { 
+            rpc_url,
+            tenderly_sim: tenderly_config.map(TenderlySimulator::new),
+        }
     }
 
     pub async fn check(&self, tx: &TransactionRequest, require_eth_call: bool, require_gas_estimate: bool) -> PreflightResult {
         let mut eth_call_status = PreflightStatus::Skipped;
         let mut gas_estimate_status = PreflightStatus::Skipped;
+        let mut tenderly_status = PreflightStatus::Skipped;
         let mut gas_estimate = None;
 
         let url = match self.rpc_url.parse() {
@@ -52,9 +58,30 @@ impl PreflightChecker {
             }
         }
 
+        // 3. Tenderly simulation if enabled and simulator is present
+        if let Some(tenderly) = &self.tenderly_sim {
+            match tenderly.simulate(tx).await {
+                Ok(res) => {
+                    if res.simulation.status {
+                        tenderly_status = PreflightStatus::Passed;
+                        // Gas estimate from Tenderly if not already set or more reliable
+                        if gas_estimate.is_none() {
+                            gas_estimate = Some(res.transaction.gas_used);
+                        }
+                    } else {
+                        tenderly_status = PreflightStatus::Failed(res.transaction.error_message.unwrap_or_else(|| "Tenderly simulation failed".to_string()));
+                    }
+                }
+                Err(e) => {
+                    tenderly_status = PreflightStatus::Failed(e);
+                }
+            }
+        }
+
         // Overall success: failed only if a required check failed
         let overall_success = !matches!(eth_call_status, PreflightStatus::Failed(_)) && 
-                               !matches!(gas_estimate_status, PreflightStatus::Failed(_));
+                               !matches!(gas_estimate_status, PreflightStatus::Failed(_)) &&
+                               !matches!(tenderly_status, PreflightStatus::Failed(_));
 
         PreflightResult {
             overall_success,

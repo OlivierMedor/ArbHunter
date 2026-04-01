@@ -241,9 +241,9 @@ async fn main() -> anyhow::Result<()> {
             }
 
             let (snapshots, pool_map) = {
-                let s = state_engine.get_all_pools_map().await;
-                let v: Vec<_> = s.values().cloned().collect();
-                (v, s)
+                let s = state_engine.get_all_pools().await;
+                let map: HashMap<_, _> = s.iter().cloned().map(|p| (p.pool_id.clone(), p)).collect();
+                (s, map)
             };
             if snapshots.len() > last_pool_count {
                 cached_graph = RouteGraph::new();

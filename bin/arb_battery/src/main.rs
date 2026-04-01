@@ -44,7 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(rpc_url.clone()),
         false, 
         false, 
-        false
+        false,
+        None,
     );
 
     let mut attributions = Vec::new();
@@ -146,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let simulator = LocalSimulator::new(state_engine);
         let candidate = CandidateOpportunity {
             path: RoutePath { legs: path_legs, root_asset: TokenAddress(case.root_asset.0.to_lowercase()) },
-            bucket: QuoteSizeBucket::Small, amount_in: case.amount_in, estimated_amount_out: U256::ZERO, estimated_gross_profit: U256::ZERO, estimated_gross_bps: 0, is_fresh: true,
+            bucket: QuoteSizeBucket::Small, amount_in: case.amount_in, estimated_amount_out: U256::ZERO, estimated_gross_profit: U256::ZERO, estimated_gross_bps: 0, is_fresh: true, route_family: arb_types::RouteFamily::Unknown,
         };
 
         let sim_result = simulator.validate_candidate(candidate).await;

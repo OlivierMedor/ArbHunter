@@ -168,6 +168,7 @@ mod tests {
             estimated_gross_profit: U256::from(50),
             estimated_gross_bps: 500,
             is_fresh: true,
+            route_family: arb_types::RouteFamily::Unknown,
         }
     }
 

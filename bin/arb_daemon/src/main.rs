@@ -16,6 +16,7 @@ use arb_types::{
 };
 use arb_route::{RouteGraph, CandidateGenerator};
 use arb_filter::{CandidateFilter, FilterConfig};
+use arb_canary::{CanaryGate, CanaryPolicy, CanaryOutcome};
 use arb_sim::LocalSimulator;
 use alloy_primitives::{U256, Address};
 use arb_execute::{Wallet, Submitter, NonceManager, NonceProvider, TxBuilder, ExecutionPlanner};
@@ -140,6 +141,16 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
         } else {
             arb_types::SubmissionMode::DryRun
         };
+        let tenderly_config = if config.tenderly_enabled {
+            config.tenderly_api_key.clone().map(|api_key| arb_execute::tenderly::TenderlySimConfig {
+                api_key,
+                account_slug: config.tenderly_account_slug.clone(),
+                project_slug: config.tenderly_project_slug.clone(),
+            })
+        } else {
+            None
+        };
+
         let s = Arc::new(Submitter::new(
             w,
             mode,
@@ -148,6 +159,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
             config.require_preflight,
             config.require_eth_call,
             config.require_gas_estimate,
+            tenderly_config,
         ));
         info!("Submitter initialized in {:?} mode.", mode);
         Some(s)
@@ -234,17 +246,30 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
         let shadow_delay = config_for_route.shadow_recheck_delay_ms;
         let shadow_max_window = config_for_route.shadow_max_candidates_per_window as usize;
         let recheck_semaphore = Arc::new(Semaphore::new(if shadow_max_window > 0 { shadow_max_window } else { 1 }));
+        
+        let canary_policy = CanaryPolicy {
+            route_family_allowlist: config_for_route.canary_route_family_allowlist.split(',').filter(|s| !s.trim().is_empty()).map(|s| arb_types::RouteFamily::from_str(s.trim())).collect(),
+            route_family_blocklist: config_for_route.canary_route_family_blocklist.split(',').filter(|s| !s.trim().is_empty()).map(|s| arb_types::RouteFamily::from_str(s.trim())).collect(),
+            max_trade_size_wei: config_for_route.canary_max_trade_size_wei,
+            max_concurrent_trades: config_for_route.canary_max_concurrent_trades,
+            max_consecutive_reverts: config_for_route.canary_max_consecutive_reverts,
+            review_threshold_attempts: config_for_route.canary_review_threshold_attempts,
+            loss_cap_wei: config_for_route.canary_loss_cap_wei,
+            live_mode_enabled: config_for_route.canary_live_mode_enabled,
+        };
+        let mut canary_gate = CanaryGate::new(canary_policy);
 
         loop {
             // Rebuild graph from current state
             let snapshots = route_engine.get_all_pools().await;
+            let pool_map = snapshots.iter().cloned().map(|s| (s.pool_id.clone(), s)).collect::<std::collections::HashMap<_, _>>();
             graph.build_from_snapshots(snapshots);
             
             route_metrics.set_route_nodes(graph.node_count() as i64);
             route_metrics.set_route_edges(graph.edge_count() as i64);
 
             // Generate and filter candidates
-            let mut candidates = generator.generate_candidates(&graph, &root_asset, &buckets).await;
+            let mut candidates = generator.generate_candidates(&graph, &root_asset, &buckets, &pool_map);
             for _ in &candidates {
                 route_metrics.inc_candidates_considered();
                 if enable_shadow { route_metrics.inc_shadow_candidates(); }
@@ -263,6 +288,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                         legs: vec![],
                         root_asset: root_asset.clone(),
                     },
+                    route_family: arb_types::RouteFamily::Multi,
                 });
             }
 
@@ -271,13 +297,62 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                 route_metrics.inc_candidates_promoted();
                 if enable_shadow { route_metrics.inc_shadow_promoted(); }
                 
+                // Phase 23: Canary Gate Enforcement
+                let decision = canary_gate.check(&cand);
+                
+                // Telemetry: Every attempt is recorded
+                let fam_str = cand.route_family.as_str();
+                let bucket_str = arb_canary::CanaryState::bucket_label(cand.amount_in.try_into().unwrap_or(0));
+                route_metrics.inc_canary_attempt(fam_str, &bucket_str);
+
+                if !decision.is_allowed() {
+                    let reason_str = match &decision {
+                        arb_canary::CanaryDecision::Reject(r) => format!("{:?}", r),
+                        _ => "Blocked".to_string(),
+                    };
+                    route_metrics.inc_canary_policy_block(&reason_str);
+                    tracing::debug!(?decision, "Candidate blocked by Phase 23 Canary Policy");
+                    continue;
+                }
+                route_metrics.inc_canary_allowed();
+                
                 // Phase 7: Validation layer
                 let val_res = simulator.validate_candidate(cand.clone()).await;
                 route_metrics.inc_simulations();
                 
                 let expected_out = val_res.sim_result.expected_amount_out.unwrap_or_default();
                 let expected_profit = val_res.sim_result.expected_profit.unwrap_or_default();
-                let gas_used = val_res.sim_result.expected_gas_used;
+                let gas_used = val_res.sim_result.expected_gas_used.unwrap_or(500_000); // 500k default
+                
+                // Record Canary Outcome based on Simulation Results
+                // In shadow-only scenarios, we assume validation acts as the baseline for accumulating predicted loss.
+                let gas_cost_wei = (gas_used as u128) * 5_000_000; // rough 5 Gwei gas estimation for loss caps
+                let pnl = if val_res.is_valid {
+                    let ep: u128 = expected_profit.try_into().unwrap_or(0);
+                    // Profit minus gas paid:
+                    if ep >= gas_cost_wei { (ep - gas_cost_wei) as i128 } else { - ((gas_cost_wei - ep) as i128) }
+                } else {
+                    - (gas_cost_wei as i128)
+                };
+                
+                canary_gate.record_outcome(CanaryOutcome {
+                    success: val_res.is_valid,
+                    realized_pnl_wei: pnl,
+                    cost_paid_wei: gas_cost_wei,
+                    route_family: cand.route_family.clone(),
+                    amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                });
+
+                // Telemetry: Update state-based metrics
+                route_metrics.set_canary_consecutive_reverts(canary_gate.state.consecutive_reverts);
+                route_metrics.set_canary_realized_pnl_wei(canary_gate.state.cumulative_realized_pnl_wei);
+                route_metrics.set_canary_cumulative_loss_wei(canary_gate.state.cumulative_realized_loss_wei);
+                if !val_res.is_valid {
+                    route_metrics.inc_canary_revert(fam_str, &bucket_str);
+                }
+                if canary_gate.state.review_threshold_reached {
+                    route_metrics.inc_canary_review_threshold_reached();
+                }
 
                 if enable_shadow {
                     let mut would_trade = false;
@@ -302,7 +377,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                         amount_in: cand.amount_in,
                         predicted_amount_out: expected_out,
                         predicted_profit: expected_profit,
-                        predicted_gas: gas_used,
+                        predicted_gas: Some(gas_used),
                         would_trade,
                         reason: reason.clone(),
                         recheck: None,
@@ -480,6 +555,7 @@ mod tests {
 
         // Build route graph
         let snapshots = state_engine.get_all_pools().await;
+        let pool_map = snapshots.iter().cloned().map(|s| (s.pool_id.clone(), s)).collect::<std::collections::HashMap<_, _>>();
         let mut graph = RouteGraph::new();
         graph.build_from_snapshots(snapshots);
 
@@ -495,7 +571,7 @@ mod tests {
         let root_asset = TokenAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".into()); // WETH
         let buckets = vec![QuoteSizeBucket::Small];
         
-        let candidates = generator.generate_candidates(&graph, &root_asset, &buckets).await;
+        let candidates = generator.generate_candidates(&graph, &root_asset, &buckets, &pool_map);
 
         let candidates_to_test = if candidates.is_empty() {
             vec![arb_types::CandidateOpportunity {
@@ -518,6 +594,7 @@ mod tests {
                     }],
                     root_asset: TokenAddress("0x00".into()),
                 },
+                route_family: arb_types::RouteFamily::Unknown,
             }]
         } else {
             candidates
@@ -536,6 +613,7 @@ mod tests {
                 legs: vec![],
                 root_asset: TokenAddress("0x00".into()),
             },
+            route_family: arb_types::RouteFamily::Unknown,
         }).clone();
         
         if test_cand.path.legs.is_empty() {

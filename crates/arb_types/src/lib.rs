@@ -200,6 +200,52 @@ pub enum QuoteSizeBucket {
     Custom(u128),
 }
 
+/// Typed route-family classification.
+///
+/// - `Direct`: single-hop or simple two-leg route through a single venue pair.
+/// - `Multi`:  multi-hop route spanning multiple venue pairs or pool types.
+/// - `Unknown`: not yet classified; treated conservatively (blocked by canary policy).
+///
+/// Phase 22 canary policy: `Multi` is allowed, `Direct` is blocked pending more evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum RouteFamily {
+    Direct,
+    Multi,
+    #[default]
+    Unknown,
+}
+
+impl RouteFamily {
+    /// Returns the canonical string label used in telemetry / policy JSON.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RouteFamily::Direct  => "direct",
+            RouteFamily::Multi   => "multi",
+            RouteFamily::Unknown => "unknown",
+        }
+    }
+
+    /// Parse from a string label (case-insensitive).
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "direct" => RouteFamily::Direct,
+            "multi"  => RouteFamily::Multi,
+            _        => RouteFamily::Unknown,
+        }
+    }
+
+    /// Number of legs in a path that qualifies as Multi vs Direct.
+    /// A path with >2 legs is always Multi; exactly 2 legs (round-trip) may be Direct.
+    pub fn classify_by_leg_count(leg_count: usize) -> Self {
+        match leg_count {
+            0 | 1 => RouteFamily::Unknown,
+            2     => RouteFamily::Direct,
+            _     => RouteFamily::Multi,
+        }
+    }
+}
+
 /// A promoted candidate for refinement or execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateOpportunity {
@@ -210,6 +256,9 @@ pub struct CandidateOpportunity {
     pub estimated_gross_profit: U256,
     pub estimated_gross_bps: u32,
     pub is_fresh: bool,
+    /// Typed route-family classification. Defaults to `Unknown` for backward compat.
+    #[serde(default)]
+    pub route_family: RouteFamily,
 }
 
 // ============================================================
@@ -578,6 +627,7 @@ pub struct HistoricalReplayResult {
     pub amount_in: U256,
     pub predicted_amount_out: U256,
     pub predicted_profit: U256,
+    pub bucket: String,
     pub would_trade: bool,
     #[serde(alias = "route")]
     pub path: RoutePath,

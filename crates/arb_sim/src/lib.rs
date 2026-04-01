@@ -131,7 +131,7 @@ impl LocalSimulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arb_types::{RoutePath, TokenAddress, QuoteSizeBucket};
+    use arb_types::{RoutePath, TokenAddress, QuoteSizeBucket, RouteFamily};
 
     // Minimal unit test for the conversion method.
     #[test]
@@ -147,6 +147,7 @@ mod tests {
             estimated_gross_profit: U256::from(5),
             estimated_gross_bps: 500,
             is_fresh: true,
+            route_family: RouteFamily::Unknown,
         };
 
         let req = LocalSimulator::create_request(candidate.clone());
@@ -169,6 +170,7 @@ mod tests {
             estimated_gross_profit: U256::ZERO,
             estimated_gross_bps: 0,
             is_fresh: true,
+            route_family: RouteFamily::Unknown,
         };
 
         let res = simulator.validate_candidate(candidate).await;
@@ -226,13 +228,11 @@ mod tests {
             path,
             bucket: QuoteSizeBucket::Small,
             amount_in: U256::from(100),
-            // We just need the out amount to be literally any positive number > 100 since the pool gives roughly 200 - fee
-            // A 100 swap on 1M/2M pool gives roughly 199.
-            // Slippage check in simulator passes if current_amount > amount_in
             estimated_amount_out: U256::from(199),
             estimated_gross_profit: U256::from(99),
             estimated_gross_bps: 9900,
             is_fresh: true,
+            route_family: RouteFamily::Multi,
         };
 
         let res = simulator.validate_candidate(candidate).await;

@@ -44,7 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(rpc_url.clone()),
         false, // skip preflight purely for this simple harness test
         false, 
-        false
+        false,
+        None,
     );
 
     // --- VALID TRANSACTION ---

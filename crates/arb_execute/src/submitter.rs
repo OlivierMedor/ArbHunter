@@ -3,6 +3,7 @@ use tracing::{info, warn};
 use arb_metrics::MetricsRegistry;
 use crate::signer::Wallet;
 use crate::preflight::PreflightChecker;
+use crate::tenderly::TenderlySimConfig;
 use arb_types::{BuiltTransaction, SubmissionResult, SubmissionMode, SubmissionFailureReason, PreflightStatus};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_eth::TransactionRequest;
@@ -16,6 +17,7 @@ pub struct Submitter {
     pub require_preflight: bool,
     pub require_eth_call: bool,
     pub require_gas_estimate: bool,
+    pub tenderly_config: Option<TenderlySimConfig>,
 }
 
 impl Submitter {
@@ -27,6 +29,7 @@ impl Submitter {
         require_preflight: bool,
         require_eth_call: bool,
         require_gas_estimate: bool,
+        tenderly_config: Option<TenderlySimConfig>,
     ) -> Self {
         Self {
             wallet,
@@ -36,6 +39,7 @@ impl Submitter {
             require_preflight,
             require_eth_call,
             require_gas_estimate,
+            tenderly_config,
         }
     }
 
@@ -47,7 +51,7 @@ impl Submitter {
         if self.require_preflight {
             if let Some(url) = &self.rpc_url {
                 self.metrics.inc_preflight();
-                let checker = PreflightChecker::new(url.clone());
+                let checker = PreflightChecker::new(url.clone(), self.tenderly_config.clone());
                 let tx_req = self.build_request(&tx);
                 let preflight = checker.check(&tx_req, self.require_eth_call, self.require_gas_estimate).await;
                 
@@ -190,7 +194,7 @@ mod tests {
         let wallet = Wallet { signer };
         
         let metrics = Arc::new(MetricsRegistry::new());
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false, None);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -222,7 +226,7 @@ mod tests {
         let wallet = Wallet { signer };
         let metrics = Arc::new(MetricsRegistry::new());
         // require_preflight = false
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true, None);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -248,7 +252,7 @@ mod tests {
         let wallet = Wallet { signer };
         let metrics = Arc::new(MetricsRegistry::new());
         // require_preflight = true, but rpc_url = None
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true, None);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
