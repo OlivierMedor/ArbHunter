@@ -28,6 +28,7 @@ impl PreflightChecker {
                 overall_success: false,
                 eth_call_status: PreflightStatus::Failed(format!("Invalid RPC URL: {}", e)),
                 gas_estimate_status,
+                tenderly_status,
                 gas_estimate: None,
             },
         };
@@ -87,6 +88,7 @@ impl PreflightChecker {
             overall_success,
             eth_call_status,
             gas_estimate_status,
+            tenderly_status,
             gas_estimate,
         }
     }

@@ -1,4 +1,4 @@
-use arb_types::{HistoricalCase, GuardOverrides, TokenAddress, PoolKind};
+use arb_types::{HistoricalCase, GuardOverrides, TokenAddress, PoolKind, RouteFamily};
 use alloy_primitives::{U256, Address};
 use alloy_provider::{ProviderBuilder, Provider};
 use arb_config::Config;
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         fork_block_number: latest_block - 10,
         source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000001".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ConcentratedLiquidity_Cyclic".into(),
+        route_family: RouteFamily::Direct,
         pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".into(), "0x6c561b446416e1a00e8e93e221854d6ea4171372".into()],
         pool_kinds: vec![PoolKind::ConcentratedLiquidity, PoolKind::ConcentratedLiquidity],
         path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone()), TokenAddress(token0_v3.to_string())],
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         fork_block_number: latest_block - 10,
         source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000002".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ConcentratedLiquidity_Cyclic".into(),
+        route_family: RouteFamily::Direct,
         pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".into()],
         pool_kinds: vec![PoolKind::ConcentratedLiquidity],
         path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone())],
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         fork_block_number: latest_block - 10,
         source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000003".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "ConcentratedLiquidity_Cyclic".into(),
+        route_family: RouteFamily::Direct,
         pool_ids: vec!["0xd0b53d9277642d899df5c87a3966a349a798f224".into(), "0x6c561b446416e1a00e8e93e221854d6ea4171372".into()],
         pool_kinds: vec![PoolKind::ConcentratedLiquidity, PoolKind::ConcentratedLiquidity],
         path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone()), TokenAddress(token0_v3.to_string())],
@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         fork_block_number: latest_block - 10,
         source_tx_hash: Some("0x0000000000000000000000000000000000000000000000000000000000000004".into()),
         root_asset: TokenAddress(token0_v3.to_string()),
-        route_family: "Mixed_Cyclic".into(),
+        route_family: RouteFamily::Direct,
         pool_ids: vec!["0xcdac0d6c6c59727a65f871236188350531885c43".into(), "0xd0b53d9277642d899df5c87a3966a349a798f224".into()],
         pool_kinds: vec![PoolKind::ReserveBased, PoolKind::ConcentratedLiquidity],
         path_tokens: vec![TokenAddress(token0_v3.to_string()), TokenAddress(weth.clone()), TokenAddress(token0_v3.to_string())],

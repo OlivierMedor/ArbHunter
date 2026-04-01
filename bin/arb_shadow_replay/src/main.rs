@@ -14,7 +14,7 @@ use alloy_primitives::{U256 as AlloyU256, U128 as AlloyU128};
 use arb_types::{
     EventStamp, IngestEvent, PoolId, PoolKind, PoolUpdate, TokenAddress, QuoteSizeBucket,
     HistoricalReplayResult, HistoricalReplaySummary, PendingLogEvent, RoutePath, CLSnapshot, ReserveSnapshot, RouteLeg,
-    CandidateOpportunity
+    CandidateOpportunity, RouteFamily
 };
 use ethers::prelude::*;
 use warp::Filter;
@@ -261,7 +261,7 @@ async fn main() -> anyhow::Result<()> {
             let mut block_unique_candidates = HashSet::new();
             for cand in candidates {
                 let route_id = get_route_id(&cand.path);
-                let family = if cand.path.legs.len() > 2 { "multi" } else { "direct" };
+                let family = cand.route_family.as_str(); 
                 let bucket_str = format!("{:?}", cand.bucket);
                 let dedup_key = format!("{}-{}-{}-{}", block_num, family, route_id, bucket_str);
 
@@ -270,7 +270,7 @@ async fn main() -> anyhow::Result<()> {
                     let res = HistoricalReplayResult {
                         case_id: format!("{}-{}", block_num, stats.would_trade),
                         block_number: block_num,
-                        route_family: family.to_string(),
+                        route_family: cand.route_family.clone(),
                         root_asset: root_asset.clone(),
                         amount_in: cand.amount_in,
                         predicted_amount_out: cand.estimated_amount_out,

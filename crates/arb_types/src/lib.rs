@@ -207,7 +207,7 @@ pub enum QuoteSizeBucket {
 /// - `Unknown`: not yet classified; treated conservatively (blocked by canary policy).
 ///
 /// Phase 22 canary policy: `Multi` is allowed, `Direct` is blocked pending more evidence.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum RouteFamily {
     Direct,
@@ -242,6 +242,27 @@ impl RouteFamily {
             0 | 1 => RouteFamily::Unknown,
             2     => RouteFamily::Direct,
             _     => RouteFamily::Multi,
+        }
+    }
+}
+
+impl std::fmt::Display for RouteFamily {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for RouteFamily {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "direct" => Ok(RouteFamily::Direct),
+            "multi" => Ok(RouteFamily::Multi),
+            "unknown" => Ok(RouteFamily::Unknown),
+            // Legacy mapping for battery generator
+            "concentratedliquidity_cyclic" | "mixed_cyclic" => Ok(RouteFamily::Direct),
+            _ => Ok(RouteFamily::Unknown),
         }
     }
 }
@@ -462,6 +483,7 @@ pub struct PreflightResult {
     pub overall_success: bool,
     pub eth_call_status: PreflightStatus,
     pub gas_estimate_status: PreflightStatus,
+    pub tenderly_status: PreflightStatus,
     pub gas_estimate: Option<u64>,
 }
 
@@ -536,7 +558,7 @@ pub struct HistoricalCase {
     pub fork_block_number: u64,
     pub source_tx_hash: Option<String>,
     pub root_asset: TokenAddress,
-    pub route_family: String,
+    pub route_family: RouteFamily,
     pub pool_ids: Vec<String>,
     pub pool_kinds: Vec<PoolKind>,
     pub path_tokens: Vec<TokenAddress>,
@@ -586,7 +608,7 @@ pub struct ShadowRecheckResult {
 pub struct ShadowJournalEntry {
     pub timestamp_ms: u64,
     pub candidate_id: String,
-    pub route_family: String,
+    pub route_family: RouteFamily,
     pub root_asset: TokenAddress,
     pub amount_in: U256,
     pub predicted_amount_out: U256,
@@ -622,7 +644,7 @@ pub struct HistoricalRecheckResult {
 pub struct HistoricalReplayResult {
     pub case_id: String,
     pub block_number: u64,
-    pub route_family: String,
+    pub route_family: RouteFamily,
     pub root_asset: TokenAddress,
     pub amount_in: U256,
     pub predicted_amount_out: U256,
