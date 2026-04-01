@@ -1,8 +1,8 @@
 {
-  "phase": "Phase 22",
-  "verdict": "READY_FOR_TINY_CANARIES",
-  "path_chosen": "PATH A - Evidence-aligned GO",
-  "policy_justification": "High-value calibration shows: 0.01 ETH (direct, n=15) is MARGINAL/LOW_CONFIDENCE. 0.03 ETH (multi, n=40) and 0.05 ETH (multi, n=40) are VIABLE/MEDIUM_CONFIDENCE. Canary policy aligns to the strongest evidence: multi route family at 0.03 ETH. The 0.01 ETH direct bucket is excluded from canary start because it is only MARGINAL.",
+  "phase": "Phase 23",
+  "verdict": "SIGN_OFF_READY",
+  "posture": "SIMULATION_SHADOW_ONLY",
+  "policy_justification": "Phase 23 integrates runtime safety gating and Tenderly simulation while maintaining a shadow-only posture. Multi-route family (0.03 ETH bucket) is the primary target for future canary deployment. Direct routes remain blocked for safety until further evidence is gathered.",
   "go_criteria_met": {
     "sample_count_above_threshold_30": true,
     "pass_rate_above_0.80": true,
@@ -11,32 +11,33 @@
     "revert_rate_below_0.20": true,
     "route_family_evidence_aligned": true
   },
-  "go_criteria_thresholds": {
-    "min_sample_count": 30,
-    "min_pass_rate": 0.8,
-    "min_median_realized_ratio": 0.9,
-    "max_revert_rate": 0.2,
-    "min_expected_net_base": 0.0
+  "canary_parameters": {
+    "max_trade_size_wei": 30000000000000000,
+    "max_trade_size_eth": 0.03,
+    "max_concurrent_trades": 1,
+    "min_predicted_profit_wei": 1000000000000000,
+    "min_predicted_profit_eth": 0.001,
+    "stop_on_consecutive_reverts": 3,
+    "review_threshold_attempts": 30,
+    "cumulative_loss_cap_wei": 50000000000000000,
+    "cumulative_loss_cap_eth": 0.05
   },
   "route_family_allowlist": [
     "multi"
   ],
   "route_family_blocklist": [
-    "direct"
+    "direct",
+    "unknown"
   ],
-  "route_family_blocklist_reason": "direct bucket (0.01 ETH, n=15) is MARGINAL/LOW_CONFIDENCE only. Excluded from initial canary to maintain conservative posture.",
-  "canary_parameters": {
-    "max_trade_size_eth": 0.03,
-    "max_daily_volume_eth": 0.12,
-    "max_concurrent_trades": 1,
-    "min_predicted_profit_eth": 0.001,
-    "stop_on_consecutive_reverts": 3
-  },
   "constraints": [
-    "No live trading enabled in Phase 22 - policy only",
-    "No private orderflow / builder / relay integration",
-    "No real broadcasts",
-    "Canary deployment requires separate Phase 23 live-gate sign-off"
+    "Default posture: Simulation/Shadow ONLY",
+    "Live mode (canary_live_mode_enabled) is FALSE by default",
+    "Real broadcasts are DISABLED",
+    "Economics model uses 5 Gwei L2 gas approximation (L1 fees NOT included)",
+    "Tenderly simulation acts as an additional safety preflight"
   ],
-  "notes": "GO is granted for multi route family at 0.03 ETH. direct route family at 0.01 ETH remains excluded (MARGINAL/LOW_CONFIDENCE). max_trade_size_eth=0.03 is the smallest VIABLE bucket. Direct route re-evaluation deferred to Phase 23 if more cases become available."
+  "history": {
+    "superseded_phase": "Phase 22",
+    "superseded_volume_cap_eth": 0.12
+  }
 }

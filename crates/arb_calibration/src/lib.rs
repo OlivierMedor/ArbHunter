@@ -98,7 +98,7 @@ impl CalibrationAnalyzer {
                             else { "< 0.001 ETH" };
                 
                 *bucket_counts.entry(bucket.to_string()).or_insert(0usize) += 1;
-                *family_counts.entry(res.route_family.clone()).or_insert(0usize) += 1;
+                *family_counts.entry(res.route_family.as_str().to_string()).or_insert(0usize) += 1;
                 
                 let drift = res.recheck.as_ref().map(|r| r.drift_summary.profit_drift_wei.abs()).unwrap_or(0);
                 let strength = if drift < 1_000_000_000_000_000 { "high" }

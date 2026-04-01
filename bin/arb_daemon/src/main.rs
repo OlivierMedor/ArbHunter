@@ -326,19 +326,25 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                 
                 // Record Canary Outcome based on Simulation Results
                 // In shadow-only scenarios, we assume validation acts as the baseline for accumulating predicted loss.
-                let gas_cost_wei = (gas_used as u128) * 5_000_000; // rough 5 Gwei gas estimation for loss caps
+                // NOTE: This is a simplified L2 execution cost approximation (approx 5 Gwei gas price).
+                // It does NOT currently include the Base L1 data fee, which can be significant.
+                let estimated_execution_cost_wei = (gas_used as u128) * 5_000_000; 
                 let pnl = if val_res.is_valid {
                     let ep: u128 = expected_profit.try_into().unwrap_or(0);
                     // Profit minus gas paid:
-                    if ep >= gas_cost_wei { (ep - gas_cost_wei) as i128 } else { - ((gas_cost_wei - ep) as i128) }
+                    if ep >= estimated_execution_cost_wei { 
+                        (ep - estimated_execution_cost_wei) as i128 
+                    } else { 
+                        - ((estimated_execution_cost_wei - ep) as i128) 
+                    }
                 } else {
-                    - (gas_cost_wei as i128)
+                    - (estimated_execution_cost_wei as i128)
                 };
                 
                 canary_gate.record_outcome(CanaryOutcome {
                     success: val_res.is_valid,
                     realized_pnl_wei: pnl,
-                    cost_paid_wei: gas_cost_wei,
+                    cost_paid_wei: estimated_execution_cost_wei,
                     route_family: cand.route_family.clone(),
                     amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
                 });
@@ -372,7 +378,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                     let mut entry = ShadowJournalEntry {
                         timestamp_ms: ts,
                         candidate_id: cand_id.clone(),
-                        route_family: "v2_v3_mixed".to_string(), // simplistic placeholder 
+                        route_family: cand.route_family.clone(), 
                         root_asset: cand.path.root_asset.clone(),
                         amount_in: cand.amount_in,
                         predicted_amount_out: expected_out,

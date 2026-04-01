@@ -57,8 +57,8 @@ impl Submitter {
                 
                 // Log honest statuses
                 info!(
-                    "Preflight result: overall_success={}, eth_call={:?}, gas_estimate={:?}",
-                    preflight.overall_success, preflight.eth_call_status, preflight.gas_estimate_status
+                    "Preflight result: overall_success={}, eth_call={:?}, gas_estimate={:?}, tenderly={:?}",
+                    preflight.overall_success, preflight.eth_call_status, preflight.gas_estimate_status, preflight.tenderly_status
                 );
 
                 if !preflight.overall_success {
@@ -74,8 +74,8 @@ impl Submitter {
 
                     self.metrics.inc_submission_failed();
                     let msg = format!(
-                        "Preflight failed: eth_call={:?}, gas={:?}",
-                        preflight.eth_call_status, preflight.gas_estimate_status
+                        "Preflight failed: eth_call={:?}, gas={:?}, tenderly={:?}",
+                        preflight.eth_call_status, preflight.gas_estimate_status, preflight.tenderly_status
                     );
                     return SubmissionResult::Failed(SubmissionFailureReason::PreflightFailed(msg));
                 }
