@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use petgraph::graph::{NodeIndex, DiGraph};
 use petgraph::visit::EdgeRef;
-use arb_types::{PoolStateSnapshot, TokenAddress, GraphEdge, RouteLeg, RoutePath, PoolId, CandidateOpportunity, QuoteSizeBucket, PoolKind};
+use arb_types::{PoolStateSnapshot, TokenAddress, GraphEdge, RouteLeg, RoutePath, PoolId, CandidateOpportunity, QuoteSizeBucket, PoolKind, RouteFamily};
 use alloy_primitives::U256;
 use arb_state::{Quoter, StateEngine};
 
@@ -17,6 +17,14 @@ impl RouteGraph {
             graph: DiGraph::new(),
             token_to_node: HashMap::new(),
         }
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.graph.node_count()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.graph.edge_count()
     }
 
     pub fn build_from_snapshots(&mut self, snapshots: Vec<PoolStateSnapshot>) {
@@ -169,12 +177,16 @@ impl CandidateGenerator {
             bps.saturating_to::<u32>()
         } else { 0 };
 
+        let leg_count = path.legs.len();
+        let route_family = RouteFamily::classify_by_leg_count(leg_count);
+
         Some(CandidateOpportunity {
             path, bucket, amount_in,
             estimated_amount_out: current_amount,
             estimated_gross_profit,
             estimated_gross_bps,
             is_fresh,
+            route_family,
         })
     }
 

@@ -17,6 +17,7 @@ arb_route = { path = "../../crates/arb_route" }
 arb_filter = { path = "../../crates/arb_filter" }
 arb_sim = { path = "../../crates/arb_sim" }
 arb_execute = { path = "../../crates/arb_execute" }
+arb_canary = { path = "../../crates/arb_canary" }
 axum = "0.7"
 alloy-primitives = { version = "0.8.20", features = ["serde"] }
 alloy-signer-local = "0.8"

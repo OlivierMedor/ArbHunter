@@ -98,6 +98,24 @@ pub struct MetricsRegistry {
     pub hist_opportunity_density: IntGauge,
     pub hist_bucket_total: IntCounterVec,
     pub hist_clustering_freq: IntGauge,
+
+    // Phase 23: Canary Telemetry
+    /// Canary attempts by (route_family, bucket) labels.
+    pub canary_attempts_total: IntCounterVec,
+    /// Canary reverts by (route_family, bucket) labels.
+    pub canary_reverts_total: IntCounterVec,
+    /// Current consecutive revert streak.
+    pub canary_consecutive_reverts: IntGauge,
+    /// Cumulative realized PnL in Wei (positive or negative, as i64).
+    pub canary_realized_pnl_wei: IntGauge,
+    /// Cumulative realized loss in Wei (>= 0).
+    pub canary_cumulative_loss_wei: IntGauge,
+    /// Policy-block events, labeled by rejection reason.
+    pub canary_policy_blocks_total: IntCounterVec,
+    /// Incremented once when the review threshold is first reached.
+    pub canary_review_threshold_reached_total: IntCounter,
+    /// Total allowed-through-gate count.
+    pub canary_allowed_total: IntCounter,
 }
 
 impl MetricsRegistry {
@@ -198,6 +216,16 @@ impl MetricsRegistry {
         let hist_bucket_total = IntCounterVec::new(Opts::new("arb_hist_bucket_total", "Historical candidates by size bucket"), &["bucket"]).unwrap();
         let hist_clustering_freq = IntGauge::new("arb_hist_clustering_freq", "Frequency of multiple candidates per block (x1000)").unwrap();
 
+        // Phase 23: Canary Telemetry
+        let canary_attempts_total = IntCounterVec::new(Opts::new("arb_canary_attempts_total", "Canary gate attempts by route family and bucket"), &["route_family", "bucket"]).unwrap();
+        let canary_reverts_total = IntCounterVec::new(Opts::new("arb_canary_reverts_total", "Canary execution reverts by route family and bucket"), &["route_family", "bucket"]).unwrap();
+        let canary_consecutive_reverts = IntGauge::new("arb_canary_consecutive_reverts", "Current consecutive canary revert streak").unwrap();
+        let canary_realized_pnl_wei = IntGauge::new("arb_canary_realized_pnl_wei", "Cumulative realized canary PnL in Wei (can be negative)").unwrap();
+        let canary_cumulative_loss_wei = IntGauge::new("arb_canary_cumulative_loss_wei", "Cumulative realized canary loss in Wei (non-negative)").unwrap();
+        let canary_policy_blocks_total = IntCounterVec::new(Opts::new("arb_canary_policy_blocks_total", "Canary gate policy rejections by reason"), &["reason"]).unwrap();
+        let canary_review_threshold_reached_total = IntCounter::new("arb_canary_review_threshold_reached_total", "Times the canary review threshold was reached").unwrap();
+        let canary_allowed_total = IntCounter::new("arb_canary_allowed_total", "Total candidates allowed through the canary gate").unwrap();
+
         registry.register(Box::new(provider_connected_total.clone())).unwrap();
         registry.register(Box::new(provider_disconnected_total.clone())).unwrap();
         registry.register(Box::new(provider_connected.clone())).unwrap();
@@ -276,6 +304,16 @@ impl MetricsRegistry {
         registry.register(Box::new(hist_opportunity_density.clone())).unwrap();
         registry.register(Box::new(hist_bucket_total.clone())).unwrap();
         registry.register(Box::new(hist_clustering_freq.clone())).unwrap();
+
+        // Phase 23
+        registry.register(Box::new(canary_attempts_total.clone())).unwrap();
+        registry.register(Box::new(canary_reverts_total.clone())).unwrap();
+        registry.register(Box::new(canary_consecutive_reverts.clone())).unwrap();
+        registry.register(Box::new(canary_realized_pnl_wei.clone())).unwrap();
+        registry.register(Box::new(canary_cumulative_loss_wei.clone())).unwrap();
+        registry.register(Box::new(canary_policy_blocks_total.clone())).unwrap();
+        registry.register(Box::new(canary_review_threshold_reached_total.clone())).unwrap();
+        registry.register(Box::new(canary_allowed_total.clone())).unwrap();
 
         daemon_startups_total.inc();
         active_provider.with_label_values(&["quicknode"]).set(0);
@@ -357,6 +395,14 @@ impl MetricsRegistry {
             hist_opportunity_density,
             hist_bucket_total,
             hist_clustering_freq,
+            canary_attempts_total,
+            canary_reverts_total,
+            canary_consecutive_reverts,
+            canary_realized_pnl_wei,
+            canary_cumulative_loss_wei,
+            canary_policy_blocks_total,
+            canary_review_threshold_reached_total,
+            canary_allowed_total,
         }
     }
 
@@ -626,5 +672,31 @@ impl MetricsRegistry {
     }
     pub fn set_hist_clustering(&self, freq_x1000: i64) {
         self.hist_clustering_freq.set(freq_x1000);
+    }
+
+    // Phase 23: Canary Telemetry helpers
+    pub fn inc_canary_attempt(&self, route_family: &str, bucket: &str) {
+        self.canary_attempts_total.with_label_values(&[route_family, bucket]).inc();
+    }
+    pub fn inc_canary_revert(&self, route_family: &str, bucket: &str) {
+        self.canary_reverts_total.with_label_values(&[route_family, bucket]).inc();
+    }
+    pub fn set_canary_consecutive_reverts(&self, n: u32) {
+        self.canary_consecutive_reverts.set(n as i64);
+    }
+    pub fn set_canary_realized_pnl_wei(&self, wei: i128) {
+        self.canary_realized_pnl_wei.set(wei.clamp(i64::MIN as i128, i64::MAX as i128) as i64);
+    }
+    pub fn set_canary_cumulative_loss_wei(&self, wei: i128) {
+        self.canary_cumulative_loss_wei.set(wei.clamp(0, i64::MAX as i128) as i64);
+    }
+    pub fn inc_canary_policy_block(&self, reason: &str) {
+        self.canary_policy_blocks_total.with_label_values(&[reason]).inc();
+    }
+    pub fn inc_canary_review_threshold_reached(&self) {
+        self.canary_review_threshold_reached_total.inc();
+    }
+    pub fn inc_canary_allowed(&self) {
+        self.canary_allowed_total.inc();
     }
 }

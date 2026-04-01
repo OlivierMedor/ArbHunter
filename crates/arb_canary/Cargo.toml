@@ -1,0 +1,12 @@
+[package]
+name = "arb_canary"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+arb_types = { path = "../arb_types" }
+alloy-primitives = { version = "0.7", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"

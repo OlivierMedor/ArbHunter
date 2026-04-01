@@ -4,6 +4,7 @@ pub mod nonce;
 pub mod nonce_provider;
 pub mod preflight;
 pub mod builder;
+pub mod tenderly;
 pub mod submitter;
 
 pub use planner::ExecutionPlanner;
