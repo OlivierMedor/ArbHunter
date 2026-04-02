@@ -427,7 +427,12 @@ pub enum SubmissionFailureReason {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubmissionResult {
     /// Transaction broadcast successfully
-    Success { tx_hash: String },
+    Success {
+        tx_hash: String,
+        gas_used: u128,
+        effective_gas_price: u128,
+        l1_fee_wei: Option<u128>,
+    },
     /// Dry-run successful (no broadcast)
     DryRunSuccess { tx_hash: String, signed_raw: Vec<u8> },
     /// Submission failed with a specific reason

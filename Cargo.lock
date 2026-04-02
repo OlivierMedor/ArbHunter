@@ -659,6 +659,7 @@ dependencies = [
  "arb_types",
  "serde",
  "serde_json",
+ "tempfile",
  "tracing",
 ]
 
@@ -667,6 +668,7 @@ name = "arb_config"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "tracing",
 ]
 
 [[package]]

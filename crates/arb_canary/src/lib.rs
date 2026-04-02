@@ -169,6 +169,12 @@ pub struct CanaryState {
 
     /// Whether the gate is currently halted (revert streak or loss cap).
     pub halted: bool,
+
+    /// Map of transaction hash (hex string) to candidate opportunity for live transaction reconciliation.
+    pub pending_live_txs: HashMap<String, CandidateOpportunity>,
+
+    /// Unix timestamp of the last state update.
+    pub last_updated_at: u64,
 }
 
 impl CanaryState {
@@ -218,11 +224,19 @@ pub struct CanaryOutcome {
 pub struct CanaryGate {
     pub policy: CanaryPolicy,
     pub state:  CanaryState,
+    /// Path to the persistence file. If None, persistence is disabled.
+    pub persistence_path: Option<std::path::PathBuf>,
 }
 
 impl CanaryGate {
     pub fn new(policy: CanaryPolicy) -> Self {
-        Self { policy, state: CanaryState::new() }
+        Self { policy, state: CanaryState::new(), persistence_path: None }
+    }
+
+    pub fn with_persistence(policy: CanaryPolicy, path: &std::path::Path) -> Self {
+        let mut gate = Self::new(policy);
+        gate.persistence_path = Some(path.to_path_buf());
+        gate
     }
 
     pub fn with_defaults() -> Self {
@@ -327,6 +341,7 @@ impl CanaryGate {
     ///
     /// - Updates revert streak, loss accumulator, and in-flight count.
     /// - Halts the gate if the revert streak threshold is reached.
+    /// - Persists state if `persistence_path` is set.
     pub fn record_outcome(&mut self, outcome: CanaryOutcome) {
         // In-flight count decremented regardless of success/failure
         self.state.in_flight_count = self.state.in_flight_count.saturating_sub(1);
@@ -381,6 +396,54 @@ impl CanaryGate {
                 );
             }
         }
+
+        self.persist_state();
+    }
+
+    /// Mark a transaction as pending broadcast. Persists state.
+    pub fn record_pending_tx(&mut self, tx_hash: String, candidate: CandidateOpportunity) {
+        self.state.pending_live_txs.insert(tx_hash, candidate);
+        self.persist_state();
+    }
+
+    /// Resolve a pending transaction after receipt or failure. Persists state.
+    pub fn resolve_pending_tx(&mut self, tx_hash: &str) -> Option<CandidateOpportunity> {
+        let candidate = self.state.pending_live_txs.remove(tx_hash);
+        self.persist_state();
+        candidate
+    }
+
+    /// Persist the current state to the configured path.
+    pub fn persist_state(&mut self) {
+        if let Some(path) = &self.persistence_path {
+            self.state.last_updated_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            if let Err(e) = self.save_to_file(path) {
+                tracing::error!(path = ?path, error = %e, "CANARY_PERSIST_FAILED");
+            }
+        }
+    }
+
+    /// Internal helper for atomic save.
+    fn save_to_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(&self.state)?;
+        let tmp_path = path.with_extension("tmp");
+        std::fs::write(&tmp_path, json)?;
+        std::fs::rename(tmp_path, path)?;
+        Ok(())
+    }
+
+    /// Load state from a file.
+    pub fn load_state(&mut self, path: &std::path::Path) -> std::io::Result<()> {
+        if path.exists() {
+            let json = std::fs::read_to_string(path)?;
+            self.state = serde_json::from_str(&json)?;
+            tracing::info!(path = ?path, "CANARY_STATE_LOADED");
+        }
+        Ok(())
     }
 
     /// Manually reset the gate (e.g. after human review following a halt).
@@ -672,5 +735,59 @@ mod tests {
         assert_eq!(gate.state.attempts_by_bucket.get("0.03 ETH"), Some(&1));
         assert_eq!(gate.state.attempts_by_bucket.get("0.01 ETH"), Some(&1));
         assert_eq!(gate.state.attempt_count, 2);
+    }
+
+    #[test]
+    fn test_persistence_atomic_save_load() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("canary_state.json");
+        let policy = CanaryPolicy::default();
+        
+        {
+            let mut gate = CanaryGate::with_persistence(policy.clone(), &path);
+            gate.state.attempt_count = 42;
+            gate.state.cumulative_realized_pnl_wei = 1000;
+            gate.persist_state();
+            assert!(path.exists());
+        }
+
+        {
+            let mut gate = CanaryGate::new(policy);
+            gate.load_state(&path).unwrap();
+            assert_eq!(gate.state.attempt_count, 42);
+            assert_eq!(gate.state.cumulative_realized_pnl_wei, 1000);
+            assert!(gate.state.last_updated_at > 0);
+        }
+    }
+
+    #[test]
+    fn test_pending_tx_persistence() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("canary_state.json");
+        let policy = CanaryPolicy::default();
+        let c = make_candidate(RouteFamily::Multi, 1000);
+        let tx_hash = "0x123".to_string();
+
+        {
+            let mut gate = CanaryGate::with_persistence(policy.clone(), &path);
+            gate.record_pending_tx(tx_hash.clone(), c.clone());
+        }
+
+        {
+            let mut gate = CanaryGate::new(policy.clone());
+            gate.load_state(&path).unwrap();
+            assert!(gate.state.pending_live_txs.contains_key(&tx_hash));
+            
+            let mut gate_with_path = CanaryGate::with_persistence(policy, &path);
+            gate_with_path.load_state(&path).unwrap();
+            let resolved = gate_with_path.resolve_pending_tx(&tx_hash);
+            assert!(resolved.is_some());
+            assert!(!gate_with_path.state.pending_live_txs.contains_key(&tx_hash));
+            
+            // Verify removal is persisted
+            let mut gate_after = CanaryGate::new(CanaryPolicy::default());
+            gate_after.load_state(&path).unwrap();
+            assert!(!gate_after.state.pending_live_txs.contains_key(&tx_hash));
+        }
     }
 }

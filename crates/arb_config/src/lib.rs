@@ -1,5 +1,6 @@
 use dotenvy::dotenv;
 use std::env;
+use tracing;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -83,6 +84,18 @@ pub struct Config {
     pub tenderly_project_slug: String,
     /// Enable Tenderly pre-send simulation. Default: false (no credentials, no-op).
     pub tenderly_enabled: bool,
+
+    // Phase 24: Live-Canary Hardening
+    /// Path to the durable state file. Default: "canary_state.json".
+    pub canary_state_path: String,
+    /// Timeout for Tenderly simulations in milliseconds. Default: 10000.
+    pub tenderly_timeout_ms: u64,
+    /// Multiplier for preflight gas estimate in basis points. Default: 12000 (1.2x).
+    pub gas_limit_multiplier_bps: u32,
+    /// Minimum allowed gas limit. Default: 21000.
+    pub gas_limit_min: u64,
+    /// Maximum allowed gas limit. Default: 5000000.
+    pub gas_limit_max: u64,
 }
 
 impl Config {
@@ -240,13 +253,71 @@ impl Config {
             tenderly_enabled: env::var("TENDERLY_ENABLED")
                 .map(|v| v.to_lowercase() == "true" || v == "1")
                 .unwrap_or(false),
+
+            // Phase 24
+            canary_state_path: env::var("CANARY_STATE_PATH")
+                .unwrap_or_else(|_| "canary_state.json".to_string()),
+            tenderly_timeout_ms: env::var("TENDERLY_TIMEOUT_MS")
+                .unwrap_or_else(|_| "10000".to_string())
+                .parse()
+                .unwrap_or(10000),
+            gas_limit_multiplier_bps: env::var("GAS_LIMIT_MULTIPLIER_BPS")
+                .unwrap_or_else(|_| "12000".to_string())
+                .parse()
+                .unwrap_or(12000),
+            gas_limit_min: env::var("GAS_LIMIT_MIN")
+                .unwrap_or_else(|_| "21000".to_string())
+                .parse()
+                .unwrap_or(21000),
+            gas_limit_max: env::var("GAS_LIMIT_MAX")
+                .unwrap_or_else(|_| "5000000".to_string())
+                .parse()
+                .unwrap_or(5000000),
         };
+
+        // Safety Gate: Ambiguous States
+        if parsed_config.canary_live_mode_enabled && parsed_config.dry_run_only {
+            panic!("FATAL SECURITY GATE: CANARY_LIVE_MODE_ENABLED=true while DRY_RUN_ONLY=true. Ambiguous half-live state is prohibited.");
+        }
 
         if parsed_config.enable_shadow_mode && parsed_config.enable_broadcast {
             panic!("FATAL SECURITY GATE: ENABLE_SHADOW_MODE and ENABLE_BROADCAST cannot both be true. Shadow mode must never have live broadcast capability.");
         }
 
+        parsed_config.validate_live_canary_config();
+
         parsed_config
+    }
+
+    /// Validates that all required configuration is present if live-canary mode is enabled.
+    /// Panics if requirements are not met to ensure a fail-fast startup.
+    pub fn validate_live_canary_config(&self) {
+        if !self.canary_live_mode_enabled {
+            return;
+        }
+
+        tracing::info!("Validating live-canary configuration...");
+
+        if self.signer_private_key.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires SIGNER_PRIVATE_KEY.");
+        }
+        if self.executor_contract_address.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires EXECUTOR_CONTRACT_ADDRESS.");
+        }
+        if !self.tenderly_enabled {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_ENABLED=true as a safety gate.");
+        }
+        if self.tenderly_api_key.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_API_KEY.");
+        }
+        if self.rpc_http_url.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires RPC_HTTP_URL for preflight/Tenderly.");
+        }
+        if self.dry_run_only {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires DRY_RUN_ONLY=false.");
+        }
+
+        tracing::info!("Live-canary configuration is VALID.");
     }
 }
 

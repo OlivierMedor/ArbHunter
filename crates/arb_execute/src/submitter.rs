@@ -18,6 +18,10 @@ pub struct Submitter {
     pub require_eth_call: bool,
     pub require_gas_estimate: bool,
     pub tenderly_config: Option<TenderlySimConfig>,
+    pub canary_live_mode_enabled: bool,
+    pub gas_limit_multiplier_bps: u32,
+    pub gas_limit_min: u64,
+    pub gas_limit_max: u64,
 }
 
 impl Submitter {
@@ -30,6 +34,10 @@ impl Submitter {
         require_eth_call: bool,
         require_gas_estimate: bool,
         tenderly_config: Option<TenderlySimConfig>,
+        canary_live_mode_enabled: bool,
+        gas_limit_multiplier_bps: u32,
+        gas_limit_min: u64,
+        gas_limit_max: u64,
     ) -> Self {
         Self {
             wallet,
@@ -40,6 +48,10 @@ impl Submitter {
             require_eth_call,
             require_gas_estimate,
             tenderly_config,
+            canary_live_mode_enabled,
+            gas_limit_multiplier_bps,
+            gas_limit_min,
+            gas_limit_max,
         }
     }
 
@@ -48,6 +60,7 @@ impl Submitter {
         self.metrics.inc_submission_attempts();
 
         // 1. Preflight check if required
+        let mut tx = tx; // Make mutable for gas override
         if self.require_preflight {
             if let Some(url) = &self.rpc_url {
                 self.metrics.inc_preflight();
@@ -79,6 +92,18 @@ impl Submitter {
                     );
                     return SubmissionResult::Failed(SubmissionFailureReason::PreflightFailed(msg));
                 }
+
+                // SUBMITTER-LEVEL GAS OVERRIDE: Apply multiplier and clamp
+                if let Some(est_gas) = preflight.gas_estimate {
+                    let mut new_limit = (est_gas as u128 * self.gas_limit_multiplier_bps as u128 / 10000) as u64;
+                    // Clamp
+                    if new_limit < self.gas_limit_min { new_limit = self.gas_limit_min; }
+                    if new_limit > self.gas_limit_max { new_limit = self.gas_limit_max; }
+                    
+                    info!(original = tx.gas_limit, estimate = est_gas, overridden = new_limit, "CANARY_GAS_OVERRIDE");
+                    tx.gas_limit = new_limit;
+                }
+
                 self.metrics.inc_preflight_success();
             }
         }
@@ -151,7 +176,60 @@ impl Submitter {
         match provider.send_raw_transaction(&signed_raw).await {
             Ok(pending) => {
                 self.metrics.inc_submission_broadcast();
-                SubmissionResult::Success { tx_hash: format!("{:#x}", pending.tx_hash()) }
+                let tx_hash = format!("{:#x}", *pending.tx_hash());
+
+                // In live canary mode, we MUST wait for the receipt to perform attribution.
+                if self.canary_live_mode_enabled {
+                    info!(tx_hash = %tx_hash, "CANARY_LIVE_BROADCAST: Waiting for receipt...");
+                    match pending.get_receipt().await {
+                        Ok(receipt) => {
+                            if !receipt.status() {
+                                self.metrics.inc_submission_failed();
+                                return SubmissionResult::Failed(SubmissionFailureReason::ExecutionReverted("Transaction reverted on-chain".to_string()));
+                            }
+
+                            // Extract L1 Fee if available (Base/OP Stack specific)
+                            let mut l1_fee_wei = None;
+                            
+                            // Using serde_json as a robust fallback for extension fields in Alloy 0.8
+                            if let Ok(json) = serde_json::to_value(&receipt) {
+                                if let Some(l1_fee) = json.get("l1Fee") {
+                                    if let Some(l1_fee_str) = l1_fee.as_str() {
+                                        l1_fee_wei = u128::from_str_radix(l1_fee_str.trim_start_matches("0x"), 16).ok();
+                                    } else if let Some(l1_fee_u64) = l1_fee.as_u64() {
+                                        l1_fee_wei = Some(l1_fee_u64 as u128);
+                                    }
+                                }
+                            }
+
+                            info!(
+                                tx_hash = %tx_hash,
+                                gas_used = receipt.gas_used,
+                                l1_fee = ?l1_fee_wei,
+                                "CANARY_RECEIPT_CONFIRMED"
+                            );
+
+                            SubmissionResult::Success {
+                                tx_hash,
+                                gas_used: receipt.gas_used,
+                                effective_gas_price: receipt.effective_gas_price,
+                                l1_fee_wei,
+                            }
+                        }
+                        Err(e) => {
+                            self.metrics.inc_submission_failed();
+                            SubmissionResult::Failed(SubmissionFailureReason::NetworkError(format!("Failed to fetch receipt: {}", e)))
+                        }
+                    }
+                } else {
+                    // Non-live-broadcast: return immediately with hash
+                    SubmissionResult::Success {
+                        tx_hash,
+                        gas_used: 0,
+                        effective_gas_price: 0,
+                        l1_fee_wei: None,
+                    }
+                }
             }
             Err(e) => {
                 self.metrics.inc_submission_failed();
@@ -194,7 +272,7 @@ mod tests {
         let wallet = Wallet { signer };
         
         let metrics = Arc::new(MetricsRegistry::new());
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false, None);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false, None, false, 12000, 21000, 5000000);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -226,7 +304,7 @@ mod tests {
         let wallet = Wallet { signer };
         let metrics = Arc::new(MetricsRegistry::new());
         // require_preflight = false
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true, None);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true, None, false, 12000, 21000, 5000000);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -252,7 +330,7 @@ mod tests {
         let wallet = Wallet { signer };
         let metrics = Arc::new(MetricsRegistry::new());
         // require_preflight = true, but rpc_url = None
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true, None);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true, None, false, 12000, 21000, 5000000);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),

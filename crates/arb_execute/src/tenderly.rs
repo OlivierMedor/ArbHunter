@@ -8,6 +8,7 @@ pub struct TenderlySimConfig {
     pub api_key: String,
     pub account_slug: String,
     pub project_slug: String,
+    pub timeout_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,8 +37,9 @@ pub struct TenderlySimulator {
 
 impl TenderlySimulator {
     pub fn new(config: TenderlySimConfig) -> Self {
+        let timeout = Duration::from_millis(config.timeout_ms);
         let client = Client::builder()
-            .timeout(Duration::from_secs(10))
+            .timeout(timeout)
             .build()
             .unwrap_or_else(|_| Client::new());
         Self { config, client }

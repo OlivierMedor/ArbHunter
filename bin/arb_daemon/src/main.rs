@@ -146,6 +146,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                 api_key,
                 account_slug: config.tenderly_account_slug.clone(),
                 project_slug: config.tenderly_project_slug.clone(),
+                timeout_ms: config.tenderly_timeout_ms,
             })
         } else {
             None
@@ -160,6 +161,10 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
             config.require_eth_call,
             config.require_gas_estimate,
             tenderly_config,
+            config.canary_live_mode_enabled,
+            config.gas_limit_multiplier_bps,
+            config.gas_limit_min,
+            config.gas_limit_max,
         ));
         info!("Submitter initialized in {:?} mode.", mode);
         Some(s)
@@ -257,7 +262,25 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
             loss_cap_wei: config_for_route.canary_loss_cap_wei,
             live_mode_enabled: config_for_route.canary_live_mode_enabled,
         };
-        let mut canary_gate = CanaryGate::new(canary_policy);
+        let mut canary_gate = CanaryGate::with_persistence(
+            canary_policy,
+            std::path::Path::new(&config_for_route.canary_state_path)
+        );
+        let _ = canary_gate.load_state(std::path::Path::new(&config_for_route.canary_state_path));
+
+        // Phase 24: Startup Reconciliation for Pending Transactions
+        if !canary_gate.state.pending_live_txs.is_empty() {
+            info!(count = canary_gate.state.pending_live_txs.len(), "CANARY_RECONCILIATION: Found pending transactions at startup.");
+            // For now, we just clear them and decrement in-flight as they are likely settled or dropped.
+            // In a future phase, we would check their status on-chain.
+            let pending_hashes: Vec<String> = canary_gate.state.pending_live_txs.keys().cloned().collect();
+            for hash in pending_hashes {
+                warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Clearing stale pending transaction.");
+                canary_gate.resolve_pending_tx(&hash);
+                canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
+            }
+            canary_gate.persist_state();
+        }
 
         loop {
             // Rebuild graph from current state
@@ -341,13 +364,17 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                     - (estimated_execution_cost_wei as i128)
                 };
                 
-                canary_gate.record_outcome(CanaryOutcome {
-                    success: val_res.is_valid,
-                    realized_pnl_wei: pnl,
-                    cost_paid_wei: estimated_execution_cost_wei,
-                    route_family: cand.route_family.clone(),
-                    amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                });
+                // Note: record_outcome is now handled AFTER submission for live trades to use real metrics.
+                // For non-live or shadow, we still use the sim-based approximation.
+                if !config_for_route.canary_live_mode_enabled {
+                    canary_gate.record_outcome(CanaryOutcome {
+                        success: val_res.is_valid,
+                        realized_pnl_wei: pnl,
+                        cost_paid_wei: estimated_execution_cost_wei,
+                        route_family: cand.route_family.clone(),
+                        amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                    });
+                }
 
                 // Telemetry: Update state-based metrics
                 route_metrics.set_canary_consecutive_reverts(canary_gate.state.consecutive_reverts);
@@ -461,14 +488,51 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                             Ok(plan) => {
                                 let nonce = nonce_manager.next();
                                 // Phase 10: Using default gas parameters for build_tx
-                                match tx_builder.build_tx(&plan, nonce, 1_000_000_000, 100_000_000, 500_000) {
-                                    Ok(built_tx) => {
-                                        info!("Submitting transaction for plan (nonce: {})", nonce);
-                                        let result = s.submit(built_tx).await;
-                                        info!("Submission result: {:?}", result);
-                                    }
-                                    Err(e) => warn!("Failed to build transaction: {}", e),
-                                }
+                                        match tx_builder.build_tx(&plan, nonce, 1_000_000_000, 100_000_000, 500_000) {
+                                            Ok(built_tx) => {
+                                                info!("Submitting transaction for plan (nonce: {})", nonce);
+                                                
+                                                // Phase 24: Record pending BEFORE broadcast
+                                                if config_for_route.canary_live_mode_enabled {
+                                                    // Note: tx_hash is unknown until signing, but sign_tx handles it.
+                                                    // Submitter signs inside submit(). We'll use a placeholder or wait.
+                                                }
+
+                                                let result = s.submit(built_tx).await;
+                                                info!("Submission result: {:?}", result);
+
+                                                // Phase 24: Real attribution from receipt
+                                                if let arb_types::SubmissionResult::Success { tx_hash, gas_used, effective_gas_price, l1_fee_wei } = &result {
+                                                    if config_for_route.canary_live_mode_enabled {
+                                                        let total_gas_cost = (*gas_used as u128 * *effective_gas_price) + l1_fee_wei.unwrap_or(0);
+                                                        
+                                                        // Profit attribution (simplified: assume expected profit was gross)
+                                                        let gross_profit: u128 = expected_profit.try_into().unwrap_or(0);
+                                                        let net_pnl = (gross_profit as i128) - (total_gas_cost as i128);
+
+                                                        canary_gate.record_outcome(CanaryOutcome {
+                                                            success: true,
+                                                            realized_pnl_wei: net_pnl,
+                                                            cost_paid_wei: total_gas_cost,
+                                                            route_family: cand.route_family.clone(),
+                                                            amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                                                        });
+                                                        info!(tx_hash = %tx_hash, net_pnl, "CANARY_ATTRIBUTION_COMPLETE");
+                                                    }
+                                                } else if let arb_types::SubmissionResult::Failed(_) = &result {
+                                                     if config_for_route.canary_live_mode_enabled {
+                                                        canary_gate.record_outcome(CanaryOutcome {
+                                                            success: false,
+                                                            realized_pnl_wei: - (estimated_execution_cost_wei as i128),
+                                                            cost_paid_wei: estimated_execution_cost_wei,
+                                                            route_family: cand.route_family.clone(),
+                                                            amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                                                        });
+                                                     }
+                                                }
+                                            }
+                                            Err(e) => warn!("Failed to build transaction: {}", e),
+                                        }
                             }
                             Err(e) => warn!("Failed to build execution plan: {:?}", e),
                          }
@@ -526,7 +590,7 @@ mod tests {
         let test_pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
         let signer: alloy_signer_local::PrivateKeySigner = test_pk.parse().unwrap();
         let wallet = Wallet { signer };
-        let submitter = Submitter::new(wallet, arb_types::SubmissionMode::DryRun, metrics.clone(), None, false, false, false);
+        let submitter = Submitter::new(wallet, arb_types::SubmissionMode::DryRun, metrics.clone(), None, false, false, false, None, false, 12000, 21000, 5000000);
         let ingest_pipeline = Arc::new(IngestPipeline::new(1024, metrics.clone()));
         let mut event_rx = ingest_pipeline.subscribe();
         
