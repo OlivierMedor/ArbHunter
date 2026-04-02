@@ -17,12 +17,10 @@ use arb_types::{
 use arb_route::{RouteGraph, CandidateGenerator};
 use arb_filter::{CandidateFilter, FilterConfig};
 use arb_canary::{CanaryGate, CanaryPolicy, CanaryOutcome};
-use arb_sim::LocalSimulator;
-use alloy_primitives::{U256, Address};
-use arb_execute::{Wallet, Submitter, NonceManager, NonceProvider, TxBuilder, ExecutionPlanner};
-use tokio::sync::{mpsc, Semaphore};
-use tokio::io::AsyncWriteExt;
 use std::time::{SystemTime, UNIX_EPOCH};
+use alloy_sol_types::SolEvent;
+use arb_execute::ExecutionSuccess;
+use alloy_rpc_types_eth::Header;
 
 async fn metrics_handler(State(metrics): State<Arc<MetricsRegistry>>) -> String {
     metrics.gather_metrics()
@@ -271,13 +269,88 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
         // Phase 24: Startup Reconciliation for Pending Transactions
         if !canary_gate.state.pending_live_txs.is_empty() {
             info!(count = canary_gate.state.pending_live_txs.len(), "CANARY_RECONCILIATION: Found pending transactions at startup.");
-            // For now, we just clear them and decrement in-flight as they are likely settled or dropped.
-            // In a future phase, we would check their status on-chain.
-            let pending_hashes: Vec<String> = canary_gate.state.pending_live_txs.keys().cloned().collect();
-            for hash in pending_hashes {
-                warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Clearing stale pending transaction.");
-                canary_gate.resolve_pending_tx(&hash);
-                canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
+            
+            if let Some(s) = &submitter {
+                let pending_hashes: Vec<String> = canary_gate.state.pending_live_txs.keys().cloned().collect();
+                for hash in pending_hashes {
+                    let pending = canary_gate.state.pending_live_txs.get(&hash).unwrap().clone();
+                    info!(tx_hash = %hash, nonce = pending.nonce, status = ?pending.status, "CANARY_RECONCILIATION: Checking status...");
+                    
+                    // Multi-stage reconciliation hierarchy
+                    match s.wait_for_receipt(&hash).await {
+                        Ok(res) => {
+                            info!(tx_hash = %hash, "CANARY_RECONCILIATION: Receipt confirmed. Resolving.");
+                            // Outcome resolving logic will be handled inside a helper or below
+                            let outcome = match res {
+                                arb_types::SubmissionResult::Success { receipt_logs, gas_used, effective_gas_price, l1_fee_wei, .. } => {
+                                    // Robust parsing of ExecutionSuccess
+                                    let mut actual_profit = None;
+                                    let mut actual_out = None;
+                                    
+                                    for log in &receipt_logs {
+                                        if let Ok(event) = ExecutionSuccess::decode_log(log, true) {
+                                            actual_profit = Some(event.profit);
+                                            actual_out = Some(event.amountOut);
+                                            break;
+                                        }
+                                    }
+                                    
+                                    let total_gas_cost = (gas_used as u128 * effective_gas_price) + l1_fee_wei.unwrap_or(0);
+                                    
+                                    if let (Some(profit), Some(_out)) = (actual_profit, actual_out) {
+                                        let net_pnl = (profit.to::<u128>() as i128) - (total_gas_cost as i128);
+                                        CanaryOutcome {
+                                            success: true,
+                                            realized_pnl_wei: net_pnl,
+                                            cost_paid_wei: total_gas_cost,
+                                            route_family: pending.candidate.route_family.clone(),
+                                            amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
+                                        }
+                                    } else {
+                                        warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Success receipt but ExecutionSuccess missing. INCOMPLETE_ATTRIBUTION.");
+                                        canary_gate.halt(format!("Incomplete attribution: ExecutionSuccess missing for {}", hash));
+                                        CanaryOutcome {
+                                            success: true,
+                                            realized_pnl_wei: 0,
+                                            cost_paid_wei: total_gas_cost,
+                                            route_family: pending.candidate.route_family.clone(),
+                                            amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
+                                        }
+                                    }
+                                }
+                                _ => CanaryOutcome {
+                                    success: false,
+                                    realized_pnl_wei: 0,
+                                    cost_paid_wei: 0,
+                                    route_family: pending.candidate.route_family.clone(),
+                                    amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
+                                }
+                            };
+                            canary_gate.resolve_pending_tx(&hash);
+                            // We don't record_outcome here because it's stale and we don't have full event data
+                            // but we MUST decrement in_flight_count since it's confirmed.
+                            canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
+                        }
+                        Err(_) => {
+                            // Stage 2: Check get_transaction_by_hash
+                            // Stage 3: Check nonce
+                            warn!(tx_hash = %hash, "CANARY_RECONCILIATION: No receipt. Performing nonce check...");
+                            let signer_addr: Address = pending.signer.parse().unwrap_or(Address::ZERO);
+                            if let Ok(np) = config_for_route.rpc_http_url.as_ref().map(|url| NonceProvider::new(url.clone())) {
+                                if let Ok(current_nonce) = np.get_nonce(signer_addr).await {
+                                    if current_nonce > pending.nonce {
+                                        warn!(tx_hash = %hash, current_nonce, tx_nonce = pending.nonce, "CANARY_RECONCILIATION: Nonce exceeded. Transaction dropped/replaced. Resolving.");
+                                        canary_gate.resolve_pending_tx(&hash);
+                                        canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
+                                    } else {
+                                        warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Nonce not yet reached. Ambiguous state. HALTING.");
+                                        canary_gate.halt(format!("Ambiguous pending tx: {}. Manual review required.", hash));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             canary_gate.persist_state();
         }
@@ -491,45 +564,117 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                         match tx_builder.build_tx(&plan, nonce, 1_000_000_000, 100_000_000, 500_000) {
                                             Ok(built_tx) => {
                                                 info!("Submitting transaction for plan (nonce: {})", nonce);
-                                                
-                                                // Phase 24: Record pending BEFORE broadcast
+                                                                                              // Phase 24: Expanded Pre-Send Durability
                                                 if config_for_route.canary_live_mode_enabled {
-                                                    // Note: tx_hash is unknown until signing, but sign_tx handles it.
-                                                    // Submitter signs inside submit(). We'll use a placeholder or wait.
-                                                }
+                                                    match s.sign_at_nonce(built_tx).await {
+                                                        Ok((signed_raw, tx_hash)) => {
+                                                            let pending = arb_canary::PendingLiveTx {
+                                                                tx_hash: tx_hash.clone(),
+                                                                signer: format!("{:#x}", s.wallet.address()),
+                                                                nonce,
+                                                                candidate: cand.clone(),
+                                                                status: arb_types::PendingTxStatus::Signed,
+                                                                timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                                                                signed_raw: if config_for_route.canary_persist_signed_raw { Some(signed_raw.clone()) } else { None },
+                                                            };
+                                                            canary_gate.record_pending_tx(pending);
+                                                            info!(tx_hash = %tx_hash, "CANARY_LIVE_DURABILITY: Pending record persisted. Starting broadcast...");
 
-                                                let result = s.submit(built_tx).await;
-                                                info!("Submission result: {:?}", result);
-
-                                                // Phase 24: Real attribution from receipt
-                                                if let arb_types::SubmissionResult::Success { tx_hash, gas_used, effective_gas_price, l1_fee_wei } = &result {
-                                                    if config_for_route.canary_live_mode_enabled {
-                                                        let total_gas_cost = (*gas_used as u128 * *effective_gas_price) + l1_fee_wei.unwrap_or(0);
-                                                        
-                                                        // Profit attribution (simplified: assume expected profit was gross)
-                                                        let gross_profit: u128 = expected_profit.try_into().unwrap_or(0);
-                                                        let net_pnl = (gross_profit as i128) - (total_gas_cost as i128);
-
-                                                        canary_gate.record_outcome(CanaryOutcome {
-                                                            success: true,
-                                                            realized_pnl_wei: net_pnl,
-                                                            cost_paid_wei: total_gas_cost,
-                                                            route_family: cand.route_family.clone(),
-                                                            amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                                                        });
-                                                        info!(tx_hash = %tx_hash, net_pnl, "CANARY_ATTRIBUTION_COMPLETE");
+                                                            match s.broadcast_raw(signed_raw).await {
+                                                                Ok(_) => {
+                                                                    canary_gate.update_pending_status(&tx_hash, arb_types::PendingTxStatus::Submitted);
+                                                                    info!(tx_hash = %tx_hash, "CANARY_LIVE_BROADCAST: Success. Awaiting receipt...");
+                                                                    
+                                                                    match s.wait_for_receipt(&tx_hash).await {
+                                                                        Ok(res) => {
+                                                                            canary_gate.update_pending_status(&tx_hash, arb_types::PendingTxStatus::AwaitingReceipt);
+                                                                            info!(tx_hash = %tx_hash, "CANARY_LIVE_RECEIPT: Confirmed. Resolving attribution...");
+                                                                            
+                                                                            // Attribution logic (receipt -> logs -> ExecutionSuccess)
+                                                                            let attribution = match res {
+                                                                                arb_types::SubmissionResult::Success { gas_used, effective_gas_price, l1_fee_wei, receipt_logs, .. } => {
+                                                                                    // Parse ExecutionSuccess event
+                                                                                    info!("CANARY_ATTRIBUTION: Success receipt. Parsing {} logs for ExecutionSuccess...", receipt_logs.len());
+                                                                                    
+                                                                                    let mut actual_profit = None;
+                                                                                    let mut actual_out = None;
+                                                                                    
+                                                                                    for log in &receipt_logs {
+                                                                                        if let Ok(event) = ExecutionSuccess::decode_log(log, true) {
+                                                                                            actual_profit = Some(event.profit);
+                                                                                            actual_out = Some(event.amountOut);
+                                                                                            info!(profit = %event.profit, amountOut = %event.amountOut, "CANARY_ATTRIBUTION: Event found.");
+                                                                                            break;
+                                                                                        }
+                                                                                    }
+                                                                                    
+                                                                                    let total_gas_cost = (gas_used as u128 * effective_gas_price) + l1_fee_wei.unwrap_or(0);
+                                                                                    
+                                                                                    if let (Some(profit), Some(_out)) = (actual_profit, actual_out) {
+                                                                                        let net_pnl = (profit.to::<u128>() as i128) - (total_gas_cost as i128);
+                                                                                        CanaryOutcome {
+                                                                                            success: true,
+                                                                                            realized_pnl_wei: net_pnl,
+                                                                                            cost_paid_wei: total_gas_cost,
+                                                                                            route_family: cand.route_family.clone(),
+                                                                                            amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                                                                                        }
+                                                                                    } else {
+                                                                                        warn!(tx_hash = %tx_hash, "CANARY_ATTRIBUTION: ExecutionSuccess missing on success receipt! HALTING.");
+                                                                                        canary_gate.halt(format!("Incomplete attribution: ExecutionSuccess missing for {}", tx_hash));
+                                                                                        CanaryOutcome {
+                                                                                            success: true,
+                                                                                            realized_pnl_wei: 0,
+                                                                                            cost_paid_wei: total_gas_cost,
+                                                                                            route_family: cand.route_family.clone(),
+                                                                                            amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                                arb_types::SubmissionResult::Reverted { gas_used, effective_gas_price, l1_fee_wei, .. } => {
+                                                                                    let total_burned = (gas_used as u128 * effective_gas_price) + l1_fee_wei.unwrap_or(0);
+                                                                                    CanaryOutcome {
+                                                                                        success: false,
+                                                                                        realized_pnl_wei: - (total_burned as i128),
+                                                                                        cost_paid_wei: total_burned,
+                                                                                        route_family: cand.route_family.clone(),
+                                                                                        amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                                                                                    }
+                                                                                }
+                                                                                _ => {
+                                                                                    CanaryOutcome {
+                                                                                      success: false,
+                                                                                      realized_pnl_wei: - (estimated_execution_cost_wei as i128),
+                                                                                      cost_paid_wei: estimated_execution_cost_wei,
+                                                                                      route_family: cand.route_family.clone(),
+                                                                                      amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
+                                                                                    }
+                                                                                }
+                                                                            };
+                                                                            
+                                                                            canary_gate.resolve_pending_tx(&tx_hash);
+                                                                            // Only record outcome if it wasn't a halt (though record_outcome handles it)
+                                                                            canary_gate.record_outcome(attribution);
+                                                                        }
+                                                                        Err(e) => {
+                                                                            warn!(tx_hash = %tx_hash, error = %e, "CANARY_LIVE_RECEIPT_ERROR: Receipt fetch failed for confirmed hash.");
+                                                                        }
+                                                                    }
+                                                                }
+                                                                Err(e) => {
+                                                                    canary_gate.update_pending_status(&tx_hash, arb_types::PendingTxStatus::SendFailedUnconfirmed);
+                                                                    warn!(tx_hash = %tx_hash, error = %e, "CANARY_LIVE_BROADCAST_FAILED: Immediate error. Persisted record as SandFailedUnconfirmed.");
+                                                                }
+                                                            }
+                                                        }
+                                                        Err(e) => warn!("CANARY_LIVE_SIGN_FAILED: {}", e),
                                                     }
-                                                } else if let arb_types::SubmissionResult::Failed(_) = &result {
-                                                     if config_for_route.canary_live_mode_enabled {
-                                                        canary_gate.record_outcome(CanaryOutcome {
-                                                            success: false,
-                                                            realized_pnl_wei: - (estimated_execution_cost_wei as i128),
-                                                            cost_paid_wei: estimated_execution_cost_wei,
-                                                            route_family: cand.route_family.clone(),
-                                                            amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                                                        });
-                                                     }
+                                                } else {
+                                                    // Sim/Shadow or DryRun mode (old flow)
+                                                    let result = s.submit(built_tx).await;
+                                                    info!("Submission result: {:?}", result);
                                                 }
+ }
                                             }
                                             Err(e) => warn!("Failed to build transaction: {}", e),
                                         }

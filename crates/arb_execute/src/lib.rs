@@ -13,5 +13,5 @@ pub use nonce::NonceManager;
 pub use nonce_provider::NonceProvider;
 pub use preflight::{PreflightChecker};
 pub use arb_types::PreflightStatus;
-pub use builder::TxBuilder;
+pub use builder::{TxBuilder, ExecutionSuccess};
 pub use submitter::Submitter;

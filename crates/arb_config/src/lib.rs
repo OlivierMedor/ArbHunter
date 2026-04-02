@@ -88,6 +88,8 @@ pub struct Config {
     // Phase 24: Live-Canary Hardening
     /// Path to the durable state file. Default: "canary_state.json".
     pub canary_state_path: String,
+    /// Whether to persist signed raw bytes for debugging. Default: false.
+    pub canary_persist_signed_raw: bool,
     /// Timeout for Tenderly simulations in milliseconds. Default: 10000.
     pub tenderly_timeout_ms: u64,
     /// Multiplier for preflight gas estimate in basis points. Default: 12000 (1.2x).
@@ -257,6 +259,9 @@ impl Config {
             // Phase 24
             canary_state_path: env::var("CANARY_STATE_PATH")
                 .unwrap_or_else(|_| "canary_state.json".to_string()),
+            canary_persist_signed_raw: env::var("CANARY_PERSIST_SIGNED_RAW")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
             tenderly_timeout_ms: env::var("TENDERLY_TIMEOUT_MS")
                 .unwrap_or_else(|_| "10000".to_string())
                 .parse()
@@ -315,6 +320,15 @@ impl Config {
         }
         if self.dry_run_only {
             panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires DRY_RUN_ONLY=false.");
+        }
+        if !self.enable_broadcast {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires ENABLE_BROADCAST=true.");
+        }
+        if self.tenderly_account_slug.is_empty() {
+             panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_ACCOUNT_SLUG.");
+        }
+        if self.tenderly_project_slug.is_empty() {
+             panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_PROJECT_SLUG.");
         }
 
         tracing::info!("Live-canary configuration is VALID.");

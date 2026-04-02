@@ -3,66 +3,18 @@ use alloy_primitives::{Address, U256};
 use arb_types::{ExecutionPlan as ArbExecutionPlan, BuiltTransaction};
 
 sol! {
-    struct MinOutConstraint {
-        uint256 minAmountOut;
-    }
+    struct MinOutConstraint { uint256 minAmountOut; }
+    struct SlippageGuard { MinOutConstraint minOut; uint256 minProfitWei; }
+    struct ExecutionLeg { address poolId; uint8 poolKind; address tokenIn; address tokenOut; bool zeroForOne; uint256 amountOut; }
+    struct ExecutionPath { ExecutionLeg[] legs; }
+    struct ExpectedOutcome { uint256 amountIn; uint256 expectedAmountOut; uint256 expectedProfit; }
+    struct FlashLoanSpec { uint8 provider; address asset; uint256 amount; }
+    struct RepaymentGuard { address asset; uint256 amount; }
+    struct ProfitGuard { uint256 minProfitWei; }
+    struct ExecutionPlanSol { address targetToken; ExecutionPath path; ExpectedOutcome outcome; SlippageGuard guard; bool hasFlashloan; }
+    struct AtomicExecutionPlanSol { FlashLoanSpec flashloan; ExecutionPath path; uint256 minAmountOut; RepaymentGuard repayment; ProfitGuard profitGuard; bool hasFlashloan; bool hasRepayment; }
 
-    struct SlippageGuard {
-        MinOutConstraint minOut;
-        uint256 minProfitWei;
-    }
-
-    struct ExecutionLeg {
-        address poolId;
-        uint8 poolKind;
-        address tokenIn;
-        address tokenOut;
-        bool zeroForOne;
-        uint256 amountOut;
-    }
-
-    struct ExecutionPath {
-        ExecutionLeg[] legs;
-    }
-
-    struct ExpectedOutcome {
-        uint256 amountIn;
-        uint256 expectedAmountOut;
-        uint256 expectedProfit;
-    }
-
-    struct FlashLoanSpec {
-        uint8 provider;
-        address asset;
-        uint256 amount;
-    }
-
-    struct RepaymentGuard {
-        address asset;
-        uint256 amount;
-    }
-
-    struct ProfitGuard {
-        uint256 minProfitWei;
-    }
-
-    struct ExecutionPlanSol {
-        address targetToken;
-        ExecutionPath path;
-        ExpectedOutcome outcome;
-        SlippageGuard guard;
-        bool hasFlashloan;
-    }
-
-    struct AtomicExecutionPlanSol {
-        FlashLoanSpec flashloan;
-        ExecutionPath path;
-        uint256 minAmountOut;
-        RepaymentGuard repayment;
-        ProfitGuard profitGuard;
-        bool hasFlashloan;
-        bool hasRepayment;
-    }
+    event ExecutionSuccess(address targetToken, uint256 amountIn, uint256 amountOut, uint256 profit);
 
     function executePlan(ExecutionPlanSol calldata plan) external;
     function executeAtomicPlan(AtomicExecutionPlanSol calldata plan) external;

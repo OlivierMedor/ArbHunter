@@ -1,13 +1,16 @@
 use std::sync::Arc;
-use tracing::{info, warn};
+use serde_json;
+use tracing::info;
 use arb_metrics::MetricsRegistry;
 use crate::signer::Wallet;
 use crate::preflight::PreflightChecker;
 use crate::tenderly::TenderlySimConfig;
 use arb_types::{BuiltTransaction, SubmissionResult, SubmissionMode, SubmissionFailureReason, PreflightStatus};
 use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_types_eth::TransactionRequest;
-use alloy_primitives::Address;
+use alloy_rpc_types_eth::{TransactionRequest, TransactionInput};
+use alloy_primitives::{Address, FixedBytes};
+use alloy_network::TransactionBuilder;
+use alloy_signer::Signer;
 
 pub struct Submitter {
     pub wallet: Wallet,
@@ -55,7 +58,45 @@ impl Submitter {
         }
     }
 
-    /// Submits a built transaction according to the operational mode.
+    /// Signs a transaction at a specific nonce and returns the signed raw bytes and the pre-computed hash.
+    pub async fn sign_at_nonce(
+        &self,
+        mut tx: BuiltTransaction,
+    ) -> Result<(Vec<u8>, String), String> {
+        let _signer = self.wallet.signer.clone();
+        
+        // Convert to Alloy transaction request
+        let mut req = TransactionRequest::default()
+            .to(tx.to.parse::<Address>().map_err(|e| e.to_string())?)
+            .input(TransactionInput::new(tx.data.into()))
+            .value(tx.value)
+            .nonce(tx.nonce)
+            .gas_limit(tx.gas_limit)
+            .chain_id(tx.chain_id);
+
+        if let Some(gas_price) = tx.gas_price {
+            req = req.gas_price(gas_price);
+        } else {
+            req = req.max_fee_per_gas(tx.max_fee_per_gas)
+                     .max_priority_fee_per_gas(tx.max_priority_fee_per_gas);
+        }
+
+        // Sign the transaction
+        let signed = req.build(&self.wallet).await.map_err(|e| e.to_string())?;
+        let signed_raw = signed.encoded_2718();
+        let tx_hash = format!("{:#x}", signed.hash());
+
+        Ok((signed_raw, tx_hash))
+    }
+
+    /// Broadcasts a signed raw transaction.
+    pub async fn broadcast_raw(&self, signed_raw: Vec<u8>) -> Result<(), String> {
+        let provider = self.get_provider().await?;
+        provider.send_raw_transaction(&signed_raw).await.map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    /// Higher-level helper that signs, persists (via external gate), and broadcasts.
     pub async fn submit(&self, tx: BuiltTransaction) -> SubmissionResult {
         self.metrics.inc_submission_attempts();
 
@@ -150,9 +191,14 @@ impl Submitter {
         req
     }
 
+    async fn get_provider(&self) -> Result<alloy_provider::RootProvider<alloy_transport_http::Http<reqwest::Client>>, String> {
+        let url = self.rpc_url.as_ref().ok_or("RPC URL missing")?.parse().map_err(|e| format!("Invalid URL: {}", e))?;
+        Ok(ProviderBuilder::new().on_http(url))
+    }
+
     async fn broadcast(&self, tx: BuiltTransaction, rpc_url: &str) -> SubmissionResult {
         // Sign the transaction
-        let (signed_raw, _) = match self.wallet.sign_tx(tx).await {
+        let (signed_raw, tx_hash) = match self.wallet.sign_tx(tx).await {
             Ok(res) => {
                 self.metrics.inc_submission_signed();
                 res
@@ -183,11 +229,6 @@ impl Submitter {
                     info!(tx_hash = %tx_hash, "CANARY_LIVE_BROADCAST: Waiting for receipt...");
                     match pending.get_receipt().await {
                         Ok(receipt) => {
-                            if !receipt.status() {
-                                self.metrics.inc_submission_failed();
-                                return SubmissionResult::Failed(SubmissionFailureReason::ExecutionReverted("Transaction reverted on-chain".to_string()));
-                            }
-
                             // Extract L1 Fee if available (Base/OP Stack specific)
                             let mut l1_fee_wei = None;
                             
@@ -206,14 +247,27 @@ impl Submitter {
                                 tx_hash = %tx_hash,
                                 gas_used = receipt.gas_used,
                                 l1_fee = ?l1_fee_wei,
+                                status = receipt.status(),
                                 "CANARY_RECEIPT_CONFIRMED"
                             );
 
-                            SubmissionResult::Success {
-                                tx_hash,
-                                gas_used: receipt.gas_used,
-                                effective_gas_price: receipt.effective_gas_price,
-                                l1_fee_wei,
+                            if receipt.status() {
+                                let mut receipt_logs = vec![];
+                                if let Ok(json) = serde_json::to_value(&receipt) {
+                                    if let Some(logs_val) = json.get("logs") {
+                                        receipt_logs = serde_json::from_value(logs_val.clone()).unwrap_or_default();
+                                    }
+                                }
+
+                                SubmissionResult::Success {
+                                    tx_hash,
+                                    gas_used: receipt.gas_used as u128,
+                                    effective_gas_price: receipt.effective_gas_price,
+                                    l1_fee_wei,
+                                    receipt_logs,
+                                }
+                            } else {
+                                SubmissionResult::Failed(SubmissionFailureReason::ExecutionReverted("Transaction reverted on-chain".to_string()))
                             }
                         }
                         Err(e) => {
@@ -228,6 +282,7 @@ impl Submitter {
                         gas_used: 0,
                         effective_gas_price: 0,
                         l1_fee_wei: None,
+                        receipt_logs: vec![],
                     }
                 }
             }
@@ -235,6 +290,54 @@ impl Submitter {
                 self.metrics.inc_submission_failed();
                 SubmissionResult::Failed(SubmissionFailureReason::NetworkError(e.to_string()))
             }
+        }
+    }
+
+    /// Wait for a transaction receipt and return a Success or Reverted result.
+    pub async fn wait_for_receipt(&self, tx_hash: &str) -> Result<SubmissionResult, String> {
+        let provider = self.get_provider().await?;
+        let hash = tx_hash.parse::<FixedBytes<32>>().map_err(|e| e.to_string())?;
+        
+        // Wait for confirmation
+        let receipt = provider.get_transaction_receipt(hash)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Receipt not found after broadcast".to_string())?;
+
+        // Extract L1 Fee if available (Base/OP Stack specific)
+        let mut l1_fee_wei = None;
+        if let Ok(json) = serde_json::to_value(&receipt) {
+            if let Some(l1_fee) = json.get("l1Fee") {
+                if let Some(l1_fee_str) = l1_fee.as_str() {
+                    l1_fee_wei = u128::from_str_radix(l1_fee_str.trim_start_matches("0x"), 16).ok();
+                } else if let Some(l1_fee_u64) = l1_fee.as_u64() {
+                    l1_fee_wei = Some(l1_fee_u64 as u128);
+                }
+            }
+        }
+
+        if receipt.status() {
+            let mut receipt_logs = vec![];
+            if let Ok(json) = serde_json::to_value(&receipt) {
+                if let Some(logs_val) = json.get("logs") {
+                    receipt_logs = serde_json::from_value(logs_val.clone()).unwrap_or_default();
+                }
+            }
+
+            Ok(SubmissionResult::Success {
+                tx_hash: tx_hash.to_string(),
+                gas_used: receipt.gas_used as u128,
+                effective_gas_price: receipt.effective_gas_price,
+                l1_fee_wei,
+                receipt_logs,
+            })
+        } else {
+            Ok(SubmissionResult::Reverted {
+                tx_hash: tx_hash.to_string(),
+                gas_used: receipt.gas_used as u128,
+                effective_gas_price: receipt.effective_gas_price,
+                l1_fee_wei,
+            })
         }
     }
 

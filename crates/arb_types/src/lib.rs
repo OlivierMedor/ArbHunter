@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use alloy_primitives::{U128, U256};
+use alloy_rpc_types_eth::Log;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderKind {
@@ -432,6 +433,14 @@ pub enum SubmissionResult {
         gas_used: u128,
         effective_gas_price: u128,
         l1_fee_wei: Option<u128>,
+        receipt_logs: Vec<Log>,
+    },
+    /// Transaction confirmed as reverted
+    Reverted {
+        tx_hash: String,
+        gas_used: u128,
+        effective_gas_price: u128,
+        l1_fee_wei: Option<u128>,
     },
     /// Dry-run successful (no broadcast)
     DryRunSuccess { tx_hash: String, signed_raw: Vec<u8> },
@@ -470,6 +479,20 @@ pub enum SubmissionMode {
     Broadcast,
     DryRun,
     SimulateOnly,
+}
+
+/// Status tracking for a pending live transaction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PendingTxStatus {
+    /// Signed but not yet attempted to broadcast
+    Signed,
+    /// Successfully submitted to the network
+    Submitted,
+    /// Broadcast attempted but returned a network error; status unconfirmed
+    SendFailedUnconfirmed,
+    /// Currently awaiting confirmation receipt
+    AwaitingReceipt,
 }
 
 // ============================================================

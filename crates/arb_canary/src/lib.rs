@@ -170,11 +170,27 @@ pub struct CanaryState {
     /// Whether the gate is currently halted (revert streak or loss cap).
     pub halted: bool,
 
-    /// Map of transaction hash (hex string) to candidate opportunity for live transaction reconciliation.
-    pub pending_live_txs: HashMap<String, CandidateOpportunity>,
+    /// Explicit human-readable reason for the halt (e.g. "Ambiguous pending tx").
+    pub halted_reason: Option<String>,
+
+    /// Map of transaction hash (hex string) to expanded pending transaction details.
+    pub pending_live_txs: HashMap<String, PendingLiveTx>,
 
     /// Unix timestamp of the last state update.
     pub last_updated_at: u64,
+}
+
+/// Metadata for a live transaction that hasn't yet reached a final resolved state
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingLiveTx {
+    pub tx_hash: String,
+    pub signer: String,
+    pub nonce: u64,
+    pub candidate: CandidateOpportunity,
+    pub status: arb_types::PendingTxStatus,
+    pub timestamp: u64,
+    /// Store the raw bytes for debugging/rebroadcast if opted-in
+    pub signed_raw: Option<Vec<u8>>,
 }
 
 impl CanaryState {
@@ -401,16 +417,31 @@ impl CanaryGate {
     }
 
     /// Mark a transaction as pending broadcast. Persists state.
-    pub fn record_pending_tx(&mut self, tx_hash: String, candidate: CandidateOpportunity) {
-        self.state.pending_live_txs.insert(tx_hash, candidate);
+    pub fn record_pending_tx(&mut self, pending: PendingLiveTx) {
+        self.state.pending_live_txs.insert(pending.tx_hash.clone(), pending);
         self.persist_state();
     }
 
+    /// Update the status of an existing pending transaction.
+    pub fn update_pending_status(&mut self, tx_hash: &str, status: arb_types::PendingTxStatus) {
+        if let Some(pending) = self.state.pending_live_txs.get_mut(tx_hash) {
+            pending.status = status;
+            self.persist_state();
+        }
+    }
+
     /// Resolve a pending transaction after receipt or failure. Persists state.
-    pub fn resolve_pending_tx(&mut self, tx_hash: &str) -> Option<CandidateOpportunity> {
-        let candidate = self.state.pending_live_txs.remove(tx_hash);
+    pub fn resolve_pending_tx(&mut self, tx_hash: &str) -> Option<PendingLiveTx> {
+        let pending = self.state.pending_live_txs.remove(tx_hash);
         self.persist_state();
-        candidate
+        pending
+    }
+
+    /// Explicitly halt the gate with a reason.
+    pub fn halt(&mut self, reason: String) {
+        self.state.halted = true;
+        self.state.halted_reason = Some(reason);
+        self.persist_state();
     }
 
     /// Persist the current state to the configured path.
@@ -767,10 +798,19 @@ mod tests {
         let policy = CanaryPolicy::default();
         let c = make_candidate(RouteFamily::Multi, 1000);
         let tx_hash = "0x123".to_string();
+        let pending = PendingLiveTx {
+            tx_hash: tx_hash.clone(),
+            signer: "0xSender".to_string(),
+            nonce: 1,
+            candidate: c,
+            status: arb_types::PendingTxStatus::Submitted,
+            timestamp: 123456789,
+            signed_raw: None,
+        };
 
         {
             let mut gate = CanaryGate::with_persistence(policy.clone(), &path);
-            gate.record_pending_tx(tx_hash.clone(), c.clone());
+            gate.record_pending_tx(pending);
         }
 
         {
@@ -778,14 +818,14 @@ mod tests {
             gate.load_state(&path).unwrap();
             assert!(gate.state.pending_live_txs.contains_key(&tx_hash));
             
-            let mut gate_with_path = CanaryGate::with_persistence(policy, &path);
+            let mut gate_with_path = CanaryGate::with_persistence(policy.clone(), &path);
             gate_with_path.load_state(&path).unwrap();
             let resolved = gate_with_path.resolve_pending_tx(&tx_hash);
             assert!(resolved.is_some());
             assert!(!gate_with_path.state.pending_live_txs.contains_key(&tx_hash));
             
             // Verify removal is persisted
-            let mut gate_after = CanaryGate::new(CanaryPolicy::default());
+            let mut gate_after = CanaryGate::new(policy);
             gate_after.load_state(&path).unwrap();
             assert!(!gate_after.state.pending_live_txs.contains_key(&tx_hash));
         }
