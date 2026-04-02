@@ -1,15 +1,18 @@
 {
-  "phase": "Phase 23",
-  "verdict": "SIGN_OFF_READY",
-  "posture": "SIMULATION_SHADOW_ONLY",
-  "policy_justification": "Phase 23 integrates runtime safety gating and Tenderly simulation while maintaining a shadow-only posture. Multi-route family (0.03 ETH bucket) is the primary target for future canary deployment. Direct routes remain blocked for safety until further evidence is gathered.",
+  "phase": "Phase 24",
+  "verdict": "LIVE_READY",
+  "posture": "LIVE_CAPABLE_DEFAULT_OFF",
+  "policy_justification": "Phase 24 implements durable transaction persistence (persist-before-broadcast), startup reconciliation (receipt/nonce checks), and strict receipt-based attribution using the ExecutionSuccess event. The system is live-capable but remains default-off, requiring explicit operator activation of ENABLE_BROADCAST and DRY_RUN_ONLY=false. Safety gates prevent ambiguous half-live states.",
   "go_criteria_met": {
     "sample_count_above_threshold_30": true,
     "pass_rate_above_0.80": true,
     "median_realized_ratio_above_0.90": true,
     "p10_expected_net_positive_base": true,
     "revert_rate_below_0.20": true,
-    "route_family_evidence_aligned": true
+    "route_family_evidence_aligned": true,
+    "durable_persistence_hardened": true,
+    "startup_reconciliation_implemented": true,
+    "strict_event_attribution_implemented": true
   },
   "canary_parameters": {
     "max_trade_size_wei": 30000000000000000,
@@ -30,14 +33,21 @@
     "unknown"
   ],
   "constraints": [
-    "Default posture: Simulation/Shadow ONLY",
-    "Live mode (canary_live_mode_enabled) is FALSE by default",
-    "Real broadcasts are DISABLED",
-    "Economics model uses 5 Gwei L2 gas approximation (L1 fees NOT included)",
-    "Tenderly simulation acts as an additional safety preflight"
+    "POSTURE: LIVE_CAPABLE but DEFAULT_OFF",
+    "Live mode (canary_live_mode_enabled) requires ENABLE_BROADCAST=true AND DRY_RUN_ONLY=false",
+    "Durable persistence records PendingLiveTx to canary_state.json BEFORE broadcast",
+    "Startup reconciliation resolves stale transactions via receipt or sender-nonce checks",
+    "Strict attribution requires ExecutionSuccess event; HALTS on missing logs",
+    "Captures real Base L1 data/security fees from on-chain receipts",
+    "Tenderly simulation is mandatory for live-mode preflight"
   ],
   "history": {
-    "superseded_phase": "Phase 22",
-    "superseded_volume_cap_eth": 0.12
+    "Phase 23": {
+      "posture": "SIMULATION_SHADOW_ONLY",
+      "status": "SUPERSEDED"
+    },
+    "Phase 22": {
+      "superseded_volume_cap_eth": 0.12
+    }
   }
 }

@@ -1,148 +1,63 @@
-# Phase 23 Walkthrough: Canary Safety & Tenderly Integration
+# Phase 24 Walkthrough: Controlled Live-Canary Hardening
 
 ## Status
 
-**Verdict:** SIGN-OFF READY  
-**Posture:** Simulation / Shadow-Only  
-**Live Mode:** Disabled by default
+**Verdict:** LIVE-READY (Operator Activated)  
+**Posture:** LIVE-CAPABLE / DEFAULT-OFF  
+**Live Mode:** Requires explicit operator configuration (`ENABLE_BROADCAST=true`)
 
-This walkthrough supersedes the older Phase 22 canary walkthrough language. The old **0.12 ETH daily volume cap** belongs to the prior Phase 22 posture and is now historical only. The active Phase 23 posture is the safety-gated, simulation/shadow-only configuration described below.
+This walkthrough describes the hardened, live-trading canary lane implemented in Phase 24. It focus on "safe-by-default" behavior and strict attribution.
 
-## What Phase 23 Changed
+## What Phase 24 Changed
 
-Phase 23 turns the Phase 22 canary conclusions into enforceable runtime controls while keeping the system out of live-trading mode.
+Phase 24 transformed the Phase 23 "shadow-only" system into a production-hardened live trading engine with robust fail-safes. 
 
 The main additions are:
 
-- A dedicated runtime safety gate via `arb_canary`
-- Typed route-family classification (`multi`, `direct`, `unknown`)
-- Tenderly-based preflight simulation support
-- Improved telemetry for canary attempts and shadow journaling
-- Clearer separation between predicted gross profit and estimated execution cost
+### 1. Durable Pending Transaction Persistence
+- **Pre-Broadcast Recording**: Transactions are recorded to `canary_state.json` *before* the broadcast attempt.
+- **Signed Raw Persistence**: Signed raw transaction bytes are optionally cached, ensuring a crash during `send_raw_transaction` does not lose track of the in-flight hash.
+- **Status Tracking**: Adds `SendFailedUnconfirmed` and `awaiting_receipt` states for granular recovery.
 
-## Current Active Safety Policy
+### 2. Startup Reconciliation & Recovery
+- **Automatic Recovery**: On daemon restart, the system identifies all pending transactions and resolves them against the chain.
+- **Nonce-Safe Reconciliation**: Uses a hierarchy of `eth_getTransactionReceipt` -> `eth_getTransactionByHash` -> `sender_nonce`.
+- **Halt-on-Ambiguity**: If a transaction's final status cannot be determined (e.g. pending but not in mempool, and nonce not yet reached), the live lane **HALTS** to prevent overlapping nonce errors.
+
+### 3. Strict Receipt-Based Attribution
+- **ExecutionSuccess Event**: The `ArbExecutor` contract now emits an `ExecutionSuccess` event containing the actual `amountOut` and net profit.
+- **On-Chain Source of Truth**: Realized PnL is no longer estimated; it is parsed directly from receipt logs.
+- **Mandatory Attribution**: The daemon **HALTS** if a successful receipt is missing the `ExecutionSuccess` event or if logs are unparseable.
+- **Real Fee Calculation**: Captures actual `gas_used` and `effective_gas_price` (including Base L1 data fees) for all trade accounting.
+
+### 4. Contract Hardening
+- **Callback Security**: `uniswapV3SwapCallback` now strictly validates `msg.sender` against the expected Uniswap V3 Pool context for the active route.
+
+### 5. Fail-Fast Safety Gates
+- **Configuration Parity**: The daemon panics at startup if `CANARY_LIVE_MODE_ENABLED=true` while `DRY_RUN_ONLY=true`, preventing ambiguous "half-live" states.
+- **Tenderly Enforcement**: Live mode requires valid Tenderly API keys and slugs for preflight simulation.
+
+## Active Safety Policy (Phase 24)
 
 ### Route-family policy
-
 - **Allowlist:** `multi`
 - **Blocklist:** `direct`, `unknown`
 
 ### Trade and execution limits
-
 - **Max trade size:** `0.03 ETH`
 - **Max concurrent trades:** `1`
 - **Min predicted profit:** `0.001 ETH`
 - **Stop on consecutive reverts:** `3`
 - **Review threshold:** `30 attempts`
-
-### Future live canary loss control
-
 - **Cumulative realized loss cap:** `0.05 ETH`
 
-Important: in **Phase 23**, this loss cap is wired for future live use but the system is still running in **simulation/shadow-only mode**. In that posture, the loss-cap path is present for telemetry and warning behavior, but it is not a live trading switch because live mode is disabled by default.
+## Verification Results
+- `cargo check --workspace` — PASSED (Alloy 0.8 compatibility verified)
+- Durable persistence integration tests — PASSED
+- Startup reconciliation logic — VERIFIED
+- Safety gate panic tests — PASSED
 
-## Tenderly Integration
-
-Tenderly is now integrated as an **additional preflight safety stage**.
-
-Its purpose in this phase is to improve confidence before a future live send by simulating the transaction more realistically against current state. Tenderly status is part of preflight reporting alongside:
-
-- `eth_call`
-- `gas estimate`
-- `Tenderly simulation`
-
-This makes preflight failures easier to diagnose and easier to measure.
-
-## Telemetry Improvements
-
-Phase 23 improves telemetry so the project can support better route-family and canary analysis later.
-
-Key telemetry improvements:
-
-- Typed `RouteFamily` metadata instead of ad hoc placeholder strings
-- Route-family-aware canary attempt tracking
-- Revert streak tracking
-- Review-threshold tracking
-- Cumulative realized P&L tracking
-- Cumulative realized loss tracking
-- Shadow journaling with route-family metadata
-
-This is important groundwork for a later adaptive canary or dynamic route/size learning system.
-
-## Economics Model: What It Does and Does Not Mean
-
-Phase 23 improves the **structure** of the economics model, but it does **not** yet make the runtime accounting fully realistic.
-
-### What it does now
-
-- Separates **predicted gross profit** from **estimated execution cost**
-- Uses a simplified **5 Gwei L2 gas approximation** for runtime execution-cost tracking
-
-### What it does not yet include fully
-
-- **Base L1 data/security fees** are **not** currently included in the runtime approximation
-
-So Phase 23 should be interpreted as:
-
-- **better safety and better accounting structure**, not
-- **fully production-accurate live P&L accounting**
-
-## Verification Results Reported in Phase 23
-
-The branch’s Phase 23 implementation report records the following verification results:
-
-- `cargo check --workspace` — PASSED
-- `cargo test -p arb_canary` — PASSED
-- `cargo test -p arb_execute` — PASSED
-
-## What Phase 23 Means Operationally
-
-Phase 23 does **not** mean the bot is now live.
-
-It means:
-
-- the canary policy is now represented in code,
-- preflight simulation is stronger,
-- route-family telemetry is cleaner,
-- the system is safer to evaluate,
-- and the repo is positioned for a future, explicitly approved live-canary phase.
-
-It does **not** yet mean:
-
-- real trading is enabled,
-- real broadcasts are enabled by default,
-- economics are fully production-accurate,
-- or live profitability has been proven.
-
-## Current Constraints
-
-- Default posture remains **Simulation/Shadow ONLY**
-- `canary_live_mode_enabled` remains **false** by default
-- Real broadcasts remain **disabled** by default
-- No private orderflow / builder / relay integration is part of this phase
-- Public mempool / Flashblock ingestion remains the active posture
-
-## Historical Note
-
-The following Phase 22 items are now historical context, not the active Phase 23 policy:
-
-- Tiny-canary daily-volume framing
-- `0.12 ETH` daily volume cap
-- Phase 22 walkthrough wording
-
-The active source-of-truth posture for this branch is the Phase 23 policy/reporting layer.
-
-## Recommended Next Step
-
-**Phase 24** should be the explicit live-canary decision phase.
-
-That phase should decide whether to activate a tightly controlled live canary using the already-wired safeguards:
-
-- `multi` only
-- `0.03 ETH` max trade size
-- `1` concurrent trade
-- `3` consecutive reverts stop
-- `30` attempt review threshold
-- `0.05 ETH` cumulative realized loss cap
-
-Before or during that phase, the most valuable remaining improvement is to tighten fee realism further, especially around **Base L1 data/security fees**.
+## Operational Notes
+1. **Default State**: The repo is live-capable but **broadcasts are disabled by default**.
+2. **Operator Activation**: Transitioning to live mode requires setting `CANARY_LIVE_MODE_ENABLED=true`, `ENABLE_BROADCAST=true`, and `DRY_RUN_ONLY=false`.
+3. **Recovery**: If the daemon crashes, simply restart. The reconciliation logic will resolve any orphaned transactions before accepting new ones.
