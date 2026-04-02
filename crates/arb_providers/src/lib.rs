@@ -252,10 +252,16 @@ mod tests {
             canary_review_threshold_attempts: 30,
             canary_loss_cap_wei: 50_000_000_000_000_000,
             canary_live_mode_enabled: false,
+            canary_persist_signed_raw: false,
+            canary_state_path: "canary_state.json".to_string(),
+            gas_limit_max: 1_000_000,
+            gas_limit_min: 21000,
+            gas_limit_multiplier_bps: 12000,
             tenderly_api_key: None,
             tenderly_account_slug: "".to_string(),
             tenderly_project_slug: "".to_string(),
             tenderly_enabled: false,
+            tenderly_timeout_ms: 10000,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());

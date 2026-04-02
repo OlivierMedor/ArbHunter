@@ -14,13 +14,18 @@ use arb_types::{
     EventStamp, IngestEvent, PoolId, PoolKind, PoolUpdate, ReserveSnapshot, TokenAddress, QuoteSizeBucket, SimOutcomeStatus,
     ShadowJournalEntry, ShadowRecheckResult, DriftSummary,
 };
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::{mpsc, Semaphore};
+use alloy_primitives::{Address, U256};
+use alloy_sol_types::SolEvent;
+use alloy_rpc_types_eth::Header;
+
 use arb_route::{RouteGraph, CandidateGenerator};
 use arb_filter::{CandidateFilter, FilterConfig};
 use arb_canary::{CanaryGate, CanaryPolicy, CanaryOutcome};
-use std::time::{SystemTime, UNIX_EPOCH};
-use alloy_sol_types::SolEvent;
-use arb_execute::ExecutionSuccess;
-use alloy_rpc_types_eth::Header;
+use arb_execute::{Wallet, Submitter, NonceManager, NonceProvider, TxBuilder, ExecutionPlanner, ExecutionSuccess};
+use arb_sim::LocalSimulator;
 
 async fn metrics_handler(State(metrics): State<Arc<MetricsRegistry>>) -> String {
     metrics.gather_metrics()
@@ -119,7 +124,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
     });
 
     // Phase 9/10: Execution & Submission Pipeline
-    let wallet = if let Some(pk_str) = &config.signer_private_key {
+    let wallet = if let Some(_pk_str) = &config.signer_private_key {
         info!("Signer wallet detected. Initializing submission pipeline...");
         match Wallet::from_env() { // Uses SIGNER_PRIVATE_KEY from env
             Ok(w) => Some(w),
@@ -288,9 +293,9 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                     let mut actual_out = None;
                                     
                                     for log in &receipt_logs {
-                                        if let Ok(event) = ExecutionSuccess::decode_log(log, true) {
+                                        if let Ok(event) = ExecutionSuccess::decode_log(&log.inner, true) {
                                             actual_profit = Some(event.profit);
-                                            actual_out = Some(event.amountOut);
+                                            actual_out = Some(event.amount_out);
                                             break;
                                         }
                                     }
@@ -309,13 +314,25 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                     } else {
                                         warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Success receipt but ExecutionSuccess missing. INCOMPLETE_ATTRIBUTION.");
                                         canary_gate.halt(format!("Incomplete attribution: ExecutionSuccess missing for {}", hash));
+                                        
+                                        // Still update realized loss for the gas spent even if profit is unknown
                                         CanaryOutcome {
                                             success: true,
-                                            realized_pnl_wei: 0,
+                                            realized_pnl_wei: - (total_gas_cost as i128),
                                             cost_paid_wei: total_gas_cost,
                                             route_family: pending.candidate.route_family.clone(),
                                             amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
                                         }
+                                    }
+                                }
+                                arb_types::SubmissionResult::Reverted { gas_used, effective_gas_price, l1_fee_wei, .. } => {
+                                    let total_burned = (gas_used as u128 * effective_gas_price) + l1_fee_wei.unwrap_or(0);
+                                    CanaryOutcome {
+                                        success: false,
+                                        realized_pnl_wei: - (total_burned as i128),
+                                        cost_paid_wei: total_burned,
+                                        route_family: pending.candidate.route_family.clone(),
+                                        amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
                                     }
                                 }
                                 _ => CanaryOutcome {
@@ -326,25 +343,34 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                     amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
                                 }
                             };
+                            
+                            info!(tx_hash = %hash, success = outcome.success, realized_pnl = outcome.realized_pnl_wei, "CANARY_RECONCILIATION: Resolving attribution.");
                             canary_gate.resolve_pending_tx(&hash);
-                            // We don't record_outcome here because it's stale and we don't have full event data
-                            // but we MUST decrement in_flight_count since it's confirmed.
-                            canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
+                            canary_gate.record_outcome(outcome);
                         }
                         Err(_) => {
                             // Stage 2: Check get_transaction_by_hash
-                            // Stage 3: Check nonce
-                            warn!(tx_hash = %hash, "CANARY_RECONCILIATION: No receipt. Performing nonce check...");
-                            let signer_addr: Address = pending.signer.parse().unwrap_or(Address::ZERO);
-                            if let Ok(np) = config_for_route.rpc_http_url.as_ref().map(|url| NonceProvider::new(url.clone())) {
-                                if let Ok(current_nonce) = np.get_nonce(signer_addr).await {
-                                    if current_nonce > pending.nonce {
-                                        warn!(tx_hash = %hash, current_nonce, tx_nonce = pending.nonce, "CANARY_RECONCILIATION: Nonce exceeded. Transaction dropped/replaced. Resolving.");
-                                        canary_gate.resolve_pending_tx(&hash);
-                                        canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
-                                    } else {
-                                        warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Nonce not yet reached. Ambiguous state. HALTING.");
-                                        canary_gate.halt(format!("Ambiguous pending tx: {}. Manual review required.", hash));
+                            match s.get_transaction(&hash).await {
+                                Ok(Some(tx)) => {
+                                    info!(tx_hash = %hash, block = ?tx.block_number, "CANARY_RECONCILIATION: Transaction found in pool/chain but no receipt yet. Status: AwaitingReceipt.");
+                                    canary_gate.update_pending_status(&hash, arb_types::PendingTxStatus::AwaitingReceipt);
+                                }
+                                _ => {
+                                    // Stage 3: Check nonce
+                                    warn!(tx_hash = %hash, "CANARY_RECONCILIATION: No receipt and not in mempool. Performing nonce check...");
+                                    let signer_addr: Address = pending.signer.parse().unwrap_or(Address::ZERO);
+                                    if let Some(np) = config_for_route.rpc_http_url.as_ref().map(|url| NonceProvider::new(url.clone())) {
+                                        if let Ok(current_nonce) = np.get_nonce(signer_addr).await {
+                                            if current_nonce > pending.nonce {
+                                                warn!(tx_hash = %hash, current_nonce, tx_nonce = pending.nonce, "CANARY_RECONCILIATION: Nonce exceeded. Transaction dropped/replaced. Resolving.");
+                                                canary_gate.resolve_pending_tx(&hash);
+                                                // Note: we don't know the outcome, but we must decrement in-flight
+                                                canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
+                                            } else {
+                                                warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Nonce not yet reached. Ambiguous state. HALTING.");
+                                                canary_gate.halt(format!("Ambiguous pending tx: {}. Manual review required.", hash));
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -494,7 +520,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
 
                     // Spawn properly-bounded delayed recheck task if it cleared all safety thresholds
                     if would_trade {
-                        if let Ok(permit) = recheck_semaphore.clone().try_acquire_owned() {
+                        if let Ok(_permit) = recheck_semaphore.clone().try_acquire_owned() {
                             let sim_clone = simulator.clone();
                             let metric_clone = route_metrics.clone();
                             let cand_clone = cand.clone();
@@ -554,18 +580,22 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                         expected_profit,
                         val_res.sim_result.status
                     );
-
                     // Phase 10: Execution Plan -> Submission
                     if let Some(s) = &submitter {
-                         match ExecutionPlanner::build_plan(&val_res) {
+                        match ExecutionPlanner::build_plan(&val_res) {
                             Ok(plan) => {
                                 let nonce = nonce_manager.next();
                                 // Phase 10: Using default gas parameters for build_tx
-                                        match tx_builder.build_tx(&plan, nonce, 1_000_000_000, 100_000_000, 500_000) {
-                                            Ok(built_tx) => {
-                                                info!("Submitting transaction for plan (nonce: {})", nonce);
-                                                                                              // Phase 24: Expanded Pre-Send Durability
-                                                if config_for_route.canary_live_mode_enabled {
+                                match tx_builder.build_tx(&plan, nonce, 1_000_000_000, 100_000_000, 500_000) {
+                                    Ok(built_tx) => {
+                                        info!("Submitting transaction for plan (nonce: {})", nonce);
+                                        // Phase 24: Expanded Pre-Send Durability & Preflight Enforcement
+                                        if config_for_route.canary_live_mode_enabled {
+                                            let mut built_tx = built_tx; // for mutations
+                                            
+                                            // BLOCKER 1: Enforce preflight/overrides before signing
+                                            match s.apply_preflight_and_overrides(&mut built_tx).await {
+                                                Ok(_) => {
                                                     match s.sign_at_nonce(built_tx).await {
                                                         Ok((signed_raw, tx_hash)) => {
                                                             let pending = arb_canary::PendingLiveTx {
@@ -600,10 +630,10 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                                                                     let mut actual_out = None;
                                                                                     
                                                                                     for log in &receipt_logs {
-                                                                                        if let Ok(event) = ExecutionSuccess::decode_log(log, true) {
+                                                                                        if let Ok(event) = ExecutionSuccess::decode_log(&log.inner, true) {
                                                                                             actual_profit = Some(event.profit);
-                                                                                            actual_out = Some(event.amountOut);
-                                                                                            info!(profit = %event.profit, amountOut = %event.amountOut, "CANARY_ATTRIBUTION: Event found.");
+                                                                                            actual_out = Some(event.amount_out);
+                                                                                            info!(profit = %event.profit, amount_out = %event.amount_out, "CANARY_ATTRIBUTION: Event found.");
                                                                                             break;
                                                                                         }
                                                                                     }
@@ -624,7 +654,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                                                                         canary_gate.halt(format!("Incomplete attribution: ExecutionSuccess missing for {}", tx_hash));
                                                                                         CanaryOutcome {
                                                                                             success: true,
-                                                                                            realized_pnl_wei: 0,
+                                                                                            realized_pnl_wei: - (total_gas_cost as i128),
                                                                                             cost_paid_wei: total_gas_cost,
                                                                                             route_family: cand.route_family.clone(),
                                                                                             amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
@@ -653,7 +683,6 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                                                             };
                                                                             
                                                                             canary_gate.resolve_pending_tx(&tx_hash);
-                                                                            // Only record outcome if it wasn't a halt (though record_outcome handles it)
                                                                             canary_gate.record_outcome(attribution);
                                                                         }
                                                                         Err(e) => {
@@ -663,24 +692,28 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                                                 }
                                                                 Err(e) => {
                                                                     canary_gate.update_pending_status(&tx_hash, arb_types::PendingTxStatus::SendFailedUnconfirmed);
-                                                                    warn!(tx_hash = %tx_hash, error = %e, "CANARY_LIVE_BROADCAST_FAILED: Immediate error. Persisted record as SandFailedUnconfirmed.");
+                                                                    warn!(tx_hash = %tx_hash, error = %e, "CANARY_LIVE_BROADCAST_FAILED: Immediate error. Persisted record as SendFailedUnconfirmed.");
                                                                 }
                                                             }
                                                         }
                                                         Err(e) => warn!("CANARY_LIVE_SIGN_FAILED: {}", e),
                                                     }
-                                                } else {
-                                                    // Sim/Shadow or DryRun mode (old flow)
-                                                    let result = s.submit(built_tx).await;
-                                                    info!("Submission result: {:?}", result);
                                                 }
- }
+                                                Err(e) => {
+                                                    warn!("CANARY_LIVE_PREFLIGHT_FAILED: {:?}. Skipping execution.", e);
+                                                }
                                             }
-                                            Err(e) => warn!("Failed to build transaction: {}", e),
+                                        } else {
+                                            // Sim/Shadow or DryRun mode (old flow)
+                                            let result = s.submit(built_tx).await;
+                                            info!("Submission result: {:?}", result);
                                         }
+                                    }
+                                    Err(e) => warn!("Failed to build transaction: {}", e),
+                                }
                             }
                             Err(e) => warn!("Failed to build execution plan: {:?}", e),
-                         }
+                        }
                     }
                 } else {
                     route_metrics.inc_simulations_failed();
@@ -735,7 +768,7 @@ mod tests {
         let test_pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
         let signer: alloy_signer_local::PrivateKeySigner = test_pk.parse().unwrap();
         let wallet = Wallet { signer };
-        let submitter = Submitter::new(wallet, arb_types::SubmissionMode::DryRun, metrics.clone(), None, false, false, false, None, false, 12000, 21000, 5000000);
+        let _submitter = Submitter::new(wallet, arb_types::SubmissionMode::DryRun, metrics.clone(), None, false, false, false, None, false, 12000, 21000, 5000000);
         let ingest_pipeline = Arc::new(IngestPipeline::new(1024, metrics.clone()));
         let mut event_rx = ingest_pipeline.subscribe();
         

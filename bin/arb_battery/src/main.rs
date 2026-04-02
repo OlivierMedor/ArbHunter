@@ -46,6 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         false, 
         false,
         None,
+        false, // broadcast_enabled
+        0,     // gas_limit_override
+        0,     // priority_fee_override_gwei
+        0,     // base_fee_override_gwei
     );
 
     let mut attributions = Vec::new();
@@ -202,7 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let result = submitter.submit(built_tx.clone()).await;
         let _ : serde_json::Value = provider.raw_request("anvil_mine".into(), (1,)).await.unwrap_or_default();
 
-        if let SubmissionResult::Success { tx_hash } = result {
+        if let SubmissionResult::Success { tx_hash, .. } = result {
             let mut retries = 0;
             loop {
                 if let Some(r) = provider.get_transaction_receipt(B256::from_str(&tx_hash)?).await? {

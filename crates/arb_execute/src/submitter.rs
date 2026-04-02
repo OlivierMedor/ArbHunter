@@ -61,32 +61,9 @@ impl Submitter {
     /// Signs a transaction at a specific nonce and returns the signed raw bytes and the pre-computed hash.
     pub async fn sign_at_nonce(
         &self,
-        mut tx: BuiltTransaction,
+        tx: BuiltTransaction,
     ) -> Result<(Vec<u8>, String), String> {
-        let _signer = self.wallet.signer.clone();
-        
-        // Convert to Alloy transaction request
-        let mut req = TransactionRequest::default()
-            .to(tx.to.parse::<Address>().map_err(|e| e.to_string())?)
-            .input(TransactionInput::new(tx.data.into()))
-            .value(tx.value)
-            .nonce(tx.nonce)
-            .gas_limit(tx.gas_limit)
-            .chain_id(tx.chain_id);
-
-        if let Some(gas_price) = tx.gas_price {
-            req = req.gas_price(gas_price);
-        } else {
-            req = req.max_fee_per_gas(tx.max_fee_per_gas)
-                     .max_priority_fee_per_gas(tx.max_priority_fee_per_gas);
-        }
-
-        // Sign the transaction
-        let signed = req.build(&self.wallet).await.map_err(|e| e.to_string())?;
-        let signed_raw = signed.encoded_2718();
-        let tx_hash = format!("{:#x}", signed.hash());
-
-        Ok((signed_raw, tx_hash))
+        self.wallet.sign_tx(tx).await
     }
 
     /// Broadcasts a signed raw transaction.
@@ -96,57 +73,66 @@ impl Submitter {
         Ok(())
     }
 
+    /// Performs preflight checks (eth_call, gas estimation, Tenderly) and applies gas overrides.
+    pub async fn apply_preflight_and_overrides(
+        &self,
+        tx: &mut BuiltTransaction,
+    ) -> Result<(), SubmissionFailureReason> {
+        if !self.require_preflight {
+            return Ok(());
+        }
+
+        let url = match &self.rpc_url {
+            Some(u) => u,
+            None => return Ok(()), // Skip if no URL
+        };
+
+        self.metrics.inc_preflight();
+        let checker = PreflightChecker::new(url.clone(), self.tenderly_config.clone());
+        let tx_req = self.build_request(tx);
+        let preflight = checker.check(&tx_req, self.require_eth_call, self.require_gas_estimate).await;
+        
+        info!(
+            "Preflight result: overall_success={}, eth_call={:?}, gas_estimate={:?}, tenderly={:?}",
+            preflight.overall_success, preflight.eth_call_status, preflight.gas_estimate_status, preflight.tenderly_status
+        );
+
+        if !preflight.overall_success {
+            self.metrics.inc_preflight_failed();
+            if let arb_types::PreflightStatus::Failed(_) = preflight.eth_call_status {
+                self.metrics.inc_preflight_eth_call_failed();
+            }
+            if let arb_types::PreflightStatus::Failed(_) = preflight.gas_estimate_status {
+                self.metrics.inc_preflight_gas_estimate_failed();
+            }
+
+            self.metrics.inc_submission_failed();
+            let msg = format!(
+                "Preflight failed: eth_call={:?}, gas={:?}, tenderly={:?}",
+                preflight.eth_call_status, preflight.gas_estimate_status, preflight.tenderly_status
+            );
+            return Err(SubmissionFailureReason::PreflightFailed(msg));
+        }
+
+        if let Some(est_gas) = preflight.gas_estimate {
+            let mut new_limit = (est_gas as u128 * self.gas_limit_multiplier_bps as u128 / 10000) as u64;
+            if new_limit < self.gas_limit_min { new_limit = self.gas_limit_min; }
+            if new_limit > self.gas_limit_max { new_limit = self.gas_limit_max; }
+            
+            info!(original = tx.gas_limit, estimate = est_gas, overridden = new_limit, "CANARY_GAS_OVERRIDE");
+            tx.gas_limit = new_limit;
+        }
+
+        self.metrics.inc_preflight_success();
+        Ok(())
+    }
+
     /// Higher-level helper that signs, persists (via external gate), and broadcasts.
-    pub async fn submit(&self, tx: BuiltTransaction) -> SubmissionResult {
+    pub async fn submit(&self, mut tx: BuiltTransaction) -> SubmissionResult {
         self.metrics.inc_submission_attempts();
 
-        // 1. Preflight check if required
-        let mut tx = tx; // Make mutable for gas override
-        if self.require_preflight {
-            if let Some(url) = &self.rpc_url {
-                self.metrics.inc_preflight();
-                let checker = PreflightChecker::new(url.clone(), self.tenderly_config.clone());
-                let tx_req = self.build_request(&tx);
-                let preflight = checker.check(&tx_req, self.require_eth_call, self.require_gas_estimate).await;
-                
-                // Log honest statuses
-                info!(
-                    "Preflight result: overall_success={}, eth_call={:?}, gas_estimate={:?}, tenderly={:?}",
-                    preflight.overall_success, preflight.eth_call_status, preflight.gas_estimate_status, preflight.tenderly_status
-                );
-
-                if !preflight.overall_success {
-                    self.metrics.inc_preflight_failed();
-                    
-                    // Specific failure metrics
-                    if let arb_types::PreflightStatus::Failed(_) = preflight.eth_call_status {
-                        self.metrics.inc_preflight_eth_call_failed();
-                    }
-                    if let arb_types::PreflightStatus::Failed(_) = preflight.gas_estimate_status {
-                        self.metrics.inc_preflight_gas_estimate_failed();
-                    }
-
-                    self.metrics.inc_submission_failed();
-                    let msg = format!(
-                        "Preflight failed: eth_call={:?}, gas={:?}, tenderly={:?}",
-                        preflight.eth_call_status, preflight.gas_estimate_status, preflight.tenderly_status
-                    );
-                    return SubmissionResult::Failed(SubmissionFailureReason::PreflightFailed(msg));
-                }
-
-                // SUBMITTER-LEVEL GAS OVERRIDE: Apply multiplier and clamp
-                if let Some(est_gas) = preflight.gas_estimate {
-                    let mut new_limit = (est_gas as u128 * self.gas_limit_multiplier_bps as u128 / 10000) as u64;
-                    // Clamp
-                    if new_limit < self.gas_limit_min { new_limit = self.gas_limit_min; }
-                    if new_limit > self.gas_limit_max { new_limit = self.gas_limit_max; }
-                    
-                    info!(original = tx.gas_limit, estimate = est_gas, overridden = new_limit, "CANARY_GAS_OVERRIDE");
-                    tx.gas_limit = new_limit;
-                }
-
-                self.metrics.inc_preflight_success();
-            }
+        if let Err(reason) = self.apply_preflight_and_overrides(&mut tx).await {
+            return SubmissionResult::Failed(reason);
         }
 
         match self.mode {
@@ -198,7 +184,7 @@ impl Submitter {
 
     async fn broadcast(&self, tx: BuiltTransaction, rpc_url: &str) -> SubmissionResult {
         // Sign the transaction
-        let (signed_raw, tx_hash) = match self.wallet.sign_tx(tx).await {
+        let (signed_raw, _tx_hash) = match self.sign_at_nonce(tx).await {
             Ok(res) => {
                 self.metrics.inc_submission_signed();
                 res
@@ -339,6 +325,13 @@ impl Submitter {
                 l1_fee_wei,
             })
         }
+    }
+
+    /// Fetches a transaction by hash.
+    pub async fn get_transaction(&self, tx_hash: &str) -> Result<Option<alloy_rpc_types_eth::Transaction>, String> {
+        let provider = self.get_provider().await?;
+        let hash = tx_hash.parse::<FixedBytes<32>>().map_err(|e| e.to_string())?;
+        provider.get_transaction_by_hash(hash).await.map_err(|e| e.to_string())
     }
 
     async fn dry_run(&self, tx: BuiltTransaction) -> SubmissionResult {

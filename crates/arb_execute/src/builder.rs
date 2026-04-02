@@ -3,18 +3,18 @@ use alloy_primitives::{Address, U256};
 use arb_types::{ExecutionPlan as ArbExecutionPlan, BuiltTransaction};
 
 sol! {
-    struct MinOutConstraint { uint256 minAmountOut; }
-    struct SlippageGuard { MinOutConstraint minOut; uint256 minProfitWei; }
-    struct ExecutionLeg { address poolId; uint8 poolKind; address tokenIn; address tokenOut; bool zeroForOne; uint256 amountOut; }
+    struct MinOutConstraint { uint256 min_amount_out; }
+    struct SlippageGuard { MinOutConstraint min_out; uint256 min_profit_wei; }
+    struct ExecutionLeg { address pool_id; uint8 pool_kind; address token_in; address token_out; bool zero_for_one; uint256 amount_out; }
     struct ExecutionPath { ExecutionLeg[] legs; }
-    struct ExpectedOutcome { uint256 amountIn; uint256 expectedAmountOut; uint256 expectedProfit; }
+    struct ExpectedOutcome { uint256 amount_in; uint256 expected_amount_out; uint256 expected_profit; }
     struct FlashLoanSpec { uint8 provider; address asset; uint256 amount; }
     struct RepaymentGuard { address asset; uint256 amount; }
-    struct ProfitGuard { uint256 minProfitWei; }
-    struct ExecutionPlanSol { address targetToken; ExecutionPath path; ExpectedOutcome outcome; SlippageGuard guard; bool hasFlashloan; }
-    struct AtomicExecutionPlanSol { FlashLoanSpec flashloan; ExecutionPath path; uint256 minAmountOut; RepaymentGuard repayment; ProfitGuard profitGuard; bool hasFlashloan; bool hasRepayment; }
+    struct ProfitGuard { uint256 min_profit_wei; }
+    struct ExecutionPlanSol { address target_token; ExecutionPath path; ExpectedOutcome outcome; SlippageGuard guard; bool has_flashloan; }
+    struct AtomicExecutionPlanSol { FlashLoanSpec flashloan; ExecutionPath path; uint256 min_amount_out; RepaymentGuard repayment; ProfitGuard profit_guard; bool has_flashloan; bool has_repayment; }
 
-    event ExecutionSuccess(address targetToken, uint256 amountIn, uint256 amountOut, uint256 profit);
+    event ExecutionSuccess(address target_token, uint256 amount_in, uint256 amount_out, uint256 profit);
 
     function executePlan(ExecutionPlanSol calldata plan) external;
     function executeAtomicPlan(AtomicExecutionPlanSol calldata plan) external;
@@ -53,30 +53,30 @@ impl TxBuilder {
         let mut sol_legs = Vec::with_capacity(plan.path.legs.len());
         for l in &plan.path.legs {
             sol_legs.push(ExecutionLeg {
-                poolId: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
-                poolKind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8, // 1 for V3, 0 for V2
-                tokenIn: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
-                tokenOut: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
-                zeroForOne: l.zero_for_one,
-                amountOut: l.amount_out,
+                pool_id: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
+                pool_kind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8, // 1 for V3, 0 for V2
+                token_in: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
+                token_out: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
+                zero_for_one: l.zero_for_one,
+                amount_out: l.amount_out,
             });
         }
 
         let sol_plan = ExecutionPlanSol {
-            targetToken: plan.target_token.0.parse().map_err(|e| format!("Invalid targetToken address '{}': {}", plan.target_token.0, e))?,
+            target_token: plan.target_token.0.parse().map_err(|e| format!("Invalid targetToken address '{}': {}", plan.target_token.0, e))?,
             path: ExecutionPath { legs: sol_legs },
             outcome: ExpectedOutcome {
-                amountIn: plan.outcome.amount_in,
-                expectedAmountOut: plan.outcome.expected_amount_out,
-                expectedProfit: plan.outcome.expected_profit,
+                amount_in: plan.outcome.amount_in,
+                expected_amount_out: plan.outcome.expected_amount_out,
+                expected_profit: plan.outcome.expected_profit,
             },
             guard: SlippageGuard {
-                minOut: MinOutConstraint {
-                    minAmountOut: plan.guard.min_out.min_amount_out,
+                min_out: MinOutConstraint {
+                    min_amount_out: plan.guard.min_out.min_amount_out,
                 },
-                minProfitWei: plan.guard.min_profit_wei,
+                min_profit_wei: plan.guard.min_profit_wei,
             },
-            hasFlashloan: plan.flash_loan.is_some(),
+            has_flashloan: plan.flash_loan.is_some(),
         };
 
         // Encode calldata
@@ -108,12 +108,12 @@ impl TxBuilder {
         let mut sol_legs = Vec::with_capacity(plan.legs.len());
         for l in &plan.legs {
             sol_legs.push(ExecutionLeg {
-                poolId: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
-                poolKind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8,
-                tokenIn: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
-                tokenOut: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
-                zeroForOne: l.zero_for_one,
-                amountOut: l.amount_out,
+                pool_id: l.pool_id.0.parse().map_err(|e| format!("Invalid pool address '{}': {}", l.pool_id.0, e))?,
+                pool_kind: matches!(l.pool_kind, arb_types::PoolKind::ConcentratedLiquidity) as u8,
+                token_in: l.token_in.0.parse().map_err(|e| format!("Invalid tokenIn address '{}': {}", l.token_in.0, e))?,
+                token_out: l.token_out.0.parse().map_err(|e| format!("Invalid tokenOut address '{}': {}", l.token_out.0, e))?,
+                zero_for_one: l.zero_for_one,
+                amount_out: l.amount_out,
             });
         }
 
@@ -140,13 +140,13 @@ impl TxBuilder {
         let sol_plan = AtomicExecutionPlanSol {
             flashloan: flash_loan_sol,
             path: ExecutionPath { legs: sol_legs },
-            minAmountOut: plan.min_amount_out,
+            min_amount_out: plan.min_amount_out,
             repayment: repayment_sol,
-            profitGuard: ProfitGuard {
-                minProfitWei: plan.profit_guard.min_profit_wei,
+            profit_guard: ProfitGuard {
+                min_profit_wei: plan.profit_guard.min_profit_wei,
             },
-            hasFlashloan: is_flashloan,
-            hasRepayment: is_repayment,
+            has_flashloan: is_flashloan,
+            has_repayment: is_repayment,
         };
 
         let call = executeAtomicPlanCall { plan: sol_plan };

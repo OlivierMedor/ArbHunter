@@ -21,7 +21,7 @@ The main additions are:
 
 ### 2. Startup Reconciliation & Recovery
 - **Automatic Recovery**: On daemon restart, the system identifies all pending transactions and resolves them against the chain.
-- **Nonce-Safe Reconciliation**: Uses a hierarchy of `eth_getTransactionReceipt` -> `eth_getTransactionByHash` -> `sender_nonce`.
+- **Multi-Stage Reconciliation**: Uses a hierarchy of `eth_getTransactionReceipt` -> `eth_getTransactionByHash` -> `sender_nonce`.
 - **Halt-on-Ambiguity**: If a transaction's final status cannot be determined (e.g. pending but not in mempool, and nonce not yet reached), the live lane **HALTS** to prevent overlapping nonce errors.
 
 ### 3. Strict Receipt-Based Attribution

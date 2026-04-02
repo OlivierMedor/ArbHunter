@@ -46,6 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         false, 
         false,
         None,
+        false, // broadcast_enabled
+        0,     // gas_limit_override
+        0,     // priority_fee_override_gwei
+        0,     // base_fee_override_gwei
     );
 
     // --- VALID TRANSACTION ---
@@ -89,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 6. Output processing and receipt parsing
     let provider = ProviderBuilder::new().on_http(rpc_url.parse()?);
-    if let SubmissionResult::Success { tx_hash } = result {
+    if let SubmissionResult::Success { tx_hash, .. } = result {
         info!("Valid Tx Hash: {}", tx_hash);
         info!("Waiting for valid receipt...");
         loop {
@@ -131,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Submitting failing transaction directly to Anvil at {}", rpc_url);
     let result_fail = submitter.submit(built_fail_tx.clone()).await;
 
-    if let SubmissionResult::Success { tx_hash } = result_fail {
+    if let SubmissionResult::Success { tx_hash, .. } = result_fail {
         info!("Invalid Tx Hash: {}", tx_hash);
         info!("Waiting for revert receipt...");
         loop {

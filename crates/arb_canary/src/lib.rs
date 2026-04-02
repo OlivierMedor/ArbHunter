@@ -1,7 +1,7 @@
-//! `arb_canary` — Phase 23 runtime canary policy enforcement.
+//! `arb_canary` — Phase 24 runtime canary policy enforcement.
 //!
 //! This crate owns the policy gate that decides whether a candidate is allowed
-//! to proceed under the Phase 23 posture. It is the single source of truth for:
+//! to proceed under the Phase 24 posture. It is the single source of truth for:
 //!
 //! - Route-family allow/block list (multi allowed, direct blocked)
 //! - Max trade size (0.03 ETH)

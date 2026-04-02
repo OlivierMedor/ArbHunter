@@ -16,8 +16,7 @@ Phase 24 has successfully transformed the live-trading lane from a "best-effort"
 
 ### 2. Startup Reconciliation & Recovery
 - **Automatic Multi-Stage Resolution**: On startup, the daemon now scans for any pending transactions in `canary_state.json`.
-- **Receipt Lookup**: It first attempts to resolve via `eth_getTransactionReceipt`.
-- **Nonce-Based Safety**: If no receipt is found, it performs a sender-nonce check. If the sender's on-chain nonce has already passed the pending transaction's nonce, the transaction is marked as dropped/replaced and cleared safely.
+- **Multi-Stage Resolution**: Attempts to resolve via `eth_getTransactionReceipt` -> `eth_getTransactionByHash` -> `sender_nonce`.
 - **Halt on Ambiguity**: If a transaction is missing but the nonce hasn't passed, the system **HALTS** the live lane and requires manual operator review, preventing the "double-spend" or "overlapping nonce" risk.
 
 ### 3. Strict Receipt-Based Attribution
@@ -41,8 +40,8 @@ Phase 24 has successfully transformed the live-trading lane from a "best-effort"
 
 ### `crates/arb_execute`
 - [builder.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_execute/src/builder.rs): Added `ExecutionSuccess` event to `sol!` macro. Consolidated definitions.
-- [submitter.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_execute/src/submitter.rs): Refactored for two-stage sign/broadcast. Implemented `serde_json` based log extraction for version-independent receipt handling.
-- [lib.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_execute/src/lib.rs): Exported new event types.
+- [submitter.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_execute/src/submitter.rs): Refactored for two-stage sign/broadcast. Implemented `apply_preflight_and_overrides` and `get_transaction` (tx-by-hash) for strict reconciliation.
+- [lib.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_execute/src/lib.rs): Exported new event types and helpers.
 
 ### `crates/arb_canary`
 - [lib.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_canary/src/lib.rs): Overhauled `CanaryState` to include `pending_live_txs`. Implemented `record_pending_tx` and `resolve_pending_tx` with atomic filesystem persistence.

@@ -36,7 +36,7 @@
     "POSTURE: LIVE_CAPABLE but DEFAULT_OFF",
     "Live mode (canary_live_mode_enabled) requires ENABLE_BROADCAST=true AND DRY_RUN_ONLY=false",
     "Durable persistence records PendingLiveTx to canary_state.json BEFORE broadcast",
-    "Startup reconciliation resolves stale transactions via receipt or sender-nonce checks",
+    "Startup reconciliation resolves stale transactions via receipt, tx-by-hash, or sender-nonce checks",
     "Strict attribution requires ExecutionSuccess event; HALTS on missing logs",
     "Captures real Base L1 data/security fees from on-chain receipts",
     "Tenderly simulation is mandatory for live-mode preflight"
