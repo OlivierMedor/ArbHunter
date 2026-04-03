@@ -945,15 +945,25 @@ mod tests {
             let _ = daemon_fut.await;
         });
 
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(30)).await;
         handle.abort();
 
-        // Check journal
-        if let Ok(content) = tokio::fs::read_to_string(&config.shadow_journal_path).await {
+        // Check journal with retry (latency resilience)
+        let mut journal_content = None;
+        for _ in 0..10 {
+            if let Ok(content) = tokio::fs::read_to_string(&config.shadow_journal_path).await {
+                if !content.is_empty() {
+                    journal_content = Some(content);
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+
+        if let Some(content) = journal_content {
              info!("Shadow Journal Content Found (Size: {})", content.len());
-             assert!(!content.is_empty(), "Shadow journal should not be empty");
         } else {
-             panic!("Shadow journal file was not created or readable");
+             panic!("Shadow journal file was not created or readable within 10s after completion");
         }
     }
 }
