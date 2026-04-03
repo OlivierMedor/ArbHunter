@@ -262,6 +262,8 @@ mod tests {
             tenderly_project_slug: "".to_string(),
             tenderly_enabled: false,
             tenderly_timeout_ms: 10000,
+            receipt_poll_interval_ms: 1000,
+            receipt_timeout_ms: 60000,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());

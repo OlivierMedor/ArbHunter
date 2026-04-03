@@ -1,0 +1,20 @@
+{
+  "attempt_count": 3,
+  "allowed_count": 3,
+  "in_flight_count": 0,
+  "consecutive_reverts": 3,
+  "total_reverts": 3,
+  "cumulative_realized_pnl_wei": -7500000000000,
+  "cumulative_realized_loss_wei": 7500000000000,
+  "attempts_by_family": {
+    "multi": 3
+  },
+  "attempts_by_bucket": {
+    "0.01 ETH": 3
+  },
+  "review_threshold_reached": false,
+  "halted": true,
+  "halted_reason": null,
+  "pending_live_txs": {},
+  "last_updated_at": 1775181205
+}

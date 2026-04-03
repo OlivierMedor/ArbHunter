@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::io::Write;
-use tokio::time::{sleep, Duration};
-use tracing::{info, warn, error as tracing_error};
+use tokio::time;
+use tracing::info;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use arb_config::Config;

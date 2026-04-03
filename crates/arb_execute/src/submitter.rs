@@ -397,7 +397,7 @@ mod tests {
         let wallet = Wallet { signer };
         
         let metrics = Arc::new(MetricsRegistry::new());
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false, None, false, 12000, 21000, 5000000);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, false, false, None, false, 12000, 21000, 5000000, 1000, 60000);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -429,7 +429,7 @@ mod tests {
         let wallet = Wallet { signer };
         let metrics = Arc::new(MetricsRegistry::new());
         // require_preflight = false
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true, None, false, 12000, 21000, 5000000);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, false, true, true, None, false, 12000, 21000, 5000000, 1000, 60000);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),
@@ -455,7 +455,7 @@ mod tests {
         let wallet = Wallet { signer };
         let metrics = Arc::new(MetricsRegistry::new());
         // require_preflight = true, but rpc_url = None
-        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true, None, false, 12000, 21000, 5000000);
+        let submitter = Submitter::new(wallet, SubmissionMode::DryRun, metrics, None, true, true, true, None, false, 12000, 21000, 5000000, 1000, 60000);
         
         let tx = BuiltTransaction {
             to: format!("{:#x}", Address::ZERO),

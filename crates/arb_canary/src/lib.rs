@@ -618,13 +618,14 @@ mod tests {
         ));
 
         // After recording success, gate opens again
-        gate.record_outcome(CanaryOutcome {
-            success:           true,
-            realized_pnl_wei:  1_000_000_000_000_000,
-            cost_paid_wei:     185_000 * 5_000_000,
-            route_family:      RouteFamily::Multi,
-            amount_in_wei:     30_000_000_000_000_000,
-        });
+            gate.record_outcome(CanaryOutcome {
+                success: true,
+                reason: CanaryOutcomeReason::ConfirmedSuccess,
+                realized_pnl_wei: 1_000_000_000_000_000,
+                cost_paid_wei: 185_000 * 5_000_000,
+                route_family: RouteFamily::Multi,
+                amount_in_wei: 30_000_000_000_000_000,
+            });
         assert_eq!(gate.check(&c2), CanaryDecision::Allow);
     }
 
@@ -638,11 +639,12 @@ mod tests {
             let c = make_candidate(RouteFamily::Multi, 30_000_000_000_000_000);
             assert_eq!(gate.check(&c), CanaryDecision::Allow);
             gate.record_outcome(CanaryOutcome {
-                success:           false,
-                realized_pnl_wei: -925_000_000_000i128, // gas cost on revert
-                cost_paid_wei:     925_000_000_000,
-                route_family:      RouteFamily::Multi,
-                amount_in_wei:     30_000_000_000_000_000,
+                success: false,
+                reason: CanaryOutcomeReason::ConfirmedRevert,
+                realized_pnl_wei: -925_000_000_000i128,
+                cost_paid_wei: 925_000_000_000,
+                route_family: RouteFamily::Multi,
+                amount_in_wei: 30_000_000_000_000_000,
             });
         }
 
@@ -664,8 +666,12 @@ mod tests {
             let c = make_candidate(RouteFamily::Multi, 30_000_000_000_000_000);
             gate.check(&c);
             gate.record_outcome(CanaryOutcome {
-                success: false, realized_pnl_wei: -1_000, cost_paid_wei: 1_000,
-                route_family: RouteFamily::Multi, amount_in_wei: 30_000_000_000_000_000,
+                success: false,
+                reason: CanaryOutcomeReason::ConfirmedRevert,
+                realized_pnl_wei: -1_000,
+                cost_paid_wei: 1_000,
+                route_family: RouteFamily::Multi,
+                amount_in_wei: 30_000_000_000_000_000,
             });
         }
         assert_eq!(gate.state.consecutive_reverts, 2);
@@ -674,8 +680,12 @@ mod tests {
         let c = make_candidate(RouteFamily::Multi, 30_000_000_000_000_000);
         gate.check(&c);
         gate.record_outcome(CanaryOutcome {
-            success: true, realized_pnl_wei: 1_000_000, cost_paid_wei: 100_000,
-            route_family: RouteFamily::Multi, amount_in_wei: 30_000_000_000_000_000,
+            success: true,
+            reason: CanaryOutcomeReason::ConfirmedSuccess,
+            realized_pnl_wei: 1_000_000,
+            cost_paid_wei: 100_000,
+            route_family: RouteFamily::Multi,
+            amount_in_wei: 30_000_000_000_000_000,
         });
         assert_eq!(gate.state.consecutive_reverts, 0);
         assert!(!gate.state.halted);
@@ -693,7 +703,8 @@ mod tests {
         assert_eq!(gate.check(&c), CanaryDecision::Allow);
         gate.record_outcome(CanaryOutcome {
             success: false,
-            realized_pnl_wei: -60_000_000_000_000_000i128, // 0.06 ETH loss
+            reason: CanaryOutcomeReason::ConfirmedRevert,
+            realized_pnl_wei: -60_000_000_000_000_000i128,
             cost_paid_wei: 60_000_000_000_000_000,
             route_family: RouteFamily::Multi,
             amount_in_wei: 30_000_000_000_000_000,
@@ -716,6 +727,7 @@ mod tests {
         assert_eq!(gate.check(&c), CanaryDecision::Allow);
         gate.record_outcome(CanaryOutcome {
             success: false,
+            reason: CanaryOutcomeReason::ConfirmedRevert,
             realized_pnl_wei: -60_000_000_000_000_000i128,
             cost_paid_wei: 60_000_000_000_000_000,
             route_family: RouteFamily::Multi,
@@ -744,8 +756,12 @@ mod tests {
             let c = make_candidate(RouteFamily::Multi, 30_000_000_000_000_000);
             gate.check(&c);
             gate.record_outcome(CanaryOutcome {
-                success: true, realized_pnl_wei: 100, cost_paid_wei: 50,
-                route_family: RouteFamily::Multi, amount_in_wei: 30_000_000_000_000_000,
+                success: true,
+                reason: CanaryOutcomeReason::ConfirmedSuccess,
+                realized_pnl_wei: 100,
+                cost_paid_wei: 50,
+                route_family: RouteFamily::Multi,
+                amount_in_wei: 30_000_000_000_000_000,
             });
         }
         assert!(!gate.state.review_threshold_reached);
@@ -769,8 +785,12 @@ mod tests {
             let c = make_candidate(RouteFamily::Multi, 30_000_000_000_000_000);
             gate.check(&c);
             gate.record_outcome(CanaryOutcome {
-                success: false, realized_pnl_wei: -1_000, cost_paid_wei: 1_000,
-                route_family: RouteFamily::Multi, amount_in_wei: 30_000_000_000_000_000,
+                success: false,
+                reason: CanaryOutcomeReason::ConfirmedRevert,
+                realized_pnl_wei: -1_000,
+                cost_paid_wei: 1_000,
+                route_family: RouteFamily::Multi,
+                amount_in_wei: 30_000_000_000_000_000,
             });
         }
         assert!(gate.state.halted);

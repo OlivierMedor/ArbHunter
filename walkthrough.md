@@ -36,7 +36,7 @@ This walkthrough summarizes the final hardening of the `ArbHunter` live-trading 
 ### Automated Tests
 - `cargo check --workspace --all-targets`: **PASSED**
 - Verified `CanaryOutcomeReason` logic matches the requested classification.
-- Confirmed total 15-argument signature for `Submitter::new` across all binaries.
+- Confirmed total 14-argument signature for `Submitter::new` across all binaries.
 
 ### Manual Verification
 - Verified `canary_state.json` persistence of `reason` fields.
