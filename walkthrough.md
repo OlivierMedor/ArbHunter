@@ -3,7 +3,7 @@
 ## Status
 - **Verdict:** LIVE-READY (Operator Activated)
 - **Posture:** LIVE-CAPABLE / DEFAULT-OFF
-- **Branch:** `phase-24-final-hardening`
+- **Branch:** `phase-24-live-canary`
 
 This walkthrough summarizes the final hardening of the `ArbHunter` live-trading lane, focusing on robust receipt-based attribution, crash-resilience, and protection of safety counters.
 
