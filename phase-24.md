@@ -24,13 +24,18 @@ Phase 24 has successfully transformed the live-trading lane from a "best-effort"
 - **Source of Truth**: Realized PnL is now calculated using the actual `amountOut` and `amountIn` reported by the contract, minus the actual `effective_gas_price` and `gas_used` from the receipt.
 - **Halt on Incomplete Attribution**: If a transaction succeeds on-chain but the `ExecutionSuccess` event is missing or unparseable, the system marks the situation as `INCOMPLETE_ATTRIBUTION` and **HALTS**, preventing optimistic but unverified PnL updates.
 
-### 4. Hardened Submission Pipeline
-- **Two-Stage Broadcast**: Separated `sign_at_nonce` from `broadcast_raw`. This allows the daemon to persist the signed hash *before* it ever touches the network.
-- **Tenderly Final Gate**: Tenderly is enforced as a mandatory final pre-send check for live trades.
-- **Base Fee Handling**: Captured `l1_fee_wei` (Base-specific L1 data fee) from receipt extensions where available, ensuring accurate total-cost accounting.
+### 5. Robust Receipt Polling & Timeouts
+- **Configurable Polling**: Implemented a `tokio::time::sleep` polling loop in `Submitter::wait_for_receipt` with configurable `receipt_poll_interval_ms` and `receipt_timeout_ms`.
+- **Timeout Safety**: Introduced `SubmissionResult::Timeout`. If a timeout is reached, the transaction is kept pending in the `CanaryGate`, ensuring the live lane remains blocked until resolution.
+- **Detailed Logging**: Added structured logs for polling start, each retry, success, and timeout.
 
-### 5. Safety Gates & Activation
-- **Fail-Fast Startup**: The daemon now panics on startup if `CANARY_LIVE_MODE_ENABLED=true` but `ENABLE_BROADCAST=false` or `DRY_RUN_ONLY=true`, preventing ambiguous "half-live" states.
+### 6. Outcome Classification & Revert Protection
+- **CanaryOutcomeReason**: Introduced an explicit classification enum (`ConfirmedSuccess`, `ConfirmedRevert`, `DroppedOrReplaced`, `TimeoutStillPending`, `IncompleteAttribution`).
+- **Revert Counter Protection**: Safety counters (`consecutive_reverts`) are **only** incremented on `ConfirmedRevert`. Ambiguous states like `DroppedOrReplaced` or `Timeout` are recorded for history but do not trigger false-positive halts.
+- **Halt on Ambiguity**: `IncompleteAttribution` triggers a mandatory gate halt to prevent unverified PnL updates.
+
+### 7. Safety Gates & Activation
+- **Fail-Fast Startup**: The daemon now panics on startup if `CANARY_LIVE_MODE_ENABLED=true` but `DRY_RUN_ONLY=true`, preventing ambiguous "half-live" states.
 - **Policy Enforcement**: Preserved all Phase 23 limits (0.03 ETH trade size, 1 concurrent trade, 3-revert halt, 0.05 ETH loss cap).
 
 ## Files Changed
@@ -44,10 +49,10 @@ Phase 24 has successfully transformed the live-trading lane from a "best-effort"
 - [lib.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_execute/src/lib.rs): Exported new event types and helpers.
 
 ### `crates/arb_canary`
-- [lib.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_canary/src/lib.rs): Overhauled `CanaryState` to include `pending_live_txs`. Implemented `record_pending_tx` and `resolve_pending_tx` with atomic filesystem persistence.
+- [lib.rs](file:///c:/Users/olivi/Documents/ArbHunger/crates/arb_canary/src/lib.rs): Overhauled `CanaryState`. Implemented `CanaryOutcomeReason` for strict safety counter protection. Updated crate-docs to "live-capable, default-off".
 
 ### `bin/arb_daemon`
-- [main.rs](file:///c:/Users/olivi/Documents/ArbHunger/bin/arb_daemon/src/main.rs): Implemented `reconcile_at_startup` logic. Integrated strict event parsing in the execution loop. Added safety gates for ambiguous config states.
+- [main.rs](file:///c:/Users/olivi/Documents/ArbHunger/bin/arb_daemon/src/main.rs): Implemented multi-stage reconciliation with `DroppedOrReplaced` accounting. Refactored submission loop to handle polling timeouts.
 
 ## Verification Results
 - **Compilation**: `cargo check --workspace` passes (confirmed after fixing `Alloy` 0.8 type mismatches).

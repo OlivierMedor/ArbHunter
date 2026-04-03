@@ -23,7 +23,7 @@ use alloy_rpc_types_eth::Header;
 
 use arb_route::{RouteGraph, CandidateGenerator};
 use arb_filter::{CandidateFilter, FilterConfig};
-use arb_canary::{CanaryGate, CanaryPolicy, CanaryOutcome};
+use arb_canary::{CanaryGate, CanaryPolicy, CanaryOutcome, CanaryOutcomeReason};
 use arb_execute::{Wallet, Submitter, NonceManager, NonceProvider, TxBuilder, ExecutionPlanner, ExecutionSuccess};
 use arb_sim::LocalSimulator;
 
@@ -168,6 +168,8 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
             config.gas_limit_multiplier_bps,
             config.gas_limit_min,
             config.gas_limit_max,
+            config.receipt_poll_interval_ms,
+            config.receipt_timeout_ms,
         ));
         info!("Submitter initialized in {:?} mode.", mode);
         Some(s)
@@ -306,6 +308,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                         let net_pnl = (profit.to::<u128>() as i128) - (total_gas_cost as i128);
                                         CanaryOutcome {
                                             success: true,
+                                            reason: CanaryOutcomeReason::ConfirmedSuccess,
                                             realized_pnl_wei: net_pnl,
                                             cost_paid_wei: total_gas_cost,
                                             route_family: pending.candidate.route_family.clone(),
@@ -318,6 +321,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                         // Still update realized loss for the gas spent even if profit is unknown
                                         CanaryOutcome {
                                             success: true,
+                                            reason: CanaryOutcomeReason::IncompleteAttribution,
                                             realized_pnl_wei: - (total_gas_cost as i128),
                                             cost_paid_wei: total_gas_cost,
                                             route_family: pending.candidate.route_family.clone(),
@@ -329,6 +333,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                     let total_burned = (gas_used as u128 * effective_gas_price) + l1_fee_wei.unwrap_or(0);
                                     CanaryOutcome {
                                         success: false,
+                                        reason: CanaryOutcomeReason::ConfirmedRevert,
                                         realized_pnl_wei: - (total_burned as i128),
                                         cost_paid_wei: total_burned,
                                         route_family: pending.candidate.route_family.clone(),
@@ -337,6 +342,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                 }
                                 _ => CanaryOutcome {
                                     success: false,
+                                    reason: CanaryOutcomeReason::DroppedOrReplaced,
                                     realized_pnl_wei: 0,
                                     cost_paid_wei: 0,
                                     route_family: pending.candidate.route_family.clone(),
@@ -362,10 +368,17 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                     if let Some(np) = config_for_route.rpc_http_url.as_ref().map(|url| NonceProvider::new(url.clone())) {
                                         if let Ok(current_nonce) = np.get_nonce(signer_addr).await {
                                             if current_nonce > pending.nonce {
-                                                warn!(tx_hash = %hash, current_nonce, tx_nonce = pending.nonce, "CANARY_RECONCILIATION: Nonce exceeded. Transaction dropped/replaced. Resolving.");
+                                                warn!(tx_hash = %hash, current_nonce, tx_nonce = pending.nonce, "CANARY_RECONCILIATION: Nonce exceeded. Transaction dropped/replaced. Recording outcome.");
+                                                let outcome = CanaryOutcome {
+                                                    success: false,
+                                                    reason: CanaryOutcomeReason::DroppedOrReplaced,
+                                                    realized_pnl_wei: 0,
+                                                    cost_paid_wei: 0,
+                                                    route_family: pending.candidate.route_family.clone(),
+                                                    amount_in_wei: pending.candidate.amount_in.try_into().unwrap_or(0),
+                                                };
+                                                canary_gate.record_outcome(outcome);
                                                 canary_gate.resolve_pending_tx(&hash);
-                                                // Note: we don't know the outcome, but we must decrement in-flight
-                                                canary_gate.state.in_flight_count = canary_gate.state.in_flight_count.saturating_sub(1);
                                             } else {
                                                 warn!(tx_hash = %hash, "CANARY_RECONCILIATION: Nonce not yet reached. Ambiguous state. HALTING.");
                                                 canary_gate.halt(format!("Ambiguous pending tx: {}. Manual review required.", hash));
@@ -468,6 +481,7 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                 if !config_for_route.canary_live_mode_enabled {
                     canary_gate.record_outcome(CanaryOutcome {
                         success: val_res.is_valid,
+                        reason: if val_res.is_valid { CanaryOutcomeReason::ConfirmedSuccess } else { CanaryOutcomeReason::ConfirmedRevert },
                         realized_pnl_wei: pnl,
                         cost_paid_wei: estimated_execution_cost_wei,
                         route_family: cand.route_family.clone(),
@@ -618,22 +632,18 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                                                     match s.wait_for_receipt(&tx_hash).await {
                                                                         Ok(res) => {
                                                                             canary_gate.update_pending_status(&tx_hash, arb_types::PendingTxStatus::AwaitingReceipt);
-                                                                            info!(tx_hash = %tx_hash, "CANARY_LIVE_RECEIPT: Confirmed. Resolving attribution...");
                                                                             
                                                                             // Attribution logic (receipt -> logs -> ExecutionSuccess)
-                                                                            let attribution = match res {
+                                                                            let (attribution_opt, should_resolve) = match res {
                                                                                 arb_types::SubmissionResult::Success { gas_used, effective_gas_price, l1_fee_wei, receipt_logs, .. } => {
-                                                                                    // Parse ExecutionSuccess event
-                                                                                    info!("CANARY_ATTRIBUTION: Success receipt. Parsing {} logs for ExecutionSuccess...", receipt_logs.len());
+                                                                                    info!(tx_hash = %tx_hash, "CANARY_LIVE_RECEIPT: Confirmed Success. Parsing {} logs...", receipt_logs.len());
                                                                                     
                                                                                     let mut actual_profit = None;
                                                                                     let mut actual_out = None;
-                                                                                    
                                                                                     for log in &receipt_logs {
                                                                                         if let Ok(event) = ExecutionSuccess::decode_log(&log.inner, true) {
                                                                                             actual_profit = Some(event.profit);
                                                                                             actual_out = Some(event.amount_out);
-                                                                                            info!(profit = %event.profit, amount_out = %event.amount_out, "CANARY_ATTRIBUTION: Event found.");
                                                                                             break;
                                                                                         }
                                                                                     }
@@ -642,48 +652,60 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                                                                                     
                                                                                     if let (Some(profit), Some(_out)) = (actual_profit, actual_out) {
                                                                                         let net_pnl = (profit.to::<u128>() as i128) - (total_gas_cost as i128);
-                                                                                        CanaryOutcome {
+                                                                                        (Some(CanaryOutcome {
                                                                                             success: true,
+                                                                                            reason: CanaryOutcomeReason::ConfirmedSuccess,
                                                                                             realized_pnl_wei: net_pnl,
                                                                                             cost_paid_wei: total_gas_cost,
                                                                                             route_family: cand.route_family.clone(),
                                                                                             amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                                                                                        }
+                                                                                        }), true)
                                                                                     } else {
-                                                                                        warn!(tx_hash = %tx_hash, "CANARY_ATTRIBUTION: ExecutionSuccess missing on success receipt! HALTING.");
-                                                                                        canary_gate.halt(format!("Incomplete attribution: ExecutionSuccess missing for {}", tx_hash));
-                                                                                        CanaryOutcome {
+                                                                                        (Some(CanaryOutcome {
                                                                                             success: true,
+                                                                                            reason: CanaryOutcomeReason::IncompleteAttribution,
                                                                                             realized_pnl_wei: - (total_gas_cost as i128),
                                                                                             cost_paid_wei: total_gas_cost,
                                                                                             route_family: cand.route_family.clone(),
                                                                                             amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                                                                                        }
+                                                                                        }), true)
                                                                                     }
                                                                                 }
                                                                                 arb_types::SubmissionResult::Reverted { gas_used, effective_gas_price, l1_fee_wei, .. } => {
+                                                                                    info!(tx_hash = %tx_hash, "CANARY_LIVE_RECEIPT: Confirmed Revert.");
                                                                                     let total_burned = (gas_used as u128 * effective_gas_price) + l1_fee_wei.unwrap_or(0);
-                                                                                    CanaryOutcome {
+                                                                                    (Some(CanaryOutcome {
                                                                                         success: false,
+                                                                                        reason: CanaryOutcomeReason::ConfirmedRevert,
                                                                                         realized_pnl_wei: - (total_burned as i128),
                                                                                         cost_paid_wei: total_burned,
                                                                                         route_family: cand.route_family.clone(),
                                                                                         amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                                                                                    }
+                                                                                    }), true)
+                                                                                }
+                                                                                arb_types::SubmissionResult::Timeout { .. } => {
+                                                                                    warn!(tx_hash = %tx_hash, "CANARY_LIVE_TIMEOUT: Wait timed out. Lane remains BLOCKED.");
+                                                                                    (None, false) // Do NOT resolve, keep pending
                                                                                 }
                                                                                 _ => {
-                                                                                    CanaryOutcome {
+                                                                                    (Some(CanaryOutcome {
                                                                                       success: false,
+                                                                                      reason: CanaryOutcomeReason::DroppedOrReplaced,
                                                                                       realized_pnl_wei: - (estimated_execution_cost_wei as i128),
                                                                                       cost_paid_wei: estimated_execution_cost_wei,
                                                                                       route_family: cand.route_family.clone(),
                                                                                       amount_in_wei: cand.amount_in.try_into().unwrap_or(0),
-                                                                                    }
+                                                                                    }), true)
                                                                                 }
                                                                             };
                                                                             
-                                                                            canary_gate.resolve_pending_tx(&tx_hash);
-                                                                            canary_gate.record_outcome(attribution);
+                                                                            if let Some(attr) = attribution_opt {
+                                                                                canary_gate.record_outcome(attr);
+                                                                            }
+                                                                            if should_resolve {
+                                                                                canary_gate.resolve_pending_tx(&tx_hash);
+                                                                                info!(tx_hash = %tx_hash, "CANARY_LIVE: Resolved.");
+                                                                            }
                                                                         }
                                                                         Err(e) => {
                                                                             warn!(tx_hash = %tx_hash, error = %e, "CANARY_LIVE_RECEIPT_ERROR: Receipt fetch failed for confirmed hash.");

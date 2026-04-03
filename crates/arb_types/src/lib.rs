@@ -446,6 +446,8 @@ pub enum SubmissionResult {
     DryRunSuccess { tx_hash: String, signed_raw: Vec<u8> },
     /// Submission failed with a specific reason
     Failed(SubmissionFailureReason),
+    /// Receipt wait timed out, transaction likely still in mempool
+    Timeout { tx_hash: String },
     /// Submission skipped (e.g. gas too high)
     Skipped(String),
 }

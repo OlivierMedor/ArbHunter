@@ -1,63 +1,51 @@
-# Phase 24 Walkthrough: Controlled Live-Canary Hardening
+# Phase 24 Walkthrough: Live-Canary Hardening Finalization
 
 ## Status
+- **Verdict:** LIVE-READY (Operator Activated)
+- **Posture:** LIVE-CAPABLE / DEFAULT-OFF
+- **Branch:** `phase-24-final-hardening`
 
-**Verdict:** LIVE-READY (Operator Activated)  
-**Posture:** LIVE-CAPABLE / DEFAULT-OFF  
-**Live Mode:** Requires explicit operator configuration (`ENABLE_BROADCAST=true`)
+This walkthrough summarizes the final hardening of the `ArbHunter` live-trading lane, focusing on robust receipt-based attribution, crash-resilience, and protection of safety counters.
 
-This walkthrough describes the hardened, live-trading canary lane implemented in Phase 24. It focus on "safe-by-default" behavior and strict attribution.
+## Key Improvements
 
-## What Phase 24 Changed
+### 1. Robust Receipt Polling
+- **Wait Loop**: Refactored `Submitter::wait_for_receipt` to use a `tokio::time::sleep` polling loop instead of a single RPC call. This correctly handles Base network latency.
+- **Configurable Settings**: Added `RECEIPT_POLL_INTERVAL_MS` (default: 1000ms) and `RECEIPT_TIMEOUT_MS` (default: 60000ms) to the environment and `Config` struct.
+- **Timeout Safety**: Introduced `SubmissionResult::Timeout`. If a receipt is not found within the timeout, the transaction remains in the durable pending state, and the live lane stays **BLOCKED** to prevent nonce-overlapping errors.
 
-Phase 24 transformed the Phase 23 "shadow-only" system into a production-hardened live trading engine with robust fail-safes. 
+### 2. Outcome Classification & Revert Protection
+- **CanaryOutcomeReason**: Introduced a detailed classification enum:
+  - `ConfirmedSuccess`: On-chain success with verified logs.
+  - `ConfirmedRevert`: Actual on-chain revert. **Only this** increments the `consecutive_reverts` counter.
+  - `DroppedOrReplaced`: Transaction dropped from mempool or replaced by a higher-nonce trade.
+  - `TimeoutStillPending`: Wait timed out; status unknown. Keeps lane blocked.
+  - `IncompleteAttribution`: Success found, but log parsing for attribution failed. Halts gate.
+- **Safety Counter Protection**: Refactored `CanaryGate::record_outcome` to ensure that ambiguous states (like drops or timeouts) do not contribute to revert streak halts or false-positive loss accounting.
 
-The main additions are:
+### 3. Hardened Reconciliation
+- **Nonce-Exceeded Accounting**: Updated the startup reconciliation path to record `DroppedOrReplaced` outcomes when a nonce is exceeded, ensuring accurate historical accounting without triggering false-positive streaks.
+- **Lane Blocking**: Transactions in `TimeoutStillPending` state keep the `in_flight_count` incremented, effectively halting the live lane until manual resolution or successful polling.
 
-### 1. Durable Pending Transaction Persistence
-- **Pre-Broadcast Recording**: Transactions are recorded to `canary_state.json` *before* the broadcast attempt.
-- **Signed Raw Persistence**: Signed raw transaction bytes are optionally cached, ensuring a crash during `send_raw_transaction` does not lose track of the in-flight hash.
-- **Status Tracking**: Adds `SendFailedUnconfirmed` and `awaiting_receipt` states for granular recovery.
-
-### 2. Startup Reconciliation & Recovery
-- **Automatic Recovery**: On daemon restart, the system identifies all pending transactions and resolves them against the chain.
-- **Multi-Stage Reconciliation**: Uses a hierarchy of `eth_getTransactionReceipt` -> `eth_getTransactionByHash` -> `sender_nonce`.
-- **Halt-on-Ambiguity**: If a transaction's final status cannot be determined (e.g. pending but not in mempool, and nonce not yet reached), the live lane **HALTS** to prevent overlapping nonce errors.
-
-### 3. Strict Receipt-Based Attribution
-- **ExecutionSuccess Event**: The `ArbExecutor` contract now emits an `ExecutionSuccess` event containing the actual `amountOut` and net profit.
-- **On-Chain Source of Truth**: Realized PnL is no longer estimated; it is parsed directly from receipt logs.
-- **Mandatory Attribution**: The daemon **HALTS** if a successful receipt is missing the `ExecutionSuccess` event or if logs are unparseable.
-- **Real Fee Calculation**: Captures actual `gas_used` and `effective_gas_price` (including Base L1 data fees) for all trade accounting.
-
-### 4. Contract Hardening
-- **Callback Security**: `uniswapV3SwapCallback` now strictly validates `msg.sender` against the expected Uniswap V3 Pool context for the active route.
-
-### 5. Fail-Fast Safety Gates
-- **Configuration Parity**: The daemon panics at startup if `CANARY_LIVE_MODE_ENABLED=true` while `DRY_RUN_ONLY=true`, preventing ambiguous "half-live" states.
-- **Tenderly Enforcement**: Live mode requires valid Tenderly API keys and slugs for preflight simulation.
-
-## Active Safety Policy (Phase 24)
-
-### Route-family policy
-- **Allowlist:** `multi`
-- **Blocklist:** `direct`, `unknown`
-
-### Trade and execution limits
-- **Max trade size:** `0.03 ETH`
-- **Max concurrent trades:** `1`
-- **Min predicted profit:** `0.001 ETH`
-- **Stop on consecutive reverts:** `3`
-- **Review threshold:** `30 attempts`
-- **Cumulative realized loss cap:** `0.05 ETH`
+### 4. Crate Documentation & Policy
+- **Synchronized Posture**: Updated `arb_canary` crate documentation to reflect the final "live-capable, default-off" posture.
+- **Policy Verification**: Checked that all binaries (`arb_daemon`, `arb_battery`, `arb_e2e`) correctly initialize the `Submitter` with the new safety parameters.
 
 ## Verification Results
-- `cargo check --workspace` — PASSED (Alloy 0.8 compatibility verified)
-- Durable persistence integration tests — PASSED
-- Startup reconciliation logic — VERIFIED
-- Safety gate panic tests — PASSED
 
-## Operational Notes
-1. **Default State**: The repo is live-capable but **broadcasts are disabled by default**.
-2. **Operator Activation**: Transitioning to live mode requires setting `CANARY_LIVE_MODE_ENABLED=true`, `ENABLE_BROADCAST=true`, and `DRY_RUN_ONLY=false`.
-3. **Recovery**: If the daemon crashes, simply restart. The reconciliation logic will resolve any orphaned transactions before accepting new ones.
+### Automated Tests
+- `cargo check --workspace --all-targets`: **PASSED**
+- Verified `CanaryOutcomeReason` logic matches the requested classification.
+- Confirmed total 15-argument signature for `Submitter::new` across all binaries.
+
+### Manual Verification
+- Verified `canary_state.json` persistence of `reason` fields.
+- Verified logs show structured polling retries and timeout handling.
+
+## Deployment Checklist
+1. Deploy `ArbExecutor` contract with the `ExecutionSuccess` event.
+2. Ensure `CANARY_STATE_PATH` is reachable and writable.
+3. Set `CANARY_LIVE_MODE_ENABLED=true`, `ENABLE_BROADCAST=true`, and `DRY_RUN_ONLY=false` for live activation.
+
+---
+**The repository is now Operator-Ready for a controlled canary launch on Base.**

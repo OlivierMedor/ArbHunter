@@ -25,6 +25,8 @@ pub struct Submitter {
     pub gas_limit_multiplier_bps: u32,
     pub gas_limit_min: u64,
     pub gas_limit_max: u64,
+    pub receipt_poll_interval_ms: u64,
+    pub receipt_timeout_ms: u64,
 }
 
 impl Submitter {
@@ -41,6 +43,8 @@ impl Submitter {
         gas_limit_multiplier_bps: u32,
         gas_limit_min: u64,
         gas_limit_max: u64,
+        receipt_poll_interval_ms: u64,
+        receipt_timeout_ms: u64,
     ) -> Self {
         Self {
             wallet,
@@ -55,6 +59,8 @@ impl Submitter {
             gas_limit_multiplier_bps,
             gas_limit_min,
             gas_limit_max,
+            receipt_poll_interval_ms,
+            receipt_timeout_ms,
         }
     }
 
@@ -279,51 +285,74 @@ impl Submitter {
         }
     }
 
-    /// Wait for a transaction receipt and return a Success or Reverted result.
+    /// Wait for a transaction receipt using a polling loop until confirmed or timed out.
     pub async fn wait_for_receipt(&self, tx_hash: &str) -> Result<SubmissionResult, String> {
         let provider = self.get_provider().await?;
         let hash = tx_hash.parse::<FixedBytes<32>>().map_err(|e| e.to_string())?;
         
-        // Wait for confirmation
-        let receipt = provider.get_transaction_receipt(hash)
-            .await
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Receipt not found after broadcast".to_string())?;
+        let start_time = std::time::Instant::now();
+        let timeout = std::time::Duration::from_millis(self.receipt_timeout_ms);
+        let interval = std::time::Duration::from_millis(self.receipt_poll_interval_ms);
 
-        // Extract L1 Fee if available (Base/OP Stack specific)
-        let mut l1_fee_wei = None;
-        if let Ok(json) = serde_json::to_value(&receipt) {
-            if let Some(l1_fee) = json.get("l1Fee") {
-                if let Some(l1_fee_str) = l1_fee.as_str() {
-                    l1_fee_wei = u128::from_str_radix(l1_fee_str.trim_start_matches("0x"), 16).ok();
-                } else if let Some(l1_fee_u64) = l1_fee.as_u64() {
-                    l1_fee_wei = Some(l1_fee_u64 as u128);
-                }
-            }
-        }
+        info!(tx_hash = %tx_hash, "CANARY_RECEIPT_POLL: Starting wait loop (Timeout: {}ms, Interval: {}ms)...", self.receipt_timeout_ms, self.receipt_poll_interval_ms);
 
-        if receipt.status() {
-            let mut receipt_logs = vec![];
-            if let Ok(json) = serde_json::to_value(&receipt) {
-                if let Some(logs_val) = json.get("logs") {
-                    receipt_logs = serde_json::from_value(logs_val.clone()).unwrap_or_default();
-                }
+        loop {
+            if start_time.elapsed() > timeout {
+                info!(tx_hash = %tx_hash, "CANARY_RECEIPT_TIMEOUT: Wait timed out after {}ms. Transaction likely still in mempool.", self.receipt_timeout_ms);
+                return Ok(SubmissionResult::Timeout { tx_hash: tx_hash.to_string() });
             }
 
-            Ok(SubmissionResult::Success {
-                tx_hash: tx_hash.to_string(),
-                gas_used: receipt.gas_used as u128,
-                effective_gas_price: receipt.effective_gas_price,
-                l1_fee_wei,
-                receipt_logs,
-            })
-        } else {
-            Ok(SubmissionResult::Reverted {
-                tx_hash: tx_hash.to_string(),
-                gas_used: receipt.gas_used as u128,
-                effective_gas_price: receipt.effective_gas_price,
-                l1_fee_wei,
-            })
+            match provider.get_transaction_receipt(hash).await {
+                Ok(Some(receipt)) => {
+                    info!(tx_hash = %tx_hash, "CANARY_RECEIPT_FOUND: Received confirmation.");
+                    
+                    // Extract L1 Fee if available (Base/OP Stack specific)
+                    let mut l1_fee_wei = None;
+                    if let Ok(json) = serde_json::to_value(&receipt) {
+                        if let Some(l1_fee) = json.get("l1Fee") {
+                            if let Some(l1_fee_str) = l1_fee.as_str() {
+                                l1_fee_wei = u128::from_str_radix(l1_fee_str.trim_start_matches("0x"), 16).ok();
+                            } else if let Some(l1_fee_u64) = l1_fee.as_u64() {
+                                l1_fee_wei = Some(l1_fee_u64 as u128);
+                            }
+                        }
+                    }
+
+                    if receipt.status() {
+                        let mut receipt_logs = vec![];
+                        if let Ok(json) = serde_json::to_value(&receipt) {
+                            if let Some(logs_val) = json.get("logs") {
+                                receipt_logs = serde_json::from_value(logs_val.clone()).unwrap_or_default();
+                            }
+                        }
+
+                        return Ok(SubmissionResult::Success {
+                            tx_hash: tx_hash.to_string(),
+                            gas_used: receipt.gas_used as u128,
+                            effective_gas_price: receipt.effective_gas_price,
+                            l1_fee_wei,
+                            receipt_logs,
+                        });
+                    } else {
+                        return Ok(SubmissionResult::Reverted {
+                            tx_hash: tx_hash.to_string(),
+                            gas_used: receipt.gas_used as u128,
+                            effective_gas_price: receipt.effective_gas_price,
+                            l1_fee_wei,
+                        });
+                    }
+                }
+                Ok(None) => {
+                    // Still pending
+                    tracing::trace!(tx_hash = %tx_hash, "CANARY_RECEIPT_POLL: Still pending. Sleeping...");
+                }
+                Err(e) => {
+                    // Transient RPC error? 
+                    tracing::warn!(tx_hash = %tx_hash, error = %e, "CANARY_RECEIPT_POLL_ERROR: RPC error during poll. Retrying...");
+                }
+            }
+
+            tokio::time::sleep(interval).await;
         }
     }
 

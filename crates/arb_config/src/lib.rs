@@ -98,6 +98,10 @@ pub struct Config {
     pub gas_limit_min: u64,
     /// Maximum allowed gas limit. Default: 5000000.
     pub gas_limit_max: u64,
+    /// Interval in milliseconds between receipt polls. Default: 1000.
+    pub receipt_poll_interval_ms: u64,
+    /// Timeout in milliseconds for receipt waiting. Default: 60000.
+    pub receipt_timeout_ms: u64,
 }
 
 impl Config {
@@ -278,6 +282,14 @@ impl Config {
                 .unwrap_or_else(|_| "5000000".to_string())
                 .parse()
                 .unwrap_or(5000000),
+            receipt_poll_interval_ms: env::var("RECEIPT_POLL_INTERVAL_MS")
+                .unwrap_or_else(|_| "1000".to_string())
+                .parse()
+                .unwrap_or(1000),
+            receipt_timeout_ms: env::var("RECEIPT_TIMEOUT_MS")
+                .unwrap_or_else(|_| "60000".to_string())
+                .parse()
+                .unwrap_or(60000),
         };
 
         // Safety Gate: Ambiguous States

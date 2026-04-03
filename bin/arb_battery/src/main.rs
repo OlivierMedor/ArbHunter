@@ -42,14 +42,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         SubmissionMode::Broadcast,
         metrics.clone(),
         Some(rpc_url.clone()),
-        false, 
-        false, 
-        false,
-        None,
-        false, // broadcast_enabled
-        0,     // gas_limit_override
-        0,     // priority_fee_override_gwei
-        0,     // base_fee_override_gwei
+        false, // require_preflight
+        false, // require_eth_call
+        false, // require_gas_estimate
+        None,  // tenderly_config
+        false, // canary_live_mode_enabled
+        10000, // gas_limit_multiplier_bps
+        21000, // gas_limit_min
+        5_000_000, // gas_limit_max
+        1000,  // receipt_poll_interval_ms
+        60000, // receipt_timeout_ms
     );
 
     let mut attributions = Vec::new();

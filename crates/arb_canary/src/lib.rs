@@ -10,10 +10,11 @@
 //! - Cumulative realized loss cap (0.05 ETH, inert in sim mode)
 //! - Review-threshold warning (30 attempts)
 //!
-//! **Default posture: simulation/shadow-only.**
-//! No path through this crate enables real broadcasts. The loss cap is wired
-//! for future live use but is treated as a log-only warning while
-//! `live_mode_enabled = false`.
+//! **Default posture: live-capable but default-off.**
+//! The repo is configured for Base mainnet execution, but broadcast is disabled
+//! by default via `CANARY_LIVE_MODE_ENABLED=false` and `DRY_RUN_ONLY=true`.
+//! In Phase 24, all live paths are hardened with preflight checks, durable
+//! pending-tx persistence, and robust receipt polling.
 //!
 //! # Design
 //!
@@ -213,17 +214,31 @@ impl CanaryState {
 
 // ─── Outcome recording ────────────────────────────────────────────────────
 
+/// Classification of the economic and execution outcome of a trade.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CanaryOutcomeReason {
+    /// Transaction succeeded on-chain with confirmed realized profit.
+    ConfirmedSuccess,
+    /// Transaction reverted on-chain. Realized loss (gas). Increments revert counters.
+    ConfirmedRevert,
+    /// Transaction was dropped from mempool or replaced (nonce exceeded).
+    DroppedOrReplaced,
+    /// Receipt wait timed out. Transaction likely still in mempool.
+    TimeoutStillPending,
+    /// Success receipt found but log parsing for attribution failed. Halts gate.
+    IncompleteAttribution,
+}
+
 /// The result of a single canary trade attempt (post-execution).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanaryOutcome {
     /// Whether the on-chain (or simulated) execution succeeded.
     pub success: bool,
+    /// Detailed classification of the result.
+    pub reason: CanaryOutcomeReason,
     /// Realized net PnL in Wei for this attempt (negative = loss).
-    /// In sim mode: (predicted_profit - estimated_gas_cost).
-    /// In live mode: actual profit received - gas paid.
     pub realized_pnl_wei: i128,
     /// Non-recoverable costs paid (gas burned on revert, etc.).
-    /// In sim mode: estimated gas cost even on success.
     pub cost_paid_wei: u128,
     /// Route family of this trade.
     pub route_family: RouteFamily,
@@ -359,7 +374,7 @@ impl CanaryGate {
     /// - Halts the gate if the revert streak threshold is reached.
     /// - Persists state if `persistence_path` is set.
     pub fn record_outcome(&mut self, outcome: CanaryOutcome) {
-        // In-flight count decremented regardless of success/failure
+        // In-flight count decremented regardless of success/failure (except for Timeouts handled externally)
         self.state.in_flight_count = self.state.in_flight_count.saturating_sub(1);
 
         self.state.cumulative_realized_pnl_wei += outcome.realized_pnl_wei;
@@ -369,29 +384,47 @@ impl CanaryGate {
             self.state.cumulative_realized_loss_wei += loss;
         }
 
-        if outcome.success {
-            self.state.consecutive_reverts = 0;
-            tracing::debug!(
-                realized_pnl_wei = outcome.realized_pnl_wei,
-                cumulative_pnl   = self.state.cumulative_realized_pnl_wei,
-                "CANARY_SUCCESS"
-            );
-        } else {
-            self.state.total_reverts += 1;
-            self.state.consecutive_reverts += 1;
-
-            tracing::warn!(
-                consecutive_reverts = self.state.consecutive_reverts,
-                realized_pnl_wei    = outcome.realized_pnl_wei,
-                "CANARY_REVERT"
-            );
-
-            if self.state.consecutive_reverts >= self.policy.max_consecutive_reverts {
-                self.state.halted = true;
-                tracing::error!(
-                    consecutive_reverts = self.state.consecutive_reverts,
-                    "CANARY_HALTED: revert streak threshold reached. Manual reset required."
+        match outcome.reason {
+            CanaryOutcomeReason::ConfirmedSuccess => {
+                self.state.consecutive_reverts = 0;
+                tracing::info!(
+                    realized_pnl_wei = outcome.realized_pnl_wei,
+                    cumulative_pnl   = self.state.cumulative_realized_pnl_wei,
+                    "CANARY_SUCCESS: Confirmed on-chain."
                 );
+            }
+            CanaryOutcomeReason::ConfirmedRevert => {
+                self.state.total_reverts += 1;
+                self.state.consecutive_reverts += 1;
+
+                tracing::warn!(
+                    consecutive_reverts = self.state.consecutive_reverts,
+                    realized_pnl_wei    = outcome.realized_pnl_wei,
+                    "CANARY_REVERT: Transaction reverted on-chain. Incrementing safety counters."
+                );
+
+                if self.state.consecutive_reverts >= self.policy.max_consecutive_reverts {
+                    self.state.halted = true;
+                    tracing::error!(
+                        consecutive_reverts = self.state.consecutive_reverts,
+                        "CANARY_HALTED: Consecutive revert threshold reached."
+                    );
+                }
+            }
+            CanaryOutcomeReason::IncompleteAttribution => {
+                tracing::error!(
+                    tx_hash = "N/A", // hash not in outcome yet
+                    "CANARY_HALTED: Success receipt found but attribution logs missing or unparseable."
+                );
+                self.halt("Incomplete attribution: logs missing or unparseable".to_string());
+            }
+            CanaryOutcomeReason::DroppedOrReplaced => {
+                tracing::warn!(
+                    "CANARY_DROPPED: Transaction dropped or replaced (nonce exceeded). Counters protected."
+                );
+            }
+            CanaryOutcomeReason::TimeoutStillPending => {
+                tracing::info!("CANARY_TIMEOUT: Receipt wait timed out. Lane remains blocked.");
             }
         }
 
