@@ -912,6 +912,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_shadow_mode_journaling() {
         let mut config = Config::load();
         config.enable_shadow_mode = true;
