@@ -432,6 +432,8 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                 });
             }
 
+
+
             let promoted = filter.filter_candidates(candidates);
             for cand in promoted {
                 route_metrics.inc_candidates_promoted();
@@ -457,7 +459,8 @@ pub async fn run_daemon(config: Config) -> Result<(), Box<dyn std::error::Error>
                 route_metrics.inc_canary_allowed();
                 
                 // Phase 7: Validation layer
-                let val_res = simulator.validate_candidate(cand.clone()).await;
+                let mut val_res = simulator.validate_candidate(cand.clone()).await;
+                
                 route_metrics.inc_simulations();
                 
                 let expected_out = val_res.sim_result.expected_amount_out.unwrap_or_default();

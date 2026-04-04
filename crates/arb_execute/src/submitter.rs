@@ -164,6 +164,7 @@ impl Submitter {
     fn build_request(&self, tx: &BuiltTransaction) -> TransactionRequest {
         let to = tx.to.parse::<Address>().ok().map(alloy_primitives::TxKind::Call);
         let mut req = TransactionRequest {
+            from: Some(self.wallet.signer.address()),
             to,
             input: alloy_rpc_types_eth::TransactionInput::new(tx.data.clone().into()),
             value: Some(tx.value),

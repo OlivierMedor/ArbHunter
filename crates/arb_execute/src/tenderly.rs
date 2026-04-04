@@ -58,18 +58,22 @@ impl TenderlySimulator {
 
         let input_hex = tx.input.input().map(|b| b.to_string()).unwrap_or_else(|| "0x".to_string());
 
+        // Always pass 0x values or plain decimals
         let payload = serde_json::json!({
             "network_id": "8453", // Base Mainnet
             "from": tx.from.map(|f| f.to_string()),
             "to": to_addr,
             "input": input_hex,
             "gas": tx.gas,
-            "gas_price": tx.gas_price,
+            "gas_price": tx.gas_price.map(|gp| gp.to_string()).unwrap_or_else(|| "0".to_string()),
             "value": tx.value.unwrap_or_default().to_string(),
             "save": true,
             "save_if_fails": true,
             "simulation_type": "full",
         });
+
+        // Debug hook to visualize output inside the runner
+        tracing::info!("TENDERLY PAYLOAD: {}", serde_json::to_string(&payload).unwrap());
 
         let response = self.client.post(&url)
             .header("X-Access-Key", &self.config.api_key)
