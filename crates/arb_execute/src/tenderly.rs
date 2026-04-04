@@ -51,11 +51,18 @@ impl TenderlySimulator {
             self.config.account_slug, self.config.project_slug
         );
 
+        let to_addr = tx.to.and_then(|kind| match kind {
+            alloy_primitives::TxKind::Call(addr) => Some(addr.to_string()),
+            _ => None,
+        });
+
+        let input_hex = tx.input.input().map(|b| b.to_string()).unwrap_or_else(|| "0x".to_string());
+
         let payload = serde_json::json!({
             "network_id": "8453", // Base Mainnet
-            "from": tx.from,
-            "to": tx.to,
-            "input": tx.input.clone(),
+            "from": tx.from.map(|f| f.to_string()),
+            "to": to_addr,
+            "input": input_hex,
             "gas": tx.gas,
             "gas_price": tx.gas_price,
             "value": tx.value.unwrap_or_default().to_string(),
