@@ -243,9 +243,9 @@ impl Config {
                 .parse()
                 .unwrap_or(30),
             canary_loss_cap_wei: env::var("CANARY_LOSS_CAP_WEI")
-                .unwrap_or_else(|_| "50000000000000000".to_string())
+                .unwrap_or_else(|_| "39000000000000000".to_string())
                 .parse()
-                .unwrap_or(50_000_000_000_000_000),
+                .unwrap_or(39_000_000_000_000_000),
             canary_live_mode_enabled: env::var("CANARY_LIVE_MODE_ENABLED")
                 .map(|v| v.to_lowercase() == "true" || v == "1")
                 .unwrap_or(false),

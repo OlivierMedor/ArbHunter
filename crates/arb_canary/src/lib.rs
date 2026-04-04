@@ -201,13 +201,13 @@ impl CanaryState {
 
     /// Classify an amount_in Wei value into a human-readable bucket label.
     pub fn bucket_label(amount_in_wei: u128) -> String {
-        // Thresholds: < 0.015 ETH = 0.01 bucket, < 0.04 ETH = 0.03 bucket, else 0.05+
+        // Thresholds: < 0.015 ETH = 0.01 bucket, < 0.04 ETH = 0.03 bucket, else 0.039+
         if amount_in_wei < 15_000_000_000_000_000 {
             "0.01 ETH".to_string()
         } else if amount_in_wei < 40_000_000_000_000_000 {
             "0.03 ETH".to_string()
         } else {
-            "0.05 ETH".to_string()
+            "0.039 ETH".to_string()
         }
     }
 }
