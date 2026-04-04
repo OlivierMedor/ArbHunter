@@ -7,7 +7,7 @@
 //! - Max trade size (0.03 ETH)
 //! - Max concurrent trades (1)
 //! - Revert-streak stop (3 consecutive reverts)
-//! - Cumulative realized loss cap (0.05 ETH, inert in sim mode)
+//! - Cumulative realized loss cap (0.039 ETH, inert in sim mode)
 //! - Review-threshold warning (30 attempts)
 //!
 //! **Default posture: live-capable but default-off.**
@@ -41,7 +41,7 @@ use std::collections::HashMap;
 /// - `multi` allowed, `direct` blocked
 /// - max trade 0.03 ETH
 /// - stop on 3 consecutive reverts
-/// - cumulative realized loss cap 0.05 ETH (future live use)
+/// - cumulative realized loss cap 0.039 ETH (future live use)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CanaryPolicy {
     /// Route families that may proceed. Checked against `CandidateOpportunity::route_family`.
@@ -70,7 +70,7 @@ pub struct CanaryPolicy {
     /// Cumulative realized loss cap in Wei.
     /// **Currently inert when `live_mode_enabled = false`** (sim/shadow mode).
     /// In future live mode, exceeding this causes the gate to block all trades.
-    /// Default: 50_000_000_000_000_000 (0.05 ETH).
+    /// Default: 39_000_000_000_000_000 (0.039 ETH).
     pub loss_cap_wei: u128,
 
     /// When false (default), loss cap enforcement is skipped (sim/shadow-safe).
@@ -87,7 +87,7 @@ impl Default for CanaryPolicy {
             max_concurrent_trades:     1,
             max_consecutive_reverts:   3,
             review_threshold_attempts: 30,
-            loss_cap_wei:              50_000_000_000_000_000, // 0.05 ETH
+            loss_cap_wei:              39_000_000_000_000_000, // 0.039 ETH
             live_mode_enabled:         false,
         }
     }

@@ -22,8 +22,8 @@
     "min_predicted_profit_eth": 0.001,
     "stop_on_consecutive_reverts": 3,
     "review_threshold_attempts": 30,
-    "cumulative_loss_cap_wei": 50000000000000000,
-    "cumulative_loss_cap_eth": 0.05
+    "cumulative_loss_cap_wei": 39000000000000000,
+    "cumulative_loss_cap_eth": 0.039
   },
   "route_family_allowlist": [
     "multi"

@@ -69,7 +69,7 @@ pub struct Config {
     pub canary_max_consecutive_reverts: u32,
     /// Attempt count at which a review-threshold warning is emitted. Default: 30.
     pub canary_review_threshold_attempts: u32,
-    /// Cumulative realized loss cap in Wei. Default: 50_000_000_000_000_000 (0.05 ETH).
+    /// Cumulative realized loss cap in Wei. Default: 39_000_000_000_000_000 (0.039 ETH).
     /// Inert when live_mode_enabled = false (sim/shadow mode).
     pub canary_loss_cap_wei: u128,
     /// Whether loss caps and active halting are enforced for live trading. Default: false.
