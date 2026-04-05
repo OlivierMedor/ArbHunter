@@ -18,7 +18,7 @@ The execution sequence follows a strict pipeline layout to minimize latency:
 3. **`arb_filter`**: Discards non-actionable state changes rapidly.
 4. **`arb_route`**: Calculates optimal cyclic paths and sizing for arbitrage.
 5. **`arb_sim`**: Evaluates execution success locally and against Tenderly (preflight) before committing gas. This is a mandatory blocking step in the live-capable pipeline to enforce simulated profitability and risk constraints.
-6. **`arb_canary`**: Monitoring and risk-assessment component that enforces cumulative loss caps (0.039 ETH) and manages transaction persistence durability.
+6. **`arb_canary`**: Monitoring and risk-assessment component that enforces cumulative loss caps (0.01 ETH) and manages transaction persistence durability.
 7. **`arb_execute`**: Signs and broadcasts the final transaction payload to RPC nodes after all simulation and canary exit conditions are met.
 
 ## Supporting Crates

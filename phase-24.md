@@ -36,7 +36,7 @@ Phase 24 has successfully transformed the live-trading lane from a "best-effort"
 
 ### 7. Safety Gates & Activation
 - **Fail-Fast Startup**: The daemon now panics on startup if `CANARY_LIVE_MODE_ENABLED=true` but `DRY_RUN_ONLY=true`, preventing ambiguous "half-live" states.
-- **Policy Enforcement**: Preserved all Phase 23 limits (0.03 ETH trade size, 1 concurrent trade, 3-revert halt, 0.039 ETH loss cap).
+- **Policy Enforcement**: Preserved all Phase 23 limits (0.03 ETH trade size, 1 concurrent trade, 3-revert halt, 0.01 ETH loss cap).
 
 ## Files Changed
 

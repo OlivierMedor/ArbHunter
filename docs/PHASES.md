@@ -60,7 +60,7 @@ This document details the progressive implementation phases for ArbHunter and de
 ## Phase 24: Tenderly & Canary Integration (Current Milestone)
 **Focus**: Risk management, durable transaction persistence, and preflight simulation.
 **Definition of Done**:
-- **Canary System**: `arb_canary` crate implemented with cumulative loss cap enforcement (0.039 ETH).
+- **Canary System**: `arb_canary` crate implemented with cumulative loss cap enforcement (0.01 ETH).
 - **Persistence**: "Persist-before-broadcast" durability implemented for pending transactions.
 - **Simulation**: Mandatory Tenderly API integration for live-mode preflight checks.
 - **Reconciliation**: Startup logic for resolving stale transactions via receipts or sender nonces.

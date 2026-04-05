@@ -69,7 +69,7 @@ pub struct Config {
     pub canary_max_consecutive_reverts: u32,
     /// Attempt count at which a review-threshold warning is emitted. Default: 30.
     pub canary_review_threshold_attempts: u32,
-    /// Cumulative realized loss cap in Wei. Default: 39_000_000_000_000_000 (0.039 ETH).
+    /// Cumulative realized loss cap in Wei. Default: 10_000_000_000_000_000 (0.01 ETH).
     /// Inert when live_mode_enabled = false (sim/shadow mode).
     pub canary_loss_cap_wei: u128,
     /// Whether loss caps and active halting are enforced for live trading. Default: false.
@@ -243,9 +243,9 @@ impl Config {
                 .parse()
                 .unwrap_or(30),
             canary_loss_cap_wei: env::var("CANARY_LOSS_CAP_WEI")
-                .unwrap_or_else(|_| "39000000000000000".to_string())
+                .unwrap_or_else(|_| "10000000000000000".to_string())
                 .parse()
-                .unwrap_or(39_000_000_000_000_000),
+                .unwrap_or(10_000_000_000_000_000),
             canary_live_mode_enabled: env::var("CANARY_LIVE_MODE_ENABLED")
                 .map(|v| v.to_lowercase() == "true" || v == "1")
                 .unwrap_or(false),
