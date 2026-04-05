@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::io::Write;
-use tokio::time::{sleep, Duration};
-use tracing::{info, warn, error as tracing_error};
+use tokio::time;
+use tracing::info;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use arb_config::Config;
@@ -14,7 +14,7 @@ use alloy_primitives::{U256 as AlloyU256, U128 as AlloyU128};
 use arb_types::{
     EventStamp, IngestEvent, PoolId, PoolKind, PoolUpdate, TokenAddress, QuoteSizeBucket,
     HistoricalReplayResult, HistoricalReplaySummary, PendingLogEvent, RoutePath, CLSnapshot, ReserveSnapshot, RouteLeg,
-    CandidateOpportunity
+    CandidateOpportunity, RouteFamily
 };
 use ethers::prelude::*;
 use warp::Filter;
@@ -241,9 +241,9 @@ async fn main() -> anyhow::Result<()> {
             }
 
             let (snapshots, pool_map) = {
-                let s = state_engine.get_all_pools_map().await;
-                let v: Vec<_> = s.values().cloned().collect();
-                (v, s)
+                let s = state_engine.get_all_pools().await;
+                let map: HashMap<_, _> = s.iter().cloned().map(|p| (p.pool_id.clone(), p)).collect();
+                (s, map)
             };
             if snapshots.len() > last_pool_count {
                 cached_graph = RouteGraph::new();
@@ -261,7 +261,7 @@ async fn main() -> anyhow::Result<()> {
             let mut block_unique_candidates = HashSet::new();
             for cand in candidates {
                 let route_id = get_route_id(&cand.path);
-                let family = if cand.path.legs.len() > 2 { "multi" } else { "direct" };
+                let family = cand.route_family.as_str(); 
                 let bucket_str = format!("{:?}", cand.bucket);
                 let dedup_key = format!("{}-{}-{}-{}", block_num, family, route_id, bucket_str);
 
@@ -270,7 +270,7 @@ async fn main() -> anyhow::Result<()> {
                     let res = HistoricalReplayResult {
                         case_id: format!("{}-{}", block_num, stats.would_trade),
                         block_number: block_num,
-                        route_family: family.to_string(),
+                        route_family: cand.route_family.clone(),
                         root_asset: root_asset.clone(),
                         amount_in: cand.amount_in,
                         predicted_amount_out: cand.estimated_amount_out,

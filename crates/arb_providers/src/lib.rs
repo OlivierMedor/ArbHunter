@@ -203,6 +203,7 @@ mod tests {
     async fn test_provider_manager_failover() {
         let config = Config {
             quicknode_wss_url: "wss://mock".to_string(),
+            quicknode_http_url: "https://mock".to_string(),
             alchemy_wss_url: Some("wss://mock2".to_string()),
             chain_id: 8453,
             log_level: "info".to_string(),
@@ -233,6 +234,36 @@ mod tests {
             shadow_max_candidates_per_window: 100,
             shadow_write_journal: false,
             shadow_journal_path: "shadow_journal.jsonl".to_string(),
+            // Phase 16
+            enable_historical_shadow_replay: false,
+            historical_replay_lookback_hours: 24,
+            historical_replay_start_block: None,
+            historical_replay_end_block: None,
+            historical_recheck_blocks: 1,
+            historical_replay_output_path: "".to_string(),
+            historical_replay_metrics_port: 0,
+            historical_max_cases_to_verify: 0,
+            // Phase 23
+            canary_route_family_allowlist: "multi".to_string(),
+            canary_route_family_blocklist: "direct".to_string(),
+            canary_max_trade_size_wei: 30_000_000_000_000_000,
+            canary_max_concurrent_trades: 1,
+            canary_max_consecutive_reverts: 3,
+            canary_review_threshold_attempts: 30,
+            canary_loss_cap_wei: 50_000_000_000_000_000,
+            canary_live_mode_enabled: false,
+            canary_persist_signed_raw: false,
+            canary_state_path: "canary_state.json".to_string(),
+            gas_limit_max: 1_000_000,
+            gas_limit_min: 21000,
+            gas_limit_multiplier_bps: 12000,
+            tenderly_api_key: None,
+            tenderly_account_slug: "".to_string(),
+            tenderly_project_slug: "".to_string(),
+            tenderly_enabled: false,
+            tenderly_timeout_ms: 10000,
+            receipt_poll_interval_ms: 1000,
+            receipt_timeout_ms: 60000,
         };
         
         let metrics = Arc::new(MetricsRegistry::new());

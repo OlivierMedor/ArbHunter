@@ -1,12 +1,53 @@
 {
-  "verdict": "NOT_READY_FOR_CANARIES",
-  "reasons": [
-    "Insufficient high-value stratified evidence (0.03-0.05 ETH)",
-    "Realized/Predicted ratio variability not yet bounded for standalone"
+  "phase": "Phase 24",
+  "verdict": "CONTROLLED_ACTIVATION_READY",
+  "posture": "LIVE_CAPABLE_DEFAULT_OFF",
+  "policy_justification": "Phase 24 validation is complete on localized forks and Tenderly simulations. The architecture implements durable transaction persistence (persist-before-broadcast), startup reconciliation (receipt/nonce checks), and strict receipt-based attribution. The system is live-capable but remains default-off, requiring explicit operator activation for production mainnet deployment and a final live-fire smoke test.",
+  "go_criteria_met": {
+    "sample_count_above_threshold_30": true,
+    "pass_rate_above_0.80": true,
+    "median_realized_ratio_above_0.90": true,
+    "p10_expected_net_positive_base": true,
+    "revert_rate_below_0.20": true,
+    "route_family_evidence_aligned": true,
+    "durable_persistence_hardened": true,
+    "startup_reconciliation_implemented": true,
+    "strict_event_attribution_implemented": true
+  },
+  "canary_parameters": {
+    "max_trade_size_wei": 30000000000000000,
+    "max_trade_size_eth": 0.03,
+    "max_concurrent_trades": 1,
+    "min_predicted_profit_wei": 1000000000000000,
+    "min_predicted_profit_eth": 0.001,
+    "stop_on_consecutive_reverts": 3,
+    "review_threshold_attempts": 30,
+    "cumulative_loss_cap_wei": 39000000000000000,
+    "cumulative_loss_cap_eth": 0.039
+  },
+  "route_family_allowlist": [
+    "multi"
   ],
-  "thresholds": {
-    "min_size_eth": 0.01,
-    "max_revert_rate": 0.15,
-    "min_tradable_volume": 5000
+  "route_family_blocklist": [
+    "direct",
+    "unknown"
+  ],
+  "constraints": [
+    "POSTURE: LIVE_CAPABLE but DEFAULT_OFF",
+    "Live mode (canary_live_mode_enabled) requires ENABLE_BROADCAST=true AND DRY_RUN_ONLY=false",
+    "Durable persistence records PendingLiveTx to canary_state.json BEFORE broadcast",
+    "Startup reconciliation resolves stale transactions via receipt, tx-by-hash, or sender-nonce checks",
+    "Strict attribution requires ExecutionSuccess event; HALTS on missing logs",
+    "Captures real Base L1 data/security fees from on-chain receipts",
+    "Tenderly simulation is mandatory for live-mode preflight"
+  ],
+  "history": {
+    "Phase 23": {
+      "posture": "SIMULATION_SHADOW_ONLY",
+      "status": "SUPERSEDED"
+    },
+    "Phase 22": {
+      "superseded_volume_cap_eth": 0.12
+    }
   }
 }

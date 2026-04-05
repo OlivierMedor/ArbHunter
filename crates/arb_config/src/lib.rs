@@ -1,5 +1,6 @@
 use dotenvy::dotenv;
 use std::env;
+use tracing;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -54,6 +55,53 @@ pub struct Config {
     pub historical_replay_output_path: String,
     pub historical_replay_metrics_port: u16,
     pub historical_max_cases_to_verify: u32,
+
+    // Phase 23: Canary Policy Enforcement
+    /// Comma-separated route families allowed through the canary gate. Default: "multi".
+    pub canary_route_family_allowlist: String,
+    /// Comma-separated route families blocked by the canary gate. Default: "direct".
+    pub canary_route_family_blocklist: String,
+    /// Max amount_in per canary trade in Wei. Default: 30_000_000_000_000_000 (0.03 ETH).
+    pub canary_max_trade_size_wei: u128,
+    /// Max simultaneous in-flight canary trades. Default: 1.
+    pub canary_max_concurrent_trades: u32,
+    /// Revert-streak threshold before gate halts. Default: 3.
+    pub canary_max_consecutive_reverts: u32,
+    /// Attempt count at which a review-threshold warning is emitted. Default: 30.
+    pub canary_review_threshold_attempts: u32,
+    /// Cumulative realized loss cap in Wei. Default: 39_000_000_000_000_000 (0.039 ETH).
+    /// Inert when live_mode_enabled = false (sim/shadow mode).
+    pub canary_loss_cap_wei: u128,
+    /// Whether loss caps and active halting are enforced for live trading. Default: false.
+    pub canary_live_mode_enabled: bool,
+
+    // Phase 23: Tenderly Simulation Scaffold
+    /// Optional Tenderly API key. When absent, Tenderly sim falls back to local-only.
+    pub tenderly_api_key: Option<String>,
+    /// Tenderly account slug (e.g. "my-org"). Required when tenderly_enabled = true.
+    pub tenderly_account_slug: String,
+    /// Tenderly project slug. Required when tenderly_enabled = true.
+    pub tenderly_project_slug: String,
+    /// Enable Tenderly pre-send simulation. Default: false (no credentials, no-op).
+    pub tenderly_enabled: bool,
+
+    // Phase 24: Live-Canary Hardening
+    /// Path to the durable state file. Default: "canary_state.json".
+    pub canary_state_path: String,
+    /// Whether to persist signed raw bytes for debugging. Default: false.
+    pub canary_persist_signed_raw: bool,
+    /// Timeout for Tenderly simulations in milliseconds. Default: 10000.
+    pub tenderly_timeout_ms: u64,
+    /// Multiplier for preflight gas estimate in basis points. Default: 12000 (1.2x).
+    pub gas_limit_multiplier_bps: u32,
+    /// Minimum allowed gas limit. Default: 21000.
+    pub gas_limit_min: u64,
+    /// Maximum allowed gas limit. Default: 5000000.
+    pub gas_limit_max: u64,
+    /// Interval in milliseconds between receipt polls. Default: 1000.
+    pub receipt_poll_interval_ms: u64,
+    /// Timeout in milliseconds for receipt waiting. Default: 60000.
+    pub receipt_timeout_ms: u64,
 }
 
 impl Config {
@@ -172,13 +220,130 @@ impl Config {
                 .unwrap_or_else(|_| "5".to_string())
                 .parse()
                 .unwrap_or(5),
+
+            // Phase 23: Canary Policy
+            canary_route_family_allowlist: env::var("CANARY_ROUTE_FAMILY_ALLOWLIST")
+                .unwrap_or_else(|_| "multi".to_string()),
+            canary_route_family_blocklist: env::var("CANARY_ROUTE_FAMILY_BLOCKLIST")
+                .unwrap_or_else(|_| "direct".to_string()),
+            canary_max_trade_size_wei: env::var("CANARY_MAX_TRADE_SIZE_WEI")
+                .unwrap_or_else(|_| "30000000000000000".to_string())
+                .parse()
+                .unwrap_or(30_000_000_000_000_000),
+            canary_max_concurrent_trades: env::var("CANARY_MAX_CONCURRENT_TRADES")
+                .unwrap_or_else(|_| "1".to_string())
+                .parse()
+                .unwrap_or(1),
+            canary_max_consecutive_reverts: env::var("CANARY_MAX_CONSECUTIVE_REVERTS")
+                .unwrap_or_else(|_| "3".to_string())
+                .parse()
+                .unwrap_or(3),
+            canary_review_threshold_attempts: env::var("CANARY_REVIEW_THRESHOLD_ATTEMPTS")
+                .unwrap_or_else(|_| "30".to_string())
+                .parse()
+                .unwrap_or(30),
+            canary_loss_cap_wei: env::var("CANARY_LOSS_CAP_WEI")
+                .unwrap_or_else(|_| "39000000000000000".to_string())
+                .parse()
+                .unwrap_or(39_000_000_000_000_000),
+            canary_live_mode_enabled: env::var("CANARY_LIVE_MODE_ENABLED")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
+
+            // Phase 23: Tenderly Scaffold
+            tenderly_api_key: env::var("TENDERLY_API_KEY").ok(),
+            tenderly_account_slug: env::var("TENDERLY_ACCOUNT_SLUG")
+                .unwrap_or_else(|_| "".to_string()),
+            tenderly_project_slug: env::var("TENDERLY_PROJECT_SLUG")
+                .unwrap_or_else(|_| "".to_string()),
+            tenderly_enabled: env::var("TENDERLY_ENABLED")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
+
+            // Phase 24
+            canary_state_path: env::var("CANARY_STATE_PATH")
+                .unwrap_or_else(|_| "canary_state.json".to_string()),
+            canary_persist_signed_raw: env::var("CANARY_PERSIST_SIGNED_RAW")
+                .map(|v| v.to_lowercase() == "true" || v == "1")
+                .unwrap_or(false),
+            tenderly_timeout_ms: env::var("TENDERLY_TIMEOUT_MS")
+                .unwrap_or_else(|_| "10000".to_string())
+                .parse()
+                .unwrap_or(10000),
+            gas_limit_multiplier_bps: env::var("GAS_LIMIT_MULTIPLIER_BPS")
+                .unwrap_or_else(|_| "12000".to_string())
+                .parse()
+                .unwrap_or(12000),
+            gas_limit_min: env::var("GAS_LIMIT_MIN")
+                .unwrap_or_else(|_| "21000".to_string())
+                .parse()
+                .unwrap_or(21000),
+            gas_limit_max: env::var("GAS_LIMIT_MAX")
+                .unwrap_or_else(|_| "5000000".to_string())
+                .parse()
+                .unwrap_or(5000000),
+            receipt_poll_interval_ms: env::var("RECEIPT_POLL_INTERVAL_MS")
+                .unwrap_or_else(|_| "1000".to_string())
+                .parse()
+                .unwrap_or(1000),
+            receipt_timeout_ms: env::var("RECEIPT_TIMEOUT_MS")
+                .unwrap_or_else(|_| "60000".to_string())
+                .parse()
+                .unwrap_or(60000),
         };
+
+        // Safety Gate: Ambiguous States
+        if parsed_config.canary_live_mode_enabled && parsed_config.dry_run_only {
+            panic!("FATAL SECURITY GATE: CANARY_LIVE_MODE_ENABLED=true while DRY_RUN_ONLY=true. Ambiguous half-live state is prohibited.");
+        }
 
         if parsed_config.enable_shadow_mode && parsed_config.enable_broadcast {
             panic!("FATAL SECURITY GATE: ENABLE_SHADOW_MODE and ENABLE_BROADCAST cannot both be true. Shadow mode must never have live broadcast capability.");
         }
 
+        parsed_config.validate_live_canary_config();
+
         parsed_config
+    }
+
+    /// Validates that all required configuration is present if live-canary mode is enabled.
+    /// Panics if requirements are not met to ensure a fail-fast startup.
+    pub fn validate_live_canary_config(&self) {
+        if !self.canary_live_mode_enabled {
+            return;
+        }
+
+        tracing::info!("Validating live-canary configuration...");
+
+        if self.signer_private_key.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires SIGNER_PRIVATE_KEY.");
+        }
+        if self.executor_contract_address.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires EXECUTOR_CONTRACT_ADDRESS.");
+        }
+        if !self.tenderly_enabled {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_ENABLED=true as a safety gate.");
+        }
+        if self.tenderly_api_key.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_API_KEY.");
+        }
+        if self.rpc_http_url.is_none() {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires RPC_HTTP_URL for preflight/Tenderly.");
+        }
+        if self.dry_run_only {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires DRY_RUN_ONLY=false.");
+        }
+        if !self.enable_broadcast {
+            panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires ENABLE_BROADCAST=true.");
+        }
+        if self.tenderly_account_slug.is_empty() {
+             panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_ACCOUNT_SLUG.");
+        }
+        if self.tenderly_project_slug.is_empty() {
+             panic!("FATAL: CANARY_LIVE_MODE_ENABLED requires TENDERLY_PROJECT_SLUG.");
+        }
+
+        tracing::info!("Live-canary configuration is VALID.");
     }
 }
 

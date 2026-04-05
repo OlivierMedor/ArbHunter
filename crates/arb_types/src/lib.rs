@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use alloy_primitives::{U128, U256};
+use alloy_rpc_types_eth::Log;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderKind {
@@ -200,6 +201,73 @@ pub enum QuoteSizeBucket {
     Custom(u128),
 }
 
+/// Typed route-family classification.
+///
+/// - `Direct`: single-hop or simple two-leg route through a single venue pair.
+/// - `Multi`:  multi-hop route spanning multiple venue pairs or pool types.
+/// - `Unknown`: not yet classified; treated conservatively (blocked by canary policy).
+///
+/// Phase 22 canary policy: `Multi` is allowed, `Direct` is blocked pending more evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum RouteFamily {
+    Direct,
+    Multi,
+    #[default]
+    Unknown,
+}
+
+impl RouteFamily {
+    /// Returns the canonical string label used in telemetry / policy JSON.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RouteFamily::Direct  => "direct",
+            RouteFamily::Multi   => "multi",
+            RouteFamily::Unknown => "unknown",
+        }
+    }
+
+    /// Parse from a string label (case-insensitive).
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "direct" => RouteFamily::Direct,
+            "multi"  => RouteFamily::Multi,
+            _        => RouteFamily::Unknown,
+        }
+    }
+
+    /// Number of legs in a path that qualifies as Multi vs Direct.
+    /// A path with >2 legs is always Multi; exactly 2 legs (round-trip) may be Direct.
+    pub fn classify_by_leg_count(leg_count: usize) -> Self {
+        match leg_count {
+            0 | 1 => RouteFamily::Unknown,
+            2     => RouteFamily::Direct,
+            _     => RouteFamily::Multi,
+        }
+    }
+}
+
+impl std::fmt::Display for RouteFamily {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for RouteFamily {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "direct" => Ok(RouteFamily::Direct),
+            "multi" => Ok(RouteFamily::Multi),
+            "unknown" => Ok(RouteFamily::Unknown),
+            // Legacy mapping for battery generator
+            "concentratedliquidity_cyclic" | "mixed_cyclic" => Ok(RouteFamily::Direct),
+            _ => Ok(RouteFamily::Unknown),
+        }
+    }
+}
+
 /// A promoted candidate for refinement or execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateOpportunity {
@@ -210,6 +278,9 @@ pub struct CandidateOpportunity {
     pub estimated_gross_profit: U256,
     pub estimated_gross_bps: u32,
     pub is_fresh: bool,
+    /// Typed route-family classification. Defaults to `Unknown` for backward compat.
+    #[serde(default)]
+    pub route_family: RouteFamily,
 }
 
 // ============================================================
@@ -357,11 +428,26 @@ pub enum SubmissionFailureReason {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubmissionResult {
     /// Transaction broadcast successfully
-    Success { tx_hash: String },
+    Success {
+        tx_hash: String,
+        gas_used: u128,
+        effective_gas_price: u128,
+        l1_fee_wei: Option<u128>,
+        receipt_logs: Vec<Log>,
+    },
+    /// Transaction confirmed as reverted
+    Reverted {
+        tx_hash: String,
+        gas_used: u128,
+        effective_gas_price: u128,
+        l1_fee_wei: Option<u128>,
+    },
     /// Dry-run successful (no broadcast)
     DryRunSuccess { tx_hash: String, signed_raw: Vec<u8> },
     /// Submission failed with a specific reason
     Failed(SubmissionFailureReason),
+    /// Receipt wait timed out, transaction likely still in mempool
+    Timeout { tx_hash: String },
     /// Submission skipped (e.g. gas too high)
     Skipped(String),
 }
@@ -397,6 +483,20 @@ pub enum SubmissionMode {
     SimulateOnly,
 }
 
+/// Status tracking for a pending live transaction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PendingTxStatus {
+    /// Signed but not yet attempted to broadcast
+    Signed,
+    /// Successfully submitted to the network
+    Submitted,
+    /// Broadcast attempted but returned a network error; status unconfirmed
+    SendFailedUnconfirmed,
+    /// Currently awaiting confirmation receipt
+    AwaitingReceipt,
+}
+
 // ============================================================
 // Phase 10: Preflight & Broadcast Types
 // ============================================================
@@ -413,6 +513,7 @@ pub struct PreflightResult {
     pub overall_success: bool,
     pub eth_call_status: PreflightStatus,
     pub gas_estimate_status: PreflightStatus,
+    pub tenderly_status: PreflightStatus,
     pub gas_estimate: Option<u64>,
 }
 
@@ -487,7 +588,7 @@ pub struct HistoricalCase {
     pub fork_block_number: u64,
     pub source_tx_hash: Option<String>,
     pub root_asset: TokenAddress,
-    pub route_family: String,
+    pub route_family: RouteFamily,
     pub pool_ids: Vec<String>,
     pub pool_kinds: Vec<PoolKind>,
     pub path_tokens: Vec<TokenAddress>,
@@ -537,7 +638,7 @@ pub struct ShadowRecheckResult {
 pub struct ShadowJournalEntry {
     pub timestamp_ms: u64,
     pub candidate_id: String,
-    pub route_family: String,
+    pub route_family: RouteFamily,
     pub root_asset: TokenAddress,
     pub amount_in: U256,
     pub predicted_amount_out: U256,
@@ -573,11 +674,12 @@ pub struct HistoricalRecheckResult {
 pub struct HistoricalReplayResult {
     pub case_id: String,
     pub block_number: u64,
-    pub route_family: String,
+    pub route_family: RouteFamily,
     pub root_asset: TokenAddress,
     pub amount_in: U256,
     pub predicted_amount_out: U256,
     pub predicted_profit: U256,
+    pub bucket: String,
     pub would_trade: bool,
     #[serde(alias = "route")]
     pub path: RoutePath,

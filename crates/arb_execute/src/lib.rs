@@ -4,6 +4,7 @@ pub mod nonce;
 pub mod nonce_provider;
 pub mod preflight;
 pub mod builder;
+pub mod tenderly;
 pub mod submitter;
 
 pub use planner::ExecutionPlanner;
@@ -12,5 +13,5 @@ pub use nonce::NonceManager;
 pub use nonce_provider::NonceProvider;
 pub use preflight::{PreflightChecker};
 pub use arb_types::PreflightStatus;
-pub use builder::TxBuilder;
+pub use builder::{TxBuilder, ExecutionSuccess};
 pub use submitter::Submitter;

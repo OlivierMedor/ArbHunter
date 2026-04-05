@@ -42,9 +42,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         SubmissionMode::Broadcast,
         metrics.clone(),
         Some(rpc_url.clone()),
-        false, 
-        false, 
-        false
+        false, // require_preflight
+        false, // require_eth_call
+        false, // require_gas_estimate
+        None,  // tenderly_config
+        false, // canary_live_mode_enabled
+        10000, // gas_limit_multiplier_bps
+        21000, // gas_limit_min
+        5_000_000, // gas_limit_max
+        1000,  // receipt_poll_interval_ms
+        60000, // receipt_timeout_ms
     );
 
     let mut attributions = Vec::new();
@@ -146,7 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let simulator = LocalSimulator::new(state_engine);
         let candidate = CandidateOpportunity {
             path: RoutePath { legs: path_legs, root_asset: TokenAddress(case.root_asset.0.to_lowercase()) },
-            bucket: QuoteSizeBucket::Small, amount_in: case.amount_in, estimated_amount_out: U256::ZERO, estimated_gross_profit: U256::ZERO, estimated_gross_bps: 0, is_fresh: true,
+            bucket: QuoteSizeBucket::Small, amount_in: case.amount_in, estimated_amount_out: U256::ZERO, estimated_gross_profit: U256::ZERO, estimated_gross_bps: 0, is_fresh: true, route_family: arb_types::RouteFamily::Unknown,
         };
 
         let sim_result = simulator.validate_candidate(candidate).await;
@@ -201,7 +208,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let result = submitter.submit(built_tx.clone()).await;
         let _ : serde_json::Value = provider.raw_request("anvil_mine".into(), (1,)).await.unwrap_or_default();
 
-        if let SubmissionResult::Success { tx_hash } = result {
+        if let SubmissionResult::Success { tx_hash, .. } = result {
             let mut retries = 0;
             loop {
                 if let Some(r) = provider.get_transaction_receipt(B256::from_str(&tx_hash)?).await? {

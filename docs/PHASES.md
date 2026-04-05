@@ -56,3 +56,13 @@ This document details the progressive implementation phases for ArbHunter and de
 - Live Base execution begins.
 - Docker-compose setups migrated/synced with remote infrastructure.
 - Profitability metrics reliably logged to Postgres.
+
+## Phase 24: Tenderly & Canary Integration (Current Milestone)
+**Focus**: Risk management, durable transaction persistence, and preflight simulation.
+**Definition of Done**:
+- **Canary System**: `arb_canary` crate implemented with cumulative loss cap enforcement (0.039 ETH).
+- **Persistence**: "Persist-before-broadcast" durability implemented for pending transactions.
+- **Simulation**: Mandatory Tenderly API integration for live-mode preflight checks.
+- **Reconciliation**: Startup logic for resolving stale transactions via receipts or sender nonces.
+- **Security**: Repository hardened against secret leaks; runtime artifacts (.json state) explicitly ignored.
+- **Validation**: End-to-end pipeline verified on localized Base mainnet forks.

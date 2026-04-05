@@ -6,15 +6,19 @@ import {ArbExecutor, ExecutionPlan, ExecutionPath, ExpectedOutcome, SlippageGuar
 
 // ... (existing MockToken and FakePool unchanged)
 contract MockToken {
+    mapping(address => uint256) public balances;
     function totalSupply() external view returns (uint256) { return 0; }
     function balanceOf(address account) external view returns (uint256) { return balances[account]; }
-    function transfer(address to, uint256 amount) external returns (bool) { return true; }
+    function transfer(address to, uint256 amount) external returns (bool) {
+        balances[to] += amount;
+        return true;
+    }
     function allowance(address owner, address spender) external view returns (uint256) { return 0; }
     function approve(address spender, uint256 amount) external returns (bool) { return true; }
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) { return true; }
-    
-    // Test helper to mock balances
-    mapping(address => uint256) public balances;
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        balances[to] += amount;
+        return true;
+    }
     function setBalance(address account, uint256 amount) external {
         balances[account] = amount;
     }
@@ -166,5 +170,45 @@ contract ArbExecutorTest is Test {
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(ArbExecutor.InsufficientRepayment.selector, 1001, 1000));
         executor.executeAtomicPlan(plan);
+    }
+
+    // Phase 24 Tests
+    function test_TransferOwnership() public {
+        vm.prank(owner);
+        executor.transferOwnership(nonOwner);
+        assertEq(executor.owner(), nonOwner);
+    }
+
+    function test_TransferOwnership_Unauthorized_Revert() public {
+        vm.prank(nonOwner);
+        vm.expectRevert(ArbExecutor.Unauthorized.selector);
+        executor.transferOwnership(nonOwner);
+    }
+
+    function test_WithdrawERC20() public {
+        token.setBalance(address(executor), 500);
+        vm.prank(owner);
+        executor.withdrawERC20(address(token), 500);
+        assertEq(token.balanceOf(owner), 500);
+    }
+
+    function test_WithdrawNative() public {
+        vm.deal(address(executor), 1 ether);
+        vm.prank(owner);
+        executor.withdrawNative(1 ether);
+        assertEq(owner.balance, 1 ether);
+    }
+
+    function test_uniswapV3SwapCallback_Unauthorized_Revert() public {
+        vm.prank(nonOwner);
+        vm.expectRevert(ArbExecutor.CallbackUnauthorized.selector);
+        executor.uniswapV3SwapCallback(100, 0, abi.encode(address(token)));
+    }
+
+    function test_V3_Success_With_Callback_Security() public {
+        // This implicitly tests that the callback works when called by the active pool
+        ExecutionPlan memory plan = buildMockPlan();
+        vm.prank(owner);
+        executor.executePlan(plan);
     }
 }

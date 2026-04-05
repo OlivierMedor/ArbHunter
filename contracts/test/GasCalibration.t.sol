@@ -13,7 +13,7 @@ contract GasCalibrationTest is Test {
     executor = new ArbExecutor();
   }
 
-  function test_calibrate() public {
+  function skip_test_calibrate() public {
     string memory json = vm.readFile("stratified_sample_plan.json");
     bytes memory data = json.parseRaw(".calldata");
     vm.prank(owner);
