@@ -1,6 +1,6 @@
 .env
-.env.local
-.env.fork-smoke
+.env.*
+!.env.example
 target/
 *.txt
 build_errors*.txt
@@ -21,3 +21,7 @@ verify_hash.rs
 historical_replay_full_day_candidates.jsonl
 canary_state.json
 canary_state.json.tmp
+bin/arb_daemon/canary_state.json
+bin/arb_daemon/canary_state.json.tmp
+**/canary_state.json
+**/canary_state.json.tmp

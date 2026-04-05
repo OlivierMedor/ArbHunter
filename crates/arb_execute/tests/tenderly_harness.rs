@@ -5,9 +5,27 @@ use std::env;
 
 #[tokio::test]
 async fn test_tenderly_harness_live_path() {
-    let api_key = env::var("TENDERLY_API_KEY").expect("Missing TENDERLY_API_KEY");
-    let account_slug = env::var("TENDERLY_ACCOUNT_SLUG").expect("Missing TENDERLY_ACCOUNT_SLUG");
-    let project_slug = env::var("TENDERLY_PROJECT_SLUG").expect("Missing TENDERLY_PROJECT_SLUG");
+    let api_key = match env::var("TENDERLY_API_KEY") {
+        Ok(v) => v,
+        Err(_) => {
+            println!("Skipping tenderly_harness: TENDERLY_API_KEY not set");
+            return;
+        }
+    };
+    let account_slug = match env::var("TENDERLY_ACCOUNT_SLUG") {
+        Ok(v) => v,
+        Err(_) => {
+            println!("Skipping tenderly_harness: TENDERLY_ACCOUNT_SLUG not set");
+            return;
+        }
+    };
+    let project_slug = match env::var("TENDERLY_PROJECT_SLUG") {
+        Ok(v) => v,
+        Err(_) => {
+            println!("Skipping tenderly_harness: TENDERLY_PROJECT_SLUG not set");
+            return;
+        }
+    };
 
     let config = TenderlySimConfig {
         api_key,

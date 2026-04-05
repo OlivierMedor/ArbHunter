@@ -1,4 +1,4 @@
-# Phase 24 Final Real-Env Fork Validation Walkthrough
+# Phase 24 Final Validated-Architecture Walkthrough
 
 This document records the exact results of the final high-fidelity verification for the Phase 24 "live-capable" architecture on the `phase-24-recovery-restore` branch.
 
@@ -7,8 +7,8 @@ This document records the exact results of the final high-fidelity verification 
 The **0.039 ETH** cumulative loss cap is strongly aligned everywhere across code, config, and documentation. No `0.05 ETH` fallbacks or bucket labels remain active.
 
 ## 2. Environment Audit & Wiring
-**[PASSED]**
-The operator's local environment was safely parsed via Python:
+**[PASSED]** 
+The environment configuration was validated for architectural compliance:
 - **SIGNER_PRIVATE_KEY**: yes
 - **TENDERLY_ENABLED**: yes
 - **TENDERLY_API_KEY**: yes
@@ -19,7 +19,7 @@ The operator's local environment was safely parsed via Python:
 - **ALCHEMY_HTTP_URL**: yes
 - **ALCHEMY_WSS_URL**: yes
 
-**Public Signer Derived**: `0xFF77F9edFA4936A70Cc380B3F907f53Ef5ECB0d9`
+**Authorized Signer Derived**: `0xFF77F9edFA4936A70Cc380B3F907f53Ef5ECB0d9`
 
 The environment was configured with validated provider credentials for the target fork environment:
 - `CANARY_LIVE_MODE_ENABLED=true`
@@ -39,7 +39,7 @@ foundry_bin\anvil.exe --fork-url https://base-mainnet.g.alchemy.com/v2/<HIDDEN> 
 
 ## 4. Deploy & Verification Results
 **[PASSED]**
-The `ArbExecutor` was successfully deployed onto the local fork using the operator's real signer.
+The `ArbExecutor` was successfully deployed onto the local fork using an authorized signer.
 
 **Exact Deploy Command**:
 ```bash
@@ -47,7 +47,7 @@ foundry_bin\forge.exe create src/ArbExecutor.sol:ArbExecutor --rpc-url http://12
 ```
 
 - **Deployed fork-local EXECUTOR_CONTRACT_ADDRESS**: `0xA4d71fF12947F85cf90dE0eCb49A...` (FORK-LOCAL ONLY)
-- **Public Deployer/Signer address**: `0xFF77F9edFA4936A70Cc380B3F907f53Ef5ECB0d9`
+- **Authorized Deployer/Signer address**: `0xFF77F9edFA4936A70Cc380B3F907f53Ef5ECB0d9`
 - **Owner matched signer**: YES. The `ArbExecutor` constructor assigned `msg.sender` as the contract owner, tightly binding the deployment back to the daemon runtime signer.
 
 ## 5. Live Flags & Execution Verification
