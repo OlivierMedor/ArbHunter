@@ -17,8 +17,9 @@ The execution sequence follows a strict pipeline layout to minimize latency:
 2. **`arb_state`**: Applies ingested events to an in-memory representation of network state (reserves, pools).
 3. **`arb_filter`**: Discards non-actionable state changes rapidly.
 4. **`arb_route`**: Calculates optimal cyclic paths and sizing for arbitrage.
-5. **`arb_sim`**: Evaluates execution success locally or against Tenderly before committing gas. This starts as an off-path validation or shadow-mode component, and is not a mandatory blocking step in the earliest hot path.
-6. **`arb_execute`**: Signs and broadcasts the final transaction payload to RPC nodes.
+5. **`arb_sim`**: Evaluates execution success locally and against Tenderly (preflight) before committing gas. This is a mandatory blocking step in the live-capable pipeline to enforce simulated profitability and risk constraints.
+6. **`arb_canary`**: Monitoring and risk-assessment component that enforces cumulative loss caps (0.039 ETH) and manages transaction persistence durability.
+7. **`arb_execute`**: Signs and broadcasts the final transaction payload to RPC nodes after all simulation and canary exit conditions are met.
 
 ## Supporting Crates
 - `arb_types`: System-wide primitives.

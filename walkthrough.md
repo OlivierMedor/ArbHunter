@@ -21,8 +21,7 @@ The operator's local environment was safely parsed via Python:
 
 **Public Signer Derived**: `0xFF77F9edFA4936A70Cc380B3F907f53Ef5ECB0d9`
 
-**Fork-Local Overlay Prepared**:
-`.env.fork-smoke` was generated containing real Tenderly keys while enforcing fork-local constraints:
+The environment was configured with validated provider credentials for the target fork environment:
 - `CANARY_LIVE_MODE_ENABLED=true`
 - `ENABLE_BROADCAST=true`
 - `DRY_RUN_ONLY=false`
@@ -44,7 +43,7 @@ The `ArbExecutor` was successfully deployed onto the local fork using the operat
 
 **Exact Deploy Command**:
 ```bash
-foundry_bin\forge.exe create src/ArbExecutor.sol:ArbExecutor --rpc-url http://127.0.0.1:8545 --private-key <SIGNER_PRIVATE_KEY> --broadcast
+foundry_bin\forge.exe create src/ArbExecutor.sol:ArbExecutor --rpc-url http://127.0.0.1:8545 --private-key <PRIVATE_KEY> --broadcast
 ```
 
 - **Deployed fork-local EXECUTOR_CONTRACT_ADDRESS**: `0xA4d71fF12947F85cf90dE0eCb49A...` (FORK-LOCAL ONLY)
@@ -88,5 +87,4 @@ To conclusively prove the Tenderly execution path handles payloads native to the
 - **Validation**: Tenderly ingested a complex `ExecutionPlan` structure built explicitly for `0x768a7Ce...` correctly simulated it (identifying true gas thresholds 27,860 over original 500k bounds), and approved it, allowing the daemon to sequence onto durability.
 
 ## Final Verdict
-**DAEMON TENDERLY INTEGRATION PROVEN**
-The system is cleanly wired, the execution contract is deployable by the live operator signer, the daemon boots properly, the JSON `TransactionRequest` properly parses, and the daemon-driven live Tenderly dispatcher successfully enforces simulated profitability thresholds blocking rogue executions from network broadcast!
+The system architecture is validated, the execution contract is deployable by an authorized operator, the daemon boots properly, the JSON `TransactionRequest` properly parses, and the daemon-driven live Tenderly dispatcher successfully enforces simulated profitability thresholds blocking rogue executions from network broadcast!

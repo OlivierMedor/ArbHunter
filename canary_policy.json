@@ -1,8 +1,8 @@
 {
   "phase": "Phase 24",
-  "verdict": "LIVE_READY",
+  "verdict": "CONTROLLED_ACTIVATION_READY",
   "posture": "LIVE_CAPABLE_DEFAULT_OFF",
-  "policy_justification": "Phase 24 implements durable transaction persistence (persist-before-broadcast), startup reconciliation (receipt/nonce checks), and strict receipt-based attribution using the ExecutionSuccess event. The system is live-capable but remains default-off, requiring explicit operator activation of ENABLE_BROADCAST and DRY_RUN_ONLY=false. Safety gates prevent ambiguous half-live states.",
+  "policy_justification": "Phase 24 validation is complete on localized forks and Tenderly simulations. The architecture implements durable transaction persistence (persist-before-broadcast), startup reconciliation (receipt/nonce checks), and strict receipt-based attribution. The system is live-capable but remains default-off, requiring explicit operator activation for production mainnet deployment and a final live-fire smoke test.",
   "go_criteria_met": {
     "sample_count_above_threshold_30": true,
     "pass_rate_above_0.80": true,
