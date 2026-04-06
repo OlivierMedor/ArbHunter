@@ -11,4 +11,6 @@ arb_config = { path = "../arb_config" }
 arb_metrics = { path = "../arb_metrics" }
 tokio-tungstenite = { version = "0.28.0", features = ["native-tls"] }
 futures-util = "0.3.32"
+tracing = "0.1"
+serde_json = "1.0"
 url = "2.5.8"

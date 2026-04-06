@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{sleep, Duration};
-use futures_util::StreamExt;
+use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::connect_async;
 use url::Url;
 
@@ -79,13 +79,79 @@ impl Provider for BaseProvider {
         self.reconnect_count += 1;
         self.metrics.inc_provider_connected(self.kind.as_str());
 
+        let (mut sink, mut stream) = ws_stream.split();
+
+        // Send subscriptions
+        let new_heads_msg = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_subscribe",
+            "params": ["newHeads"]
+        }).to_string();
+        
+        sink.send(tokio_tungstenite::tungstenite::Message::Text(new_heads_msg.clone().into()))
+            .await
+            .map_err(|e| format!("Failed to send newHeads subscription: {}", e))?;
+        tracing::info!(kind = ?self.kind, msg = %new_heads_msg, "Subscription request sent");
+
+        // Small delay to ensure order and avoid RPC throttle
+        sleep(Duration::from_millis(200)).await;
+
+        // Small delay to ensure order and avoid RPC throttle
+        sleep(Duration::from_millis(200)).await;
+
+        let topics = vec![
+            ("0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1", "Sync", 2),
+            ("0xc42079f94a6350d7e5735f2399b6d8de98a486f7af7d160cfd333044e7c75db1", "Swap", 3),
+            ("0x7612745a114c40bc3a1709c991afbc55848d47155e7104b07fb8d1964f33fd20", "Mint", 4),
+            ("0x0c396cd989a39f4459b53fa87f33f303dc2738e373a92cacfd67e028cd568da9", "Burn", 5),
+        ];
+
+        for (topic, name, id) in topics {
+            let msg = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "eth_subscribe",
+                "params": [
+                    "logs",
+                    {
+                        "topics": [topic]
+                    }
+                ]
+            }).to_string();
+
+            sink.send(tokio_tungstenite::tungstenite::Message::Text(msg.clone().into()))
+                .await
+                .map_err(|e| format!("Failed to send {} subscription: {}", name, e))?;
+            tracing::info!(kind = ?self.kind, topic_name = name, msg = %msg, "Subscription request sent");
+            
+            sleep(Duration::from_millis(200)).await;
+        }
+
         let metrics = self.metrics.clone();
+        let provider_kind = self.kind.clone();
         // Route real connection frames to the ingest pipeline channel
         tokio::spawn(async move {
-            while let Some(msg) = ws_stream.next().await {
-                if let Ok(tokio_tungstenite::tungstenite::Message::Text(text)) = msg {
-                    metrics.inc_provider_frames_forwarded();
-                    let _ = tx.send(text.to_string()).await;
+            let mut frames_received = 0u64;
+            while let Some(msg) = stream.next().await {
+                match msg {
+                    Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
+                        if frames_received < 1000 {
+                            tracing::info!(kind = ?provider_kind, frame = %text, "Frame received from socket");
+                        }
+                        metrics.inc_provider_frames_forwarded();
+                        let _ = tx.send(text.to_string()).await;
+                        frames_received += 1;
+                    }
+                    Ok(tokio_tungstenite::tungstenite::Message::Close(c)) => {
+                        tracing::warn!(kind = ?provider_kind, close = ?c, "Socket closed by remote");
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(kind = ?provider_kind, error = %e, "Socket error in read loop");
+                        break;
+                    }
+                    _ => {}
                 }
             }
         });

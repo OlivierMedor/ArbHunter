@@ -760,6 +760,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -778,8 +779,10 @@ dependencies = [
  "arb_types",
  "async-trait",
  "futures-util",
+ "serde_json",
  "tokio",
  "tokio-tungstenite 0.28.0",
+ "tracing",
  "url",
 ]
 

@@ -28,6 +28,8 @@ impl RouteGraph {
     }
 
     pub fn build_from_snapshots(&mut self, snapshots: Vec<PoolStateSnapshot>) {
+        self.graph.clear();
+        self.token_to_node.clear();
         for pool in snapshots {
             let t0 = match pool.token0.as_ref() { Some(t) => t.clone(), None => continue };
             let t1 = match pool.token1.as_ref() { Some(t) => t.clone(), None => continue };
